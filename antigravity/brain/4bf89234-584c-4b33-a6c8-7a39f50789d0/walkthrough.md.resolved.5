@@ -1,0 +1,22 @@
+# Application Preview & Debugging Walkthrough
+
+I have successfully set up the environment, implemented PWA functionality, fixed SVG errors, resolved accessibility issues, and updated the app logo.
+
+## Changes Made
+- **PWA Setup**:
+    - Installed `@ducanh2912/next-pwa`.
+    - Configured [next.config.ts](file:///c:/Apps/NEETrack/NEETrack/next.config.ts).
+- **Bug Fixes**:
+    - Fixed a malformed SVG path in [page.tsx](file:///c:/Apps/NEETrack/NEETrack/src/app/page.tsx), [login/page.tsx](file:///c:/Apps/NEETrack/NEETrack/src/app/login/page.tsx), and [layout.tsx](file:///c:/Apps/NEETrack/NEETrack/src/app/layout.tsx).
+    - **Accessibility**: Added explicit `aria-describedby` and `aria-labelledby` attributes to Dialog components and `SheetTitle`/`SheetDescription` to the navigation sheet.
+- **UI Updates**:
+    - **Logo**: Updated the app logo to the new design provided. Replaced [public/icon.png](file:///c:/Apps/NEETrack/NEETrack/public/icon.png) and updated the `Logo` component to render it.
+
+## Verification Results
+### Manual Verification
+- The server is running at [http://localhost:3000](http://localhost:3000).
+- **To verify the fixes:**
+    1. Reload the page.
+    2. The new logo should be visible in the top navigation.
+    3. The PWA icon (when installing) should also match the new logo.
+    4. The console should be clean of errors.

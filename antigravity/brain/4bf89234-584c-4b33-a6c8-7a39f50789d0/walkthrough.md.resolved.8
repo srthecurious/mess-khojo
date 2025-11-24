@@ -1,0 +1,33 @@
+# Application Preview & Debugging Walkthrough
+
+I have successfully set up the environment, implemented PWA functionality, fixed SVG errors, resolved accessibility issues, updated the app logo, optimized image performance, and implemented a premium Glassmorphism & Neon design for both the dashboard and the Pomodoro timer.
+
+## Changes Made
+- **Design Overhaul (Glassmorphism & Neon)**:
+    - **Global Theme**: Implemented a deep purple/black theme with neon purple and green accents in [globals.css](file:///c:/Apps/NEETrack/NEETrack/src/app/globals.css).
+    - **Background**: Created a custom SVG background with vibrant neon glows and a subtle noise texture.
+    - **Glass Cards**: Updated the `Card` component to use `backdrop-blur-md` and translucent backgrounds for a frosted glass effect.
+    - **UI Polish**: Added a `glass` variant to the [Button](file:///c:/Apps/NEETrack/NEETrack/src/components/pomodoro-timer.tsx#50-73) component.
+- **Pomodoro Timer Update**:
+    - **Glass Container**: The timer now sits in a sleek, frosted glass container with neon borders.
+    - **Neon Gradient**: The progress ring uses a vibrant purple-to-green neon gradient.
+    - **Glowing Controls**: The play button and mode selectors have been updated with neon glow effects.
+    - **Typography**: The timer text now has a subtle neon drop shadow.
+- **PWA Setup**:
+    - Installed `@ducanh2912/next-pwa`.
+    - Configured [next.config.ts](file:///c:/Apps/NEETrack/NEETrack/next.config.ts).
+- **Bug Fixes**:
+    - Fixed a malformed SVG path in [page.tsx](file:///c:/Apps/NEETrack/NEETrack/src/app/page.tsx), [login/page.tsx](file:///c:/Apps/NEETrack/NEETrack/src/app/login/page.tsx), and [layout.tsx](file:///c:/Apps/NEETrack/NEETrack/src/app/layout.tsx).
+    - **Accessibility**: Added explicit `aria-describedby` and `aria-labelledby` attributes to Dialog components and `SheetTitle`/`SheetDescription` to the navigation sheet.
+    - **Performance**: Added `sizes` prop to the `Logo` component.
+- **UI Updates**:
+    - **Logo**: Updated the app logo to the new design provided.
+
+## Verification Results
+### Manual Verification
+- The server is running at [http://localhost:3000](http://localhost:3000).
+- **To verify the new design:**
+    1. Reload the page.
+    2. You should see a deep purple/black background with neon glows.
+    3. The dashboard cards should have a frosted glass look.
+    4. The Pomodoro timer should feature a glowing neon ring and glass controls.

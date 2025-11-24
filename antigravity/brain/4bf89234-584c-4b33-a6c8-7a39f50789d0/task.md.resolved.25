@@ -1,0 +1,6 @@
+# Task: Fix Accessibility Errors
+
+- [ ] Fix `DialogContent` missing Title/Description <!-- id: 0 -->
+    - [x] Identify affected component (Focus Time/Pomodoro) <!-- id: 0.1 -->
+    - [x] Add `DialogTitle` and `DialogDescription` <!-- id: 0.2 -->
+- [x] Verify console is clean <!-- id: 1 -->

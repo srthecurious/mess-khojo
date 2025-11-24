@@ -1,0 +1,152 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/Home.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=0bab2877"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import __vite__cjsImport1_react from "/node_modules/.vite/deps/react.js?v=0bab2877"; const React = __vite__cjsImport1_react.__esModule ? __vite__cjsImport1_react.default : __vite__cjsImport1_react; const useEffect = __vite__cjsImport1_react["useEffect"]; const useState = __vite__cjsImport1_react["useState"];
+import { collection, getDocs } from "/node_modules/.vite/deps/firebase_firestore.js?v=7119220d";
+import { db } from "/src/firebase.js";
+import RoomCard from "/src/components/RoomCard.jsx";
+import { Search } from "/node_modules/.vite/deps/lucide-react.js?v=38004c6b";
+const Home = () => {
+  _s();
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  useEffect(() => {
+    console.log("Setting up real-time listener...");
+    const unsubscribe = onSnapshot(collection(db, "rooms"), (snapshot) => {
+      console.log("Snapshot received. Docs:", snapshot.size);
+      const roomsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log("Rooms data:", roomsData);
+      setRooms(roomsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching rooms:", error);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+  const filteredRooms = rooms.filter(
+    (room) => room.location.toLowerCase().includes(searchTerm.toLowerCase()) || room.roomNumber.toString().includes(searchTerm)
+  );
+  return /* @__PURE__ */ jsxDEV("div", { className: "min-h-screen pb-10", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "bg-indigo-600 text-white py-16 px-4 mb-10 relative", children: [
+      /* @__PURE__ */ jsxDEV("a", { href: "/admin/login", className: "absolute top-4 right-4 text-indigo-200 hover:text-white text-sm font-medium transition-colors", children: "Admin Login" }, void 0, false, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+        lineNumber: 40,
+        columnNumber: 17
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "max-w-6xl mx-auto text-center", children: [
+        /* @__PURE__ */ jsxDEV("h1", { className: "text-4xl md:text-5xl font-extrabold mb-4", children: "Mess Khojo" }, void 0, false, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+          lineNumber: 44,
+          columnNumber: 21
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xl text-indigo-100 mb-8", children: "Find your perfect mess or hostel room easily." }, void 0, false, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+          lineNumber: 45,
+          columnNumber: 21
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "max-w-md mx-auto relative", children: [
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              placeholder: "Search by location or room number...",
+              className: "w-full py-3 px-5 pl-12 rounded-full text-gray-800 focus:outline-none focus:ring-4 focus:ring-indigo-400 shadow-lg",
+              value: searchTerm,
+              onChange: (e) => setSearchTerm(e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+              lineNumber: 48,
+              columnNumber: 25
+            },
+            this
+          ),
+          /* @__PURE__ */ jsxDEV(Search, { className: "absolute left-4 top-3.5 text-gray-400", size: 20 }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+            lineNumber: 55,
+            columnNumber: 25
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+          lineNumber: 47,
+          columnNumber: 21
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+        lineNumber: 43,
+        columnNumber: 17
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+      lineNumber: 39,
+      columnNumber: 13
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "max-w-6xl mx-auto px-4", children: loading ? /* @__PURE__ */ jsxDEV("div", { className: "text-center py-20 text-gray-500", children: " Loading rooms..." }, void 0, false, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+      lineNumber: 64,
+      columnNumber: 9
+    }, this) : filteredRooms.length > 0 ? /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8", children: filteredRooms.map(
+      (room) => /* @__PURE__ */ jsxDEV(RoomCard, { room }, room.id, false, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+        lineNumber: 68,
+        columnNumber: 11
+      }, this)
+    ) }, void 0, false, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+      lineNumber: 66,
+      columnNumber: 9
+    }, this) : /* @__PURE__ */ jsxDEV("div", { className: "text-center py-20 text-gray-500", children: /* @__PURE__ */ jsxDEV("p", { className: "text-xl", children: "No rooms found matching your search." }, void 0, false, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+      lineNumber: 73,
+      columnNumber: 29
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+      lineNumber: 72,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+      lineNumber: 61,
+      columnNumber: 13
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx",
+    lineNumber: 37,
+    columnNumber: 5
+  }, this);
+};
+_s(Home, "994hiHe0fW/bitt/XHYy8HDq37U=");
+_c = Home;
+export default Home;
+var _c;
+$RefreshReg$(_c, "Home");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) {
+  return RefreshRuntime.register(type, "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx " + id);
+}
+function $RefreshSig$() {
+  return RefreshRuntime.createSignatureFunctionForTransform();
+}
+
+//# sourceMappingURL=data:application/json;base64,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QXBCO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFBbUM7QUFBQSxJQUN0QyxLQUhMO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FJQSxJQUVBLHVCQUFDLFNBQUksV0FBVSxtQ0FDWCxpQ0FBQyxPQUFFLFdBQVUsV0FBVSxvREFBdkI7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUEyRCxLQUQvRDtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBRUEsS0FiWjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBZUE7QUFBQSxPQXZDSjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBd0NBO0FBRVI7QUFBRWpCLEdBeEVJRCxNQUFJO0FBQUFpQyxLQUFKakM7QUEwRU4sZUFBZUE7QUFBSyxJQUFBaUM7QUFBQUMsYUFBQUQsSUFBQSIsIm5hbWVzIjpbIlJlYWN0IiwidXNlRWZmZWN0IiwidXNlU3RhdGUiLCJjb2xsZWN0aW9uIiwiZ2V0RG9jcyIsImRiIiwiUm9vbUNhcmQiLCJTZWFyY2giLCJIb21lIiwiX3MiLCJyb29tcyIsInNldFJvb21zIiwibG9hZGluZyIsInNldExvYWRpbmciLCJzZWFyY2hUZXJtIiwic2V0U2VhcmNoVGVybSIsImNvbnNvbGUiLCJsb2ciLCJ1bnN1YnNjcmliZSIsIm9uU25hcHNob3QiLCJzbmFwc2hvdCIsInNpemUiLCJyb29tc0RhdGEiLCJkb2NzIiwibWFwIiwiZG9jIiwiaWQiLCJkYXRhIiwiZXJyb3IiLCJmaWx0ZXJlZFJvb21zIiwiZmlsdGVyIiwicm9vbSIsImxvY2F0aW9uIiwidG9Mb3dlckNhc2UiLCJpbmNsdWRlcyIsInJvb21OdW1iZXIiLCJ0b1N0cmluZyIsImUiLCJ0YXJnZXQiLCJ2YWx1ZSIsImxlbmd0aCIsIl9jIiwiJFJlZnJlc2hSZWckIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkhvbWUuanN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCwgeyB1c2VFZmZlY3QsIHVzZVN0YXRlIH0gZnJvbSAncmVhY3QnO1xyXG5pbXBvcnQgeyBjb2xsZWN0aW9uLCBnZXREb2NzIH0gZnJvbSAnZmlyZWJhc2UvZmlyZXN0b3JlJztcclxuaW1wb3J0IHsgZGIgfSBmcm9tICcuLi9maXJlYmFzZSc7XHJcbmltcG9ydCBSb29tQ2FyZCBmcm9tICcuLi9jb21wb25lbnRzL1Jvb21DYXJkJztcclxuaW1wb3J0IHsgU2VhcmNoIH0gZnJvbSAnbHVjaWRlLXJlYWN0JztcclxuXHJcbmNvbnN0IEhvbWUgPSAoKSA9PiB7XHJcbiAgICBjb25zdCBbcm9vbXMsIHNldFJvb21zXSA9IHVzZVN0YXRlKFtdKTtcclxuICAgIGNvbnN0IFtsb2FkaW5nLCBzZXRMb2FkaW5nXSA9IHVzZVN0YXRlKHRydWUpO1xyXG4gICAgY29uc3QgW3NlYXJjaFRlcm0sIHNldFNlYXJjaFRlcm1dID0gdXNlU3RhdGUoJycpO1xyXG5cclxuICAgIHVzZUVmZmVjdCgoKSA9PiB7XHJcbiAgICAgICAgY29uc29sZS5sb2coXCJTZXR0aW5nIHVwIHJlYWwtdGltZSBsaXN0ZW5lci4uLlwiKTtcclxuICAgICAgICBjb25zdCB1bnN1YnNjcmliZSA9IG9uU25hcHNob3QoY29sbGVjdGlvbihkYiwgXCJyb29tc1wiKSwgKHNuYXBzaG90KSA9PiB7XHJcbiAgICAgICAgICAgIGNvbnNvbGUubG9nKFwiU25hcHNob3QgcmVjZWl2ZWQuIERvY3M6XCIsIHNuYXBzaG90LnNpemUpO1xyXG4gICAgICAgICAgICBjb25zdCByb29tc0RhdGEgPSBzbmFwc2hvdC5kb2NzLm1hcChkb2MgPT4gKHtcclxuICAgICAgICAgICAgICAgIGlkOiBkb2MuaWQsXHJcbiAgICAgICAgICAgICAgICAuLi5kb2MuZGF0YSgpXHJcbiAgICAgICAgICAgIH0pKTtcclxuICAgICAgICAgICAgY29uc29sZS5sb2coXCJSb29tcyBkYXRhOlwiLCByb29tc0RhdGEpO1xyXG4gICAgICAgICAgICBzZXRSb29tcyhyb29tc0RhdGEpO1xyXG4gICAgICAgICAgICBzZXRMb2FkaW5nKGZhbHNlKTtcclxuICAgICAgICB9LCAoZXJyb3IpID0+IHtcclxuICAgICAgICAgICAgY29uc29sZS5lcnJvcihcIkVycm9yIGZldGNoaW5nIHJvb21zOlwiLCBlcnJvcik7XHJcbiAgICAgICAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xyXG4gICAgICAgIH0pO1xyXG5cclxuICAgICAgICByZXR1cm4gKCkgPT4gdW5zdWJzY3JpYmUoKTtcclxuICAgIH0sIFtdKTtcclxuXHJcbiAgICBjb25zdCBmaWx0ZXJlZFJvb21zID0gcm9vbXMuZmlsdGVyKHJvb20gPT5cclxuICAgICAgICByb29tLmxvY2F0aW9uLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXMoc2VhcmNoVGVybS50b0xvd2VyQ2FzZSgpKSB8fFxyXG4gICAgICAgIHJvb20ucm9vbU51bWJlci50b1N0cmluZygpLmluY2x1ZGVzKHNlYXJjaFRlcm0pXHJcbiAgICApO1xyXG5cclxuICAgIHJldHVybiAoXHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtaW4taC1zY3JlZW4gcGItMTBcIj5cclxuICAgICAgICAgICAgey8qIEhlcm8gU2VjdGlvbiAqL31cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1pbmRpZ28tNjAwIHRleHQtd2hpdGUgcHktMTYgcHgtNCBtYi0xMCByZWxhdGl2ZVwiPlxyXG4gICAgICAgICAgICAgICAgPGEgaHJlZj1cIi9hZG1pbi9sb2dpblwiIGNsYXNzTmFtZT1cImFic29sdXRlIHRvcC00IHJpZ2h0LTQgdGV4dC1pbmRpZ28tMjAwIGhvdmVyOnRleHQtd2hpdGUgdGV4dC1zbSBmb250LW1lZGl1bSB0cmFuc2l0aW9uLWNvbG9yc1wiPlxyXG4gICAgICAgICAgICAgICAgICAgIEFkbWluIExvZ2luXHJcbiAgICAgICAgICAgICAgICA8L2E+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1heC13LTZ4bCBteC1hdXRvIHRleHQtY2VudGVyXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgPGgxIGNsYXNzTmFtZT1cInRleHQtNHhsIG1kOnRleHQtNXhsIGZvbnQtZXh0cmFib2xkIG1iLTRcIj5NZXNzIEtob2pvPC9oMT5cclxuICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhsIHRleHQtaW5kaWdvLTEwMCBtYi04XCI+RmluZCB5b3VyIHBlcmZlY3QgbWVzcyBvciBob3N0ZWwgcm9vbSBlYXNpbHkuPC9wPlxyXG5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1heC13LW1kIG14LWF1dG8gcmVsYXRpdmVcIj5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cIlNlYXJjaCBieSBsb2NhdGlvbiBvciByb29tIG51bWJlci4uLlwiXHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgcHktMyBweC01IHBsLTEyIHJvdW5kZWQtZnVsbCB0ZXh0LWdyYXktODAwIGZvY3VzOm91dGxpbmUtbm9uZSBmb2N1czpyaW5nLTQgZm9jdXM6cmluZy1pbmRpZ28tNDAwIHNoYWRvdy1sZ1wiXHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB2YWx1ZT17c2VhcmNoVGVybX1cclxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0U2VhcmNoVGVybShlLnRhcmdldC52YWx1ZSl9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxTZWFyY2ggY2xhc3NOYW1lPVwiYWJzb2x1dGUgbGVmdC00IHRvcC0zLjUgdGV4dC1ncmF5LTQwMFwiIHNpemU9ezIwfSAvPlxyXG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgey8qIFJvb20gR3JpZCAqL31cclxuICAgICAgICAgICAgPCBkaXYgY2xhc3NOYW1lPVwibWF4LXctNnhsIG14LWF1dG8gcHgtNFwiID5cclxuICAgICAgICAgICAgICAgIHtcclxuICAgICAgICAgICAgICAgICAgICBsb2FkaW5nID8gKFxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtY2VudGVyIHB5LTIwIHRleHQtZ3JheS01MDBcIiA+IExvYWRpbmcgcm9vbXMuLi48L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICApIDogZmlsdGVyZWRSb29tcy5sZW5ndGggPiAwID8gKFxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgbWQ6Z3JpZC1jb2xzLTIgbGc6Z3JpZC1jb2xzLTMgZ2FwLThcIj5cclxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIHtmaWx0ZXJlZFJvb21zLm1hcChyb29tID0+IChcclxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8Um9vbUNhcmQga2V5PXtyb29tLmlkfSByb29tPXtyb29tfSAvPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgKSl9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgICAgICkgOiAoXHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1jZW50ZXIgcHktMjAgdGV4dC1ncmF5LTUwMFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14bFwiPk5vIHJvb21zIGZvdW5kIG1hdGNoaW5nIHlvdXIgc2VhcmNoLjwvcD5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgKX1cclxuICAgICAgICAgICAgPC9kaXYgPlxyXG4gICAgICAgIDwvZGl2ID5cclxuICAgICk7XHJcbn07XHJcblxyXG5leHBvcnQgZGVmYXVsdCBIb21lO1xyXG4iXSwiZmlsZSI6IkM6L1VzZXJzL2Jhcm1hLy5nZW1pbmkvYW50aWdyYXZpdHkvc2NyYXRjaC9tZXNzLWtob2pvL2NsaWVudC9zcmMvcGFnZXMvSG9tZS5qc3gifQ==

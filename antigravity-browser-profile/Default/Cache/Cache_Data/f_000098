@@ -1,0 +1,201 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/MessCard.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5b966eab"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import __vite__cjsImport1_react from "/node_modules/.vite/deps/react.js?v=5b966eab"; const React = __vite__cjsImport1_react.__esModule ? __vite__cjsImport1_react.default : __vite__cjsImport1_react;
+import { MapPin, Phone, ArrowRight, Star, BedDouble } from "/node_modules/.vite/deps/lucide-react.js?v=5b966eab";
+import { Link } from "/node_modules/.vite/deps/react-router-dom.js?v=5b966eab";
+import { motion } from "/node_modules/.vite/deps/framer-motion.js?v=5b966eab";
+const MessCard = ({ mess, index }) => {
+  return /* @__PURE__ */ jsxDEV(
+    motion.div,
+    {
+      initial: { opacity: 0, y: 20 },
+      animate: { opacity: 1, y: 0 },
+      transition: { duration: 0.5, delay: index * 0.1 },
+      className: "bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.12)] transition-all duration-300 overflow-hidden group border border-gray-50 flex flex-col h-full",
+      children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "h-48 relative overflow-hidden group-hover:scale-105 transition-transform duration-700", children: [
+          mess.posterUrl ? /* @__PURE__ */ jsxDEV(
+            "img",
+            {
+              src: mess.posterUrl,
+              alt: mess.name,
+              className: "w-full h-full object-cover"
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 17,
+              columnNumber: 9
+            },
+            this
+          ) : /* @__PURE__ */ jsxDEV("div", { className: "w-full h-full bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 flex items-center justify-center", children: /* @__PURE__ */ jsxDEV("span", { className: "text-4xl opacity-20", children: "🏠" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 24,
+            columnNumber: 25
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 23,
+            columnNumber: 9
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-gray-700 shadow-sm flex items-center gap-1", children: [
+            /* @__PURE__ */ jsxDEV(Star, { size: 12, className: "fill-yellow-400 text-yellow-400" }, void 0, false, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 29,
+              columnNumber: 21
+            }, this),
+            " 4.5"
+          ] }, void 0, true, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 28,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+          lineNumber: 15,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-6 flex-grow flex flex-col relative", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "absolute -top-8 left-6", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-white p-2 rounded-2xl shadow-sm border border-gray-50", children: /* @__PURE__ */ jsxDEV("div", { className: "bg-gradient-to-br from-purple-600 to-pink-500 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform duration-300", children: /* @__PURE__ */ jsxDEV(BedDouble, { size: 24 }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 37,
+            columnNumber: 29
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 36,
+            columnNumber: 25
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 35,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 34,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "mt-6 mb-4", children: [
+            /* @__PURE__ */ jsxDEV("h3", { className: "text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-1 font-serif", children: mess.name }, void 0, false, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 43,
+              columnNumber: 21
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex items-center text-gray-500 text-sm mt-1", children: [
+              /* @__PURE__ */ jsxDEV(MapPin, { size: 14, className: "mr-1 text-purple-400" }, void 0, false, {
+                fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+                lineNumber: 45,
+                columnNumber: 25
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "line-clamp-1", children: mess.address }, void 0, false, {
+                fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+                lineNumber: 46,
+                columnNumber: 25
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 44,
+              columnNumber: 21
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 42,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-3 mb-6 flex-grow", children: /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between text-sm bg-gray-50 p-3 rounded-xl", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-gray-500", children: "Contact" }, void 0, false, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 52,
+              columnNumber: 25
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "flex items-center font-medium text-gray-700", children: [
+              /* @__PURE__ */ jsxDEV(Phone, { size: 14, className: "mr-1.5 text-green-500" }, void 0, false, {
+                fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+                lineNumber: 54,
+                columnNumber: 29
+              }, this),
+              mess.contact
+            ] }, void 0, true, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 53,
+              columnNumber: 25
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 51,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+            lineNumber: 50,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            Link,
+            {
+              to: `/mess/${mess.id}`,
+              className: "mt-auto w-full group/btn relative overflow-hidden bg-gray-900 hover:bg-purple-600 text-white py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-gray-200 hover:shadow-purple-200",
+              children: [
+                /* @__PURE__ */ jsxDEV("span", { className: "relative z-10", children: "View Details" }, void 0, false, {
+                  fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+                  lineNumber: 64,
+                  columnNumber: 21
+                }, this),
+                /* @__PURE__ */ jsxDEV(ArrowRight, { size: 18, className: "relative z-10 group-hover/btn:translate-x-1 transition-transform" }, void 0, false, {
+                  fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+                  lineNumber: 65,
+                  columnNumber: 21
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+              lineNumber: 60,
+              columnNumber: 17
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+          lineNumber: 33,
+          columnNumber: 13
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx",
+      lineNumber: 8,
+      columnNumber: 5
+    },
+    this
+  );
+};
+_c = MessCard;
+export default MessCard;
+var _c;
+$RefreshReg$(_c, "MessCard");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) {
+  return RefreshRuntime.register(type, "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/MessCard.jsx " + id);
+}
+function $RefreshSig$() {
+  return RefreshRuntime.createSignatureFunctionForTransform();
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBZ0JvQjtBQWhCcEIsT0FBT0EsV0FBVztBQUNsQixTQUFTQyxRQUFRQyxPQUFPQyxZQUFZQyxNQUFNQyxpQkFBaUI7QUFDM0QsU0FBU0MsWUFBWTtBQUNyQixTQUFTQyxjQUFjO0FBRXZCLE1BQU1DLFdBQVdBLENBQUMsRUFBRUMsTUFBTUMsTUFBTSxNQUFNO0FBQ2xDLFNBQ0k7QUFBQSxJQUFDLE9BQU87QUFBQSxJQUFQO0FBQUEsTUFDRyxTQUFTLEVBQUVDLFNBQVMsR0FBR0MsR0FBRyxHQUFHO0FBQUEsTUFDN0IsU0FBUyxFQUFFRCxTQUFTLEdBQUdDLEdBQUcsRUFBRTtBQUFBLE1BQzVCLFlBQVksRUFBRUMsVUFBVSxLQUFLQyxPQUFPSixRQUFRLElBQUk7QUFBQSxNQUNoRCxXQUFVO0FBQUEsTUFHVjtBQUFBLCtCQUFDLFNBQUksV0FBVSx5RkFDVkQ7QUFBQUEsZUFBS00sWUFDRjtBQUFBLFlBQUM7QUFBQTtBQUFBLGNBQ0csS0FBS04sS0FBS007QUFBQUEsY0FDVixLQUFLTixLQUFLTztBQUFBQSxjQUNWLFdBQVU7QUFBQTtBQUFBLFlBSGQ7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBRzBDLElBRzFDLHVCQUFDLFNBQUksV0FBVSwrR0FDWCxpQ0FBQyxVQUFLLFdBQVUsdUJBQXNCLGtCQUF0QztBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUF3QyxLQUQ1QztBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUVBO0FBQUEsVUFHSix1QkFBQyxTQUFJLFdBQVUsZ0pBQ1g7QUFBQSxtQ0FBQyxRQUFLLE1BQU0sSUFBSSxXQUFVLHFDQUExQjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUEyRDtBQUFBLFlBQUc7QUFBQSxlQURsRTtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUVBO0FBQUEsYUFmSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBZ0JBO0FBQUEsUUFFQSx1QkFBQyxTQUFJLFdBQVUsd0NBQ1g7QUFBQSxpQ0FBQyxTQUFJLFdBQVUsMEJBQ1gsaUNBQUMsU0FBSSxXQUFVLDREQUNYLGlDQUFDLFNBQUksV0FBVSx1TUFDWCxpQ0FBQyxhQUFVLE1BQU0sTUFBakI7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBb0IsS0FEeEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFFQSxLQUhKO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBSUEsS0FMSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQU1BO0FBQUEsVUFFQSx1QkFBQyxTQUFJLFdBQVUsYUFDWDtBQUFBLG1DQUFDLFFBQUcsV0FBVSx5R0FBeUdQLGVBQUtPLFFBQTVIO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBQWlJO0FBQUEsWUFDakksdUJBQUMsU0FBSSxXQUFVLGdEQUNYO0FBQUEscUNBQUMsVUFBTyxNQUFNLElBQUksV0FBVSwwQkFBNUI7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFBa0Q7QUFBQSxjQUNsRCx1QkFBQyxVQUFLLFdBQVUsZ0JBQWdCUCxlQUFLUSxXQUFyQztBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUE2QztBQUFBLGlCQUZqRDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUdBO0FBQUEsZUFMSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQU1BO0FBQUEsVUFFQSx1QkFBQyxTQUFJLFdBQVUsNEJBQ1gsaUNBQUMsU0FBSSxXQUFVLHVFQUNYO0FBQUEsbUNBQUMsVUFBSyxXQUFVLGlCQUFnQix1QkFBaEM7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBdUM7QUFBQSxZQUN2Qyx1QkFBQyxTQUFJLFdBQVUsK0NBQ1g7QUFBQSxxQ0FBQyxTQUFNLE1BQU0sSUFBSSxXQUFVLDJCQUEzQjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQUFrRDtBQUFBLGNBQ2pEUixLQUFLUztBQUFBQSxpQkFGVjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUdBO0FBQUEsZUFMSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQU1BLEtBUEo7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFRQTtBQUFBLFVBRUE7QUFBQSxZQUFDO0FBQUE7QUFBQSxjQUNHLElBQUksU0FBU1QsS0FBS1UsRUFBRTtBQUFBLGNBQ3BCLFdBQVU7QUFBQSxjQUVWO0FBQUEsdUNBQUMsVUFBSyxXQUFVLGlCQUFnQiw0QkFBaEM7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBNEM7QUFBQSxnQkFDNUMsdUJBQUMsY0FBVyxNQUFNLElBQUksV0FBVSxzRUFBaEM7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBa0c7QUFBQTtBQUFBO0FBQUEsWUFMdEc7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFVBTUE7QUFBQSxhQWpDSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBa0NBO0FBQUE7QUFBQTtBQUFBLElBM0RKO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxFQTREQTtBQUVSO0FBQUVDLEtBaEVJWjtBQWtFTixlQUFlQTtBQUFTLElBQUFZO0FBQUFDLGFBQUFELElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsIk1hcFBpbiIsIlBob25lIiwiQXJyb3dSaWdodCIsIlN0YXIiLCJCZWREb3VibGUiLCJMaW5rIiwibW90aW9uIiwiTWVzc0NhcmQiLCJtZXNzIiwiaW5kZXgiLCJvcGFjaXR5IiwieSIsImR1cmF0aW9uIiwiZGVsYXkiLCJwb3N0ZXJVcmwiLCJuYW1lIiwiYWRkcmVzcyIsImNvbnRhY3QiLCJpZCIsIl9jIiwiJFJlZnJlc2hSZWckIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIk1lc3NDYXJkLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QgZnJvbSAncmVhY3QnO1xyXG5pbXBvcnQgeyBNYXBQaW4sIFBob25lLCBBcnJvd1JpZ2h0LCBTdGFyLCBCZWREb3VibGUgfSBmcm9tICdsdWNpZGUtcmVhY3QnO1xyXG5pbXBvcnQgeyBMaW5rIH0gZnJvbSAncmVhY3Qtcm91dGVyLWRvbSc7XHJcbmltcG9ydCB7IG1vdGlvbiB9IGZyb20gJ2ZyYW1lci1tb3Rpb24nO1xyXG5cclxuY29uc3QgTWVzc0NhcmQgPSAoeyBtZXNzLCBpbmRleCB9KSA9PiB7XHJcbiAgICByZXR1cm4gKFxyXG4gICAgICAgIDxtb3Rpb24uZGl2XHJcbiAgICAgICAgICAgIGluaXRpYWw9e3sgb3BhY2l0eTogMCwgeTogMjAgfX1cclxuICAgICAgICAgICAgYW5pbWF0ZT17eyBvcGFjaXR5OiAxLCB5OiAwIH19XHJcbiAgICAgICAgICAgIHRyYW5zaXRpb249e3sgZHVyYXRpb246IDAuNSwgZGVsYXk6IGluZGV4ICogMC4xIH19XHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cImJnLXdoaXRlIHJvdW5kZWQtM3hsIHNoYWRvdy1bMF8xMHB4XzQwcHhfLTEwcHhfcmdiYSgwLDAsMCwwLjA4KV0gaG92ZXI6c2hhZG93LVswXzIwcHhfNjBweF8tMTVweF9yZ2JhKDAsMCwwLDAuMTIpXSB0cmFuc2l0aW9uLWFsbCBkdXJhdGlvbi0zMDAgb3ZlcmZsb3ctaGlkZGVuIGdyb3VwIGJvcmRlciBib3JkZXItZ3JheS01MCBmbGV4IGZsZXgtY29sIGgtZnVsbFwiXHJcbiAgICAgICAgPlxyXG4gICAgICAgICAgICB7LyogUG9zdGVyIEltYWdlIG9yIEdyYWRpZW50ICovfVxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImgtNDggcmVsYXRpdmUgb3ZlcmZsb3ctaGlkZGVuIGdyb3VwLWhvdmVyOnNjYWxlLTEwNSB0cmFuc2l0aW9uLXRyYW5zZm9ybSBkdXJhdGlvbi03MDBcIj5cclxuICAgICAgICAgICAgICAgIHttZXNzLnBvc3RlclVybCA/IChcclxuICAgICAgICAgICAgICAgICAgICA8aW1nXHJcbiAgICAgICAgICAgICAgICAgICAgICAgIHNyYz17bWVzcy5wb3N0ZXJVcmx9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIGFsdD17bWVzcy5uYW1lfVxyXG4gICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgaC1mdWxsIG9iamVjdC1jb3ZlclwiXHJcbiAgICAgICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgICkgOiAoXHJcbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ3LWZ1bGwgaC1mdWxsIGJnLWdyYWRpZW50LXRvLWJyIGZyb20tcHVycGxlLTEwMCB2aWEtcGluay0xMDAgdG8teWVsbG93LTEwMCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlclwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LTR4bCBvcGFjaXR5LTIwXCI+8J+PoDwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICl9XHJcblxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJhYnNvbHV0ZSB0b3AtNCByaWdodC00IGJnLXdoaXRlLzkwIGJhY2tkcm9wLWJsdXItbWQgcHgtMyBweS0xIHJvdW5kZWQtZnVsbCB0ZXh0LXhzIGZvbnQtYm9sZCB0ZXh0LWdyYXktNzAwIHNoYWRvdy1zbSBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMVwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxTdGFyIHNpemU9ezEyfSBjbGFzc05hbWU9XCJmaWxsLXllbGxvdy00MDAgdGV4dC15ZWxsb3ctNDAwXCIgLz4gNC41XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtNiBmbGV4LWdyb3cgZmxleCBmbGV4LWNvbCByZWxhdGl2ZVwiPlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJhYnNvbHV0ZSAtdG9wLTggbGVmdC02XCI+XHJcbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy13aGl0ZSBwLTIgcm91bmRlZC0yeGwgc2hhZG93LXNtIGJvcmRlciBib3JkZXItZ3JheS01MFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJnLWdyYWRpZW50LXRvLWJyIGZyb20tcHVycGxlLTYwMCB0by1waW5rLTUwMCB3LTEyIGgtMTIgcm91bmRlZC0yeGwgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgdGV4dC13aGl0ZSBzaGFkb3ctbGcgc2hhZG93LXB1cnBsZS0yMDAgZ3JvdXAtaG92ZXI6c2NhbGUtMTEwIHRyYW5zaXRpb24tdHJhbnNmb3JtIGR1cmF0aW9uLTMwMFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPEJlZERvdWJsZSBzaXplPXsyNH0gLz5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm10LTYgbWItNFwiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxoMyBjbGFzc05hbWU9XCJ0ZXh0LXhsIGZvbnQtYm9sZCB0ZXh0LWdyYXktOTAwIGdyb3VwLWhvdmVyOnRleHQtcHVycGxlLTYwMCB0cmFuc2l0aW9uLWNvbG9ycyBsaW5lLWNsYW1wLTEgZm9udC1zZXJpZlwiPnttZXNzLm5hbWV9PC9oMz5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIHRleHQtZ3JheS01MDAgdGV4dC1zbSBtdC0xXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxNYXBQaW4gc2l6ZT17MTR9IGNsYXNzTmFtZT1cIm1yLTEgdGV4dC1wdXJwbGUtNDAwXCIgLz5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwibGluZS1jbGFtcC0xXCI+e21lc3MuYWRkcmVzc308L3NwYW4+XHJcbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMyBtYi02IGZsZXgtZ3Jvd1wiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIHRleHQtc20gYmctZ3JheS01MCBwLTMgcm91bmRlZC14bFwiPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LWdyYXktNTAwXCI+Q29udGFjdDwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBmb250LW1lZGl1bSB0ZXh0LWdyYXktNzAwXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8UGhvbmUgc2l6ZT17MTR9IGNsYXNzTmFtZT1cIm1yLTEuNSB0ZXh0LWdyZWVuLTUwMFwiIC8+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB7bWVzcy5jb250YWN0fVxyXG4gICAgICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICAgIDxMaW5rXHJcbiAgICAgICAgICAgICAgICAgICAgdG89e2AvbWVzcy8ke21lc3MuaWR9YH1cclxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJtdC1hdXRvIHctZnVsbCBncm91cC9idG4gcmVsYXRpdmUgb3ZlcmZsb3ctaGlkZGVuIGJnLWdyYXktOTAwIGhvdmVyOmJnLXB1cnBsZS02MDAgdGV4dC13aGl0ZSBweS0zLjUgcm91bmRlZC14bCBmb250LW1lZGl1bSB0cmFuc2l0aW9uLWFsbCBkdXJhdGlvbi0zMDAgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgZ2FwLTIgc2hhZG93LWxnIHNoYWRvdy1ncmF5LTIwMCBob3ZlcjpzaGFkb3ctcHVycGxlLTIwMFwiXHJcbiAgICAgICAgICAgICAgICA+XHJcbiAgICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwicmVsYXRpdmUgei0xMFwiPlZpZXcgRGV0YWlsczwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICA8QXJyb3dSaWdodCBzaXplPXsxOH0gY2xhc3NOYW1lPVwicmVsYXRpdmUgei0xMCBncm91cC1ob3Zlci9idG46dHJhbnNsYXRlLXgtMSB0cmFuc2l0aW9uLXRyYW5zZm9ybVwiIC8+XHJcbiAgICAgICAgICAgICAgICA8L0xpbms+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvbW90aW9uLmRpdj5cclxuICAgICk7XHJcbn07XHJcblxyXG5leHBvcnQgZGVmYXVsdCBNZXNzQ2FyZDtcclxuIl0sImZpbGUiOiJDOi9Vc2Vycy9iYXJtYS8uZ2VtaW5pL2FudGlncmF2aXR5L3NjcmF0Y2gvbWVzcy1raG9qby9jbGllbnQvc3JjL2NvbXBvbmVudHMvTWVzc0NhcmQuanN4In0=

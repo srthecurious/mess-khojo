@@ -1,0 +1,7 @@
+# Task: Implement PWA Install Button
+
+- [x] Research existing button and PWA config <!-- id: 0 -->
+- [x] Create/Update Web App Manifest <!-- id: 1 -->
+- [x] Implement `beforeinstallprompt` logic <!-- id: 2 -->
+- [x] Connect logic to "Install App" button <!-- id: 3 -->
+- [x] Verify PWA install flow <!-- id: 4 -->

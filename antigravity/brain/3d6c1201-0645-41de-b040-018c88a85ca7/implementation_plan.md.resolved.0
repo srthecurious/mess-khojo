@@ -1,0 +1,46 @@
+# Implementation Plan - Multiple Image Upload for Rooms
+
+The goal is to allow admins to upload up to 5 images for a single room.
+
+## User Review Required
+> [!IMPORTANT]
+> - The data structure for rooms will change. New rooms will have an `imageUrls` array field.
+> - Existing rooms with `imageUrl` will need to be handled (backward compatibility).
+> - The UI for adding/editing rooms will be updated to support multiple file selection and preview.
+
+## Proposed Changes
+
+### Client
+
+#### [MODIFY] [AdminDashboard.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/AdminDashboard.jsx)
+- Update `formData` or state to hold multiple selected files.
+- Update file input to `multiple` and enforce 5-file limit.
+- Update [handleRoomSubmit](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/AdminDashboard.jsx#147-202) to:
+    - Upload multiple files to Firebase Storage.
+    - Save `imageUrls` array to Firestore.
+- Update Edit Room logic to:
+    - Display existing images from `imageUrls` (or `imageUrl` for old records).
+    - Allow removing existing images.
+    - Allow adding new images (up to the total limit of 5).
+
+#### [MODIFY] [RoomCard.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx)
+- Update to handle `room.imageUrls` array.
+- Fallback to `room.imageUrl` if array is missing.
+- Implement a simple image carousel or display the first image with an indicator of total images.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Admin Dashboard**:
+    -   Login as admin.
+    -   Create a new room.
+    -   Select 5 images.
+    -   Verify upload works and room is created.
+    -   Edit the room.
+    -   Verify all 5 images are shown.
+    -   Remove one image, add another. Save.
+    -   Verify changes persist.
+2.  **User View (Mess Details)**:
+    -   Go to Mess Details page.
+    -   Check the Room Card for the new room.
+    -   Verify images are displayed (carousel or main image).

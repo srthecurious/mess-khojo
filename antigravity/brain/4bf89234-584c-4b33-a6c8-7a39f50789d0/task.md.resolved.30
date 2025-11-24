@@ -1,0 +1,5 @@
+# Task: Update App Logo
+
+- [x] Replace [public/icon.png](file:///c:/Apps/NEETrack/NEETrack/public/icon.png) with new logo <!-- id: 0 -->
+- [x] Update `Logo` component to use new image <!-- id: 1 -->
+- [x] Verify logo in app and PWA manifest <!-- id: 2 -->

@@ -1,0 +1,30 @@
+# Implement PWA Functionality
+
+## Goal Description
+Enable Progressive Web App (PWA) features to allow the "Install App" button to function. This involves configuring a service worker and ensuring all PWA criteria are met.
+
+## User Review Required
+> [!IMPORTANT]
+> I will install `@ducanh2912/next-pwa` to handle PWA configuration easily. This is a standard maintained fork of `next-pwa`.
+
+## Proposed Changes
+### Configuration
+#### [MODIFY] [next.config.ts](file:///c:/Apps/NEETrack/NEETrack/next.config.ts)
+- Wrap the next config with `withPWA`.
+
+### Dependencies
+- Install `@ducanh2912/next-pwa`.
+
+### Assets
+- Ensure `public/sw.js` is generated (handled by plugin).
+
+## Verification Plan
+### Automated Tests
+- None.
+
+### Manual Verification
+- [ ] Run `npm run dev`.
+- [ ] Open localhost in Chrome.
+- [ ] Check Application tab -> Manifest (should be valid).
+- [ ] Check Application tab -> Service Workers (should be registered).
+- [ ] Verify "Install App" button is enabled and triggers the prompt.

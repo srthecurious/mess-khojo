@@ -1,0 +1,52 @@
+# Implementation Plan - Multiple Image Upload for Rooms
+
+The goal is to allow admins to upload up to 5 images for a single room.
+
+## User Review Required
+> [!IMPORTANT]
+> - The data structure for rooms will change. New rooms will have an `imageUrls` array field.
+> - Existing rooms with `imageUrl` will need to be handled (backward compatibility).
+> - The UI for adding/editing rooms will be updated to support multiple file selection and preview.
+
+## Proposed Changes
+
+### Client
+
+#### [MODIFY] [AdminDashboard.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/AdminDashboard.jsx)
+- Update `formData` or state to hold multiple selected files.
+- Update file input to `multiple` and enforce 5-file limit.
+- Update [handleRoomSubmit](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/AdminDashboard.jsx#147-202) to:
+    - Upload multiple files to Firebase Storage.
+    - Save `imageUrls` array to Firestore.
+- Update Edit Room logic to:
+    - Display existing images from `imageUrls` (or `imageUrl` for old records).
+    - Allow removing existing images.
+    - Allow adding new images (up to the total limit of 5).
+
+#### [MODIFY] [App.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/App.jsx)
+- Add route `/room/:roomId` pointing to `RoomDetails`.
+
+#### [NEW] [RoomDetails.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/RoomDetails.jsx)
+- Create new page to display full room details.
+- Fetch room data by ID.
+- Display image gallery (carousel/grid) for `imageUrls`.
+- Show all room amenities and details.
+- Add "Book Now" or contact button.
+
+#### [MODIFY] [RoomCard.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx)
+- Wrap card content in `Link` to `/room/${room.id}`.
+- Update to handle `room.imageUrls` array (show first image as thumbnail).
+
+## Verification Plan
+
+### Manual Verification
+1.  **Admin Dashboard**:
+    -   Login as admin.
+    -   Create a new room with 5 images.
+    -   Verify upload works.
+2.  **Room Details**:
+    -   Go to Mess Details.
+    -   Click on a Room Card.
+    -   Verify navigation to `/room/:id`.
+    -   Verify all 5 images are displayed in the gallery.
+    -   Verify all details are correct.

@@ -1,0 +1,35 @@
+# Task: Design Dashboard Concepts
+
+- [x] Generate Design 1: Glassmorphism & Neon <!-- id: 0 -->
+- [x] Generate Design 2: Minimalist & Clean <!-- id: 1 -->
+- [x] Generate Design 3: Futuristic & Data-Heavy <!-- id: 2 -->
+- [x] Present designs to user for selection <!-- id: 3 -->
+- [/] Implement selected design (Glassmorphism) <!-- id: 4 -->
+    - [x] Update [globals.css](file:///c:/Apps/NEETrack/NEETrack/src/app/globals.css) with neon/glass theme <!-- id: 4.1 -->
+    - [/] Update [tailwind.config.ts](file:///c:/Apps/NEETrack/NEETrack/tailwind.config.ts) <!-- id: 4.2 -->
+    - [x] Refactor [DashboardBackground](file:///c:/Apps/NEETrack/NEETrack/src/components/ui/dashboard-background.tsx#4-51) <!-- id: 4.3 -->
+    - [x] Update Dashboard Layout & Cards <!-- id: 4.4 -->
+    - [x] Polish UI components <!-- id: 4.5 -->
+# Task: Design Dashboard Concepts
+
+- [x] Generate Design 1: Glassmorphism & Neon <!-- id: 0 -->
+- [x] Generate Design 2: Minimalist & Clean <!-- id: 1 -->
+- [x] Generate Design 3: Futuristic & Data-Heavy <!-- id: 2 -->
+- [x] Present designs to user for selection <!-- id: 3 -->
+- [/] Implement selected design (Glassmorphism) <!-- id: 4 -->
+    - [x] Update [globals.css](file:///c:/Apps/NEETrack/NEETrack/src/app/globals.css) with neon/glass theme <!-- id: 4.1 -->
+    - [/] Update [tailwind.config.ts](file:///c:/Apps/NEETrack/NEETrack/tailwind.config.ts) <!-- id: 4.2 -->
+    - [x] Refactor [DashboardBackground](file:///c:/Apps/NEETrack/NEETrack/src/components/ui/dashboard-background.tsx#4-51) <!-- id: 4.3 -->
+    - [x] Update Dashboard Layout & Cards <!-- id: 4.4 -->
+    - [x] Polish UI components <!-- id: 4.5 -->
+
+# Task: Design Pomodoro Timer Concepts
+
+- [x] Generate Pomodoro Design 1: Glassmorphism (Consistent) <!-- id: 5 -->
+- [x] Generate Pomodoro Design 2: Minimalist Focus <!-- id: 6 -->
+- [x] Generate Pomodoro Design 3: Futuristic HUD <!-- id: 7 -->
+- [x] Present Pomodoro designs to user <!-- id: 8 -->
+- [/] Implement selected Pomodoro design (Glassmorphism) <!-- id: 9 -->
+    - [x] Update [PomodoroTimer](file:///c:/Apps/NEETrack/NEETrack/src/components/pomodoro-timer.tsx#28-245) component structure <!-- id: 9.1 -->
+    - [x] Update [CircularProgress](file:///c:/Apps/NEETrack/NEETrack/src/components/ui/circular-progress.tsx#13-77) for neon styles <!-- id: 9.2 -->
+    - [/] Apply glassmorphism to controls and dialogs <!-- id: 9.3 -->

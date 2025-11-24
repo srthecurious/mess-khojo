@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mess Khojo - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            display: block; /* Override flex center from shared css */
+            padding: 40px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #fff, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-main);
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 24px;
+            line-height: 1.1;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .search-bar {
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 24px;
+            padding-left: 56px;
+            font-size: 1.1rem;
+            border-radius: var(--radius-full);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 25px 50px rgba(99, 102, 241, 0.15);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.4rem;
+            color: var(--text-muted);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .mess-card {
+            overflow: hidden;
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+
+        .mess-card:hover {
+            transform: translateY(-8px);
+        }
+
+        .card-image {
+            height: 200px;
+            background: #2d3748;
+            position: relative;
+        }
+        
+        /* Placeholder gradients for images */
+        .img-1 { background: linear-gradient(45deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); }
+        .img-2 { background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); }
+        .img-3 { background: linear-gradient(120deg, #a18cd1 0%, #fbc2eb 100%); }
+
+        .card-content {
+            padding: 24px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-location {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .rating-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .star-icon { color: #fbbf24; }
+    </style>
+</head>
+<body>
+
+    <header class="animate-fade-in">
+        <div class="logo">Mess Khojo</div>
+        <nav class="nav-links">
+            <a href="#" class="nav-link active">Home</a>
+            <a href="#" class="nav-link">Nearby</a>
+            <a href="#" class="nav-link">Favorites</a>
+            <a href="#" class="nav-link">Profile</a>
+        </nav>
+        <button class="btn btn-primary">Sign In</button>
+    </header>
+
+    <main>
+        <section class="hero-section animate-fade-in" style="animation-delay: 0.1s;">
+            <h1 class="hero-title">Find Your Perfect<br><span style="color: var(--primary);">Home Away From Home</span></h1>
+            <p class="hero-subtitle">Discover the best messes and tiffin services in your area. Hygienic, affordable, and delicious.</p>
+            
+            <div class="search-bar">
+                <i class="ph ph-magnifying-glass search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search by area, college, or mess name...">
+            </div>
+        </section>
+
+        <div class="grid-container animate-fade-in" style="animation-delay: 0.2s;">
+            <!-- Card 1 -->
+            <div class="glass-panel mess-card">
+                <div class="card-image img-1">
+                    <div class="rating-badge">
+                        <i class="ph ph-star-fill star-icon"></i> 4.8
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">Annapurna Mess</h3>
+                    <div class="card-location">
+                        <i class="ph ph-map-pin"></i> Indrapuri, Sector C
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;">Known for authentic home-style thalis and Sunday specials.</p>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="glass-panel mess-card">
+                <div class="card-image img-2">
+                    <div class="rating-badge">
+                        <i class="ph ph-star-fill star-icon"></i> 4.5
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">Student's Corner</h3>
+                    <div class="card-location">
+                        <i class="ph ph-map-pin"></i> MP Nagar, Zone 2
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;">Budget friendly monthly plans with breakfast included.</p>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="glass-panel mess-card">
+                <div class="card-image img-3">
+                    <div class="rating-badge">
+                        <i class="ph ph-star-fill star-icon"></i> 4.2
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">Healthy Bites</h3>
+                    <div class="card-location">
+                        <i class="ph ph-map-pin"></i> Arera Colony
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;">Focus on nutrition and hygiene. Special diet options available.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

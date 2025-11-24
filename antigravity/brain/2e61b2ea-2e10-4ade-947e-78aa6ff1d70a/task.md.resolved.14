@@ -1,0 +1,41 @@
+
+# Mess Khojo - Task List
+
+- [x] **Project Setup**
+    - [x] Create project directories (client/server)
+    - [x] Initialize [task.md](file:///C:/Users/barma/.gemini/antigravity/brain/2e61b2ea-2e10-4ade-947e-78aa6ff1d70a/task.md) and [implementation_plan.md](file:///C:/Users/barma/.gemini/antigravity/brain/2e61b2ea-2e10-4ade-947e-78aa6ff1d70a/implementation_plan.md)
+- [x] **Frontend Initialization**
+    - [x] Initialize Vite + React project
+    - [x] Setup TailwindCSS
+    - [x] Setup React Router
+- [x] **Firebase Setup**
+    - [x] Create Firebase Project (User needs to provide config)
+    - [x] Initialize Firebase in React App
+    - [x] Setup Firestore (Database)
+    - [x] Setup Firebase Storage (Images)
+    - [x] Setup Firebase Auth (Admin Login)
+- [ ] **Admin Features**
+    - [x] Implement Admin Login (Firebase Auth)
+    - [x] Implement Mess Profile Creation (New Requirement)
+    - [ ] **New Features**
+        - [ ] Add Mess Poster Upload
+        - [ ] Add Room Availability Toggle
+    - [ ] Update Add Room to link with Mess
+    - [x] Implement Dashboard (Real-time listeners)
+- [ ] **User Features**
+    - [ ] Create MessCard Component
+    - [ ] Update Home Page to List Messes
+    - [ ] Create MessDetails Page (Room Listing)
+    - [ ] Update Routing
+- [ ] **UI Polish**
+    - [x] **Design Iteration**
+        - [x] Generate Landing Page Concepts
+        - [x] User Selection (Option 6: Soft Pastel)
+    - [x] **Design Iteration**
+        - [x] Generate Landing Page Concepts
+        - [x] User Selection (Option 6: Soft Pastel)
+    - [/] **Implement Soft Pastel Theme**
+        - [x] Update Home Page (Pastel Gradients, Soft UI)
+        - [x] Update MessCard (Rounded, Dreamy Shadow)
+        - [ ] Style MessDetails Page
+        - [ ] Polish Admin Dashboard and Login

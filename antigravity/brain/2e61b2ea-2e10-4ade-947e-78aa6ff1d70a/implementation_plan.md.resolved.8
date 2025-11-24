@@ -1,0 +1,66 @@
+
+
+# Mess Khojo - Implementation Plan
+
+## Goal Description
+Build "Mess Khojo", a web application connecting users with mess/hostel rooms.
+- **Admin Interface**: Secure login, manage room listings (photos, details).
+- **User Interface**: Public access to view room listings.
+- **Tech Stack**: React (Frontend), Firebase (Backend-as-a-Service).
+
+## User Review Required
+> [!IMPORTANT]
+> **Firebase Configuration**: You will need to provide the Firebase configuration object (API keys, etc.) after I set up the project structure. I cannot create the Firebase project for you on the Google Console.
+
+## Proposed Changes
+
+### Configuration
+#### [NEW] client/src/firebase.js
+- Initialize Firebase App.
+- Export `auth`, `db` (Firestore), `storage`.
+
+### Frontend (Client)
+#### [MODIFY] client/src/pages/Home.jsx
+- **Theme**: Soft Pastel (Lavender, Soft Pink, Mint Blue).
+- **Hero**: Soft gradient background, cozy typography.
+- **Header**: Integrate `logo.png`.
+
+#### [MODIFY] client/src/components/MessCard.jsx
+- **Style**: Pill-shaped buttons, soft shadows, rounded corners.
+- **Colors**: Pastel accents.
+
+#### [MODIFY] client/src/pages/MessDetails.jsx
+- Consistent pastel theming.
+
+#### [MODIFY] client/src/pages/AdminLogin.jsx & AdminDashboard.jsx
+- Apply new branding to admin pages.
+
+#### [NEW] client/package.json
+- **Room Data**: Include `messId` and `messName` when adding a room.
+
+#### [NEW] client/src/components/RoomCard.jsx
+- Display Mess Name if available.
+- **Availability**: Show "Available" or "Booked" badge.
+
+### New Features Implementation
+#### [MODIFY] client/src/pages/AdminDashboard.jsx
+- **Mess Poster**: Add file input for poster image. Upload to Firebase Storage and save URL to `messes` collection.
+- **Room Availability**: Add checkbox for "Available for Rent". Save boolean to `rooms` collection. Add toggle in room list to update status.
+- **Edit Mess Profile**: Allow admins to edit their mess details and upload/update the poster.
+- **Edit Room**: Add "Edit" button to rooms. Populate form with room data. Update Firestore document on submit.
+
+#### [MODIFY] client/src/components/MessCard.jsx
+- **Poster**: Display uploaded poster image if available, fallback to gradient.
+
+#### [MODIFY] client/src/pages/MessDetails.jsx
+- **Room List**: Show availability status for each room.
+
+## Verification Plan
+### Manual Verification
+- **Setup**: User provides Firebase config.
+- **Admin**:
+    - Login with test credentials (created in Firebase Console).
+    - Upload a room image and details.
+    - Verify image appears in Storage and data in Firestore.
+- **User**:
+    - Verify Home page loads data from Firestore.

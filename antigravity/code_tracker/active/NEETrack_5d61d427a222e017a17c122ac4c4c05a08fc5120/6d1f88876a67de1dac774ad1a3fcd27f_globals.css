@@ -1,0 +1,352 @@
+àa@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+    --card: 240 10% 15%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 260 100% 70%;
+    --primary-foreground: 210 40% 9.8%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 260 100% 80%;
+    --accent-foreground: 210 40% 9.8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 5% 25%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 260 100% 75%;
+
+    /* Custom styles for login page */
+    --input-focus: #2d8cf0;
+    --font-color: #323232;
+    --font-color-sub: #666;
+    --bg-color: #fff;
+    --bg-color-alt: #666;
+    --main-color: #323232;
+  }
+
+  .dark {
+    --background: 20 14% 4%;
+    --foreground: 210 40% 98%;
+    --card: 240 10% 15%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 260 100% 70%;
+    --primary-foreground: 210 40% 9.8%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 340 80% 70%;
+    --accent-foreground: 210 40% 9.8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 5% 25%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 260 100% 75%;
+    background-color: hsl(var(--background));
+    background-image: 
+      radial-gradient(ellipse at 50% 0%, hsla(260, 100%, 70%, 0.1), transparent 70%),
+      radial-gradient(ellipse at 50% 100%, hsla(224, 71%, 4%, 0.1), transparent 70%),
+      radial-gradient(ellipse at 80% 50%, hsla(340, 80%, 70%, 0.1), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  .theme-thunder {
+    --background: 220 15% 10%; /* Deep charcoal */
+    --foreground: 0 0% 100%; /* White */
+    --card: 220 15% 15%; /* Slightly lighter charcoal */
+    --card-foreground: 0 0% 95%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 45 100% 55%; /* Vibrant yellow */
+    --primary-foreground: 30 100% 5%; /* Dark brown/black for text on primary */
+    --secondary: 220 15% 25%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 220 15% 25%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 45 100% 55%;
+    --accent-foreground: 30 100% 5%;
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 45 90% 35%;
+    --input: 220 15% 20%;
+    --ring: 45 100% 60%;
+    
+    --chart-1: hsl(20, 90%, 60%);
+    --chart-2: hsl(180, 70%, 50%);
+    --chart-3: hsl(300, 80%, 70%);
+
+    background-color: hsl(var(--background));
+    background-image: 
+      radial-gradient(ellipse at 10% 90%, hsla(45, 100%, 55%, 0.2), transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsla(30, 100%, 50%, 0.15), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, hsla(0, 0%, 0%, 0.1), transparent 100%);
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+  }
+
+  .theme-racer {
+    --background: 220 10% 8%; /* Very dark charcoal */
+    --foreground: 0 0% 98%; /* White */
+    --card: 220 10% 12%; /* Slightly lighter charcoal for cards */
+    --card-foreground: 0 0% 95%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 90% 60%; /* Vibrant, glowing Red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 10% 22%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 220 10% 18%; /* Muted for progress bar background */
+    --muted-foreground: 220 10% 65%;
+    --accent: 0 90% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 0 80% 30%;
+    --input: 220 10% 18%;
+    --ring: 0 90% 60%;
+
+    background-color: hsl(var(--background));
+    background-image: 
+      radial-gradient(ellipse at 90% 10%, hsla(0, 90%, 55%, 0.1), transparent 50%),
+      radial-gradient(ellipse at 10% 90%, hsla(240, 80%, 50%, 0.1), transparent 50%);
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+  }
+
+  .theme-galaxy {
+    --background: 240 10% 10%; /* Deep dark blue */
+    --foreground: 240 10% 95%; /* Light grey/white */
+    --card: 250 50% 100% / 0.05;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 330 100% 70%; /* Bright pink */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 50% 100% / 0.1;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 250 50% 100% / 0.1;
+    --muted-foreground: 240 10% 75%;
+    --accent: 180 100% 50%; /* Cyan accent */
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 250 50% 100% / 0.2;
+    --input: 250 50% 100% / 0.15;
+    --ring: 330 100% 70%;
+  }
+
+  .theme-sakura {
+    --background: 345 100% 98%; /* Very light, soft pink */
+    --foreground: 340 30% 30%; /* Dark, muted pink/rose */
+    --card: 345 100% 100% / 0.6; /* Semi-transparent white for a frosted glass effect */
+    --card-foreground: 340 30% 30%;
+    --popover: 345 100% 97%;
+    --popover-foreground: 340 30% 30%;
+    --primary: 340 80% 75%; /* Warm, soft pink from petals */
+    --primary-foreground: 340 50% 20%; /* Darker pink for text on primary */
+    --secondary: 345 60% 92%;
+    --secondary-foreground: 340 40% 25%;
+    --muted: 345 60% 92%;
+    --muted-foreground: 340 20% 55%;
+    --accent: 340 80% 80%;
+    --accent-foreground: 340 50% 20%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 340 60% 88%;
+    --input: 345 70% 94%;
+    --ring: 340 80% 75%;
+
+    background-color: hsl(var(--background));
+    background-image: 
+      radial-gradient(ellipse at 100% 0%, hsla(340, 80%, 85%, 0.3), transparent 50%),
+      radial-gradient(ellipse at 0% 100%, hsla(30, 80%, 90%, 0.4), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, hsla(345, 100%, 98%, 1), transparent 100%);
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+  }
+  
+  .theme-serenity {
+    --background: 220 40% 10%; /* Deep Navy Blue */
+    --foreground: 35 30% 88%; /* Soft Gold/Cream */
+    --card: 220 40% 15% / 0.7; /* Semi-transparent darker blue */
+    --card-foreground: 35 30% 88%;
+    --popover: 220 40% 10%;
+    --popover-foreground: 35 30% 88%;
+    --primary: 35 80% 65%; /* Bright Gold */
+    --primary-foreground: 35 80% 10%;
+    --secondary: 220 30% 25%;
+    --secondary-foreground: 35 30% 88%;
+    --muted: 220 30% 25%;
+    --muted-foreground: 220 20% 60%;
+    --accent: 330 80% 70%; /* Glowing Pink/Lotus color */
+    --accent-foreground: 330 80% 10%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 50% 40% / 0.5;
+    --input: 220 30% 20%;
+    --ring: 35 80% 65%;
+
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  .theme-meadow {
+    --background: 100 70% 92%; /* Light, vibrant green */
+    --foreground: 100 25% 20%; /* Dark, earthy green */
+    --card: 100 60% 100% / 0.6; /* Semi-transparent white with a green tint */
+    --card-foreground: 100 25% 20%;
+    --popover: 100 70% 90%;
+    --popover-foreground: 100 25% 20%;
+    --primary: 45 100% 55%; /* Sunny yellow */
+    --primary-foreground: 45 100% 15%; /* Darker yellow/brown for text on primary */
+    --secondary: 100 50% 85%;
+    --secondary-foreground: 100 25% 20%;
+    --muted: 100 50% 85%;
+    --muted-foreground: 100 20% 45%;
+    --accent: 45 100% 65%;
+    --accent-foreground: 45 100% 15%;
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 100 20% 65%;
+    --input: 100 60% 95%;
+    --ring: 45 100% 55%;
+
+    color: hsl(var(--foreground));
+  }
+
+  .theme-artist {
+    --background: 40 10% 97%; /* Off-white */
+    --foreground: 220 10% 20%; /* Dark Grey Blue */
+    --card: 0 0% 100% / 0.6; /* Frosted glass */
+    --card-foreground: 220 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 15%;
+    --primary: 200 80% 50%; /* Vibrant Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 25 100% 60%; /* Bright Orange */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 10% 90%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 330 100% 65%; /* Hot Pink */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 10% 80% / 0.5;
+    --input: 0 0% 100% / 0.8;
+    --ring: 200 80% 55%;
+    
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  .light {
+    --background: 40 100% 97%; /* Light cream */
+    --foreground: 20 10% 25%; /* Dark gray */
+    --card: 30 50% 92%; /* Slightly darker cream */
+    --card-foreground: 20 10% 25%;
+    --popover: 40 100% 97%;
+    --popover-foreground: 20 10% 25%;
+    --primary: 10 80% 65%; /* Soft pink/peach */
+    --primary-foreground: 20 10% 10%;
+    --secondary: 30 50% 92%;
+    --secondary-foreground: 20 10% 25%;
+    --muted: 30 30% 90%;
+    --muted-foreground: 20 10% 45%;
+    --accent: 10 80% 65%;
+    --accent-foreground: 20 10% 10%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 30% 85%;
+    --input: 30 30% 90%;
+    --ring: 10 80% 65%;
+
+    background-color: hsl(var(--background));
+    background-image: 
+      radial-gradient(circle at top right, hsla(10, 80%, 75%, 0.2), transparent 40%),
+      radial-gradient(circle at bottom left, hsla(30, 50%, 85%, 0.3), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .theme-cliffside {
+    --background: 205 100% 94%; /* Light sky blue */
+    --foreground: 25 25% 20%; /* Dark earthy brown */
+    --card: 40 40% 90% / 0.7; /* Semi-transparent sandy stone */
+    --card-foreground: 25 25% 20%;
+    --popover: 205 100% 92%;
+    --popover-foreground: 25 25% 20%;
+    --primary: 180 70% 50%; /* Vibrant turquoise ocean */
+    --primary-foreground: 180 90% 10%;
+    --secondary: 40 30% 85%;
+    --secondary-foreground: 25 25% 20%;
+    --muted: 40 30% 85%;
+    --muted-foreground: 30 20% 45%;
+    --accent: 180 70% 60%;
+    --accent-foreground: 180 90% 10%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 20% 70%;
+    --input: 40 40% 90% / 0.9;
+    --ring: 180 70% 55%;
+
+    background-color: hsl(var(--background));
+    background-image: 
+      /* Sun glare */
+      radial-gradient(ellipse at 50% 20%, hsla(40, 100%, 95%, 0.4), transparent 40%),
+      /* Distant clouds */
+      radial-gradient(ellipse at 10% 80%, hsla(200, 100%, 100%, 0.3), transparent 50%),
+      radial-gradient(ellipse at 90% 90%, hsla(210, 100%, 90%, 0.3), transparent 50%);
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+  }
+
+  .theme-neon-glass {
+    --background: 260 60% 5%; /* Deep Purple/Black */
+    --foreground: 210 40% 98%; /* White/Light Grey */
+    --card: 260 50% 10% / 0.4; /* Translucent dark purple */
+    --card-foreground: 210 40% 98%;
+    --popover: 260 60% 5%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 280 100% 60%; /* Neon Purple */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 160 100% 50%; /* Neon Green */
+    --secondary-foreground: 260 60% 5%;
+    --muted: 260 40% 20% / 0.5;
+    --muted-foreground: 260 20% 70%;
+    --accent: 160 100% 50%; /* Neon Green Accent */
+    --accent-foreground: 260 60% 5%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 260 50% 30% / 0.3;
+    --input: 260 50% 15% / 0.5;
+    --ring: 280 100% 60%;
+
+    background-color: hsl(var(--background));
+    background-image: 
+      radial-gradient(circle at 10% 20%, hsla(280, 100%, 60%, 0.15), transparent 40%),
+      radial-gradient(circle at 90% 80%, hsla(160, 100%, 50%, 0.1), transparent 40%),
+      radial-gradient(circle at 50% 50%, hsla(260, 60%, 15%, 0.3), transparent 60%);
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+  }
+}
+àa*cascade08"(5d61d427a222e017a17c122ac4c4c05a08fc512025file:///c:/Apps/NEETrack/NEETrack/src/app/globals.css:!file:///c:/Apps/NEETrack/NEETrack

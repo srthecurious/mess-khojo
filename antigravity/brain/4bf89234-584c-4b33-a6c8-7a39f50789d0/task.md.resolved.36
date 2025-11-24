@@ -1,0 +1,12 @@
+# Task: Design Dashboard Concepts
+
+- [x] Generate Design 1: Glassmorphism & Neon <!-- id: 0 -->
+- [x] Generate Design 2: Minimalist & Clean <!-- id: 1 -->
+- [x] Generate Design 3: Futuristic & Data-Heavy <!-- id: 2 -->
+- [x] Present designs to user for selection <!-- id: 3 -->
+- [/] Implement selected design (Glassmorphism) <!-- id: 4 -->
+    - [/] Update [globals.css](file:///c:/Apps/NEETrack/NEETrack/src/app/globals.css) with neon/glass theme <!-- id: 4.1 -->
+    - [ ] Update [tailwind.config.ts](file:///c:/Apps/NEETrack/NEETrack/tailwind.config.ts) <!-- id: 4.2 -->
+    - [ ] Refactor [DashboardBackground](file:///c:/Apps/NEETrack/NEETrack/src/components/ui/dashboard-background.tsx#4-40) <!-- id: 4.3 -->
+    - [ ] Update Dashboard Layout & Cards <!-- id: 4.4 -->
+    - [ ] Polish UI components <!-- id: 4.5 -->

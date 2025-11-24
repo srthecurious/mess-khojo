@@ -1,0 +1,61 @@
+# Mess Khojo - Implementation Plan
+
+## Goal Description
+Build "Mess Khojo", a web application connecting users with mess/hostel rooms.
+- **Admin Interface**: Secure login, manage room listings (photos, details).
+- **User Interface**: Public access to view room listings.
+- **Tech Stack**: React (Frontend), Node.js/Express (Backend), SQLite (Database), Local Storage for images.
+
+## User Review Required
+> [!NOTE]
+> Using a local SQLite database and local file storage for simplicity and "free" usage without cloud setup. This means the app is self-contained.
+
+## Proposed Changes
+
+### Backend (Server)
+#### [NEW] server/package.json
+- Dependencies: `express`, `sqlite3`, `cors`, `multer`, `bcrypt`, `jsonwebtoken`.
+
+#### [NEW] server/index.js
+- Main server entry point.
+- API Routes:
+    - `POST /api/auth/login`: Admin login.
+    - `GET /api/rooms`: Get all rooms (public).
+    - `POST /api/rooms`: Add room (protected).
+    - `DELETE /api/rooms/:id`: Delete room (protected).
+    - `POST /api/upload`: Handle image uploads.
+
+#### [NEW] server/db.js
+- Database initialization (Tables: `users` (admins), `rooms`).
+
+### Frontend (Client)
+#### [NEW] client/package.json
+- Dependencies: `react`, `react-dom`, `react-router-dom`, `lucide-react` (icons), `axios`, `framer-motion` (animations).
+
+#### [NEW] client/src/App.jsx
+- Routing setup (/, /admin/login, /admin/dashboard).
+
+#### [NEW] client/src/pages/Home.jsx
+- User interface to list rooms.
+
+#### [NEW] client/src/pages/AdminLogin.jsx
+- Admin login form.
+
+#### [NEW] client/src/pages/AdminDashboard.jsx
+- Admin controls to add/manage rooms.
+
+#### [NEW] client/src/components/RoomCard.jsx
+- Reusable component for displaying room info.
+
+## Verification Plan
+### Automated Tests
+- None planned for this prototype phase.
+
+### Manual Verification
+- Start backend server.
+- Start frontend dev server.
+- Navigate to `/admin/login`, log in with default credentials.
+- Add a room with photo and details.
+- Verify room appears on Admin Dashboard.
+- Navigate to `/` (Home) as a user.
+- Verify room appears with correct details.

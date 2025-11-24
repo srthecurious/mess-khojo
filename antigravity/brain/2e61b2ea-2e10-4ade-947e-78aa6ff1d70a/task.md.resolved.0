@@ -1,0 +1,29 @@
+# Mess Khojo - Task List
+
+- [ ] **Project Setup**
+    - [ ] Create project directories (client/server)
+    - [ ] Initialize `task.md` and `implementation_plan.md`
+- [ ] **Frontend Initialization**
+    - [ ] Initialize Vite + React project
+    - [ ] Setup TailwindCSS
+    - [ ] Setup React Router
+- [ ] **Backend Initialization**
+    - [ ] Initialize Node.js + Express project
+    - [ ] Setup SQLite database
+    - [ ] Setup Image Upload handling (Multer)
+- [ ] **Database Schema**
+    - [ ] Create `admins` table
+    - [ ] Create `rooms` table
+- [ ] **Admin Features**
+    - [ ] Implement Admin Login API & UI
+    - [ ] Implement Add Room API & Form
+    - [ ] Implement Dashboard (List Rooms, Delete Room)
+- [ ] **User Features**
+    - [ ] Implement Room Listing API & UI
+    - [ ] Implement Room Details View
+- [ ] **Styling & Polish**
+    - [ ] Apply premium design (Glassmorphism, Animations)
+    - [ ] Ensure responsive layout
+- [ ] **Verification**
+    - [ ] Test Admin Flow (Login, Add, View)
+    - [ ] Test User Flow (View, Filter?)

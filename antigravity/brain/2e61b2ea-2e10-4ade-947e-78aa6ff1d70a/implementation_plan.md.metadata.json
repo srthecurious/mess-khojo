@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Updated implementation plan to use Google Firebase (Auth, Firestore, Storage) instead of custom backend.",
+  "updatedAt": "2025-11-23T17:18:59.300234400Z",
+  "version": "1"
+}

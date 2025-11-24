@@ -1,0 +1,44 @@
+
+# Mess Khojo - Task List
+
+- [x] **Project Setup**
+    - [x] Create project directories (client/server)
+    - [x] Initialize `task.md` and `implementation_plan.md`
+- [x] **Frontend Initialization**
+    - [x] Initialize Vite + React project
+    - [x] Setup TailwindCSS
+    - [x] Setup React Router
+- [x] **Firebase Setup**
+    - [x] Create Firebase Project (User needs to provide config)
+    - [x] Initialize Firebase in React App
+    - [x] Setup Firestore (Database)
+    - [x] Setup Firebase Storage (Images)
+    - [x] Setup Firebase Auth (Admin Login)
+- [ ] **Admin Features**
+    - [x] Implement Admin Login (Firebase Auth)
+    - [x] Implement Mess Profile Creation (New Requirement)
+    - [ ] **New Features**
+        - [x] Add Mess Poster Upload (Creation)
+        - [x] Add Mess Poster Upload (Edit Mode)
+        - [x] Add Room Availability Toggle
+        - [x] Add Room Editing Feature
+        - [ ] Support Multiple Room Images (Max 5)
+    - [ ] Update Add Room to link with Mess
+    - [x] Implement Dashboard (Real-time listeners)
+- [ ] **User Features**
+    - [ ] Create MessCard Component
+    - [ ] Update Home Page to List Messes
+    - [ ] Create MessDetails Page (Room Listing)
+    - [ ] Update Routing
+- [ ] **UI Polish**
+    - [x] **Design Iteration**
+        - [x] Generate Landing Page Concepts
+        - [x] User Selection (Option 6: Soft Pastel)
+    - [x] **Design Iteration**
+        - [x] Generate Landing Page Concepts
+        - [x] User Selection (Option 6: Soft Pastel)
+    - [/] **Implement Soft Pastel Theme**
+        - [x] Update Home Page (Pastel Gradients, Soft UI)
+        - [x] Update MessCard (Rounded, Dreamy Shadow)
+        - [ ] Style MessDetails Page
+        - [ ] Polish Admin Dashboard and Login

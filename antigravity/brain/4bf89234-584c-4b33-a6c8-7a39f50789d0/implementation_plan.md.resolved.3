@@ -1,0 +1,52 @@
+# Implement Glassmorphism & Neon Dashboard Design
+
+## Goal Description
+Implement the selected "Glassmorphism & Neon" design for the NEETrack dashboard and Pomodoro timer. This involves a visual overhaul to introduce a dark, premium aesthetic with frosted glass effects, deep purple/black gradients, and neon accents.
+
+## User Review Required
+> [!IMPORTANT]
+> This change will significantly alter the visual appearance of the application, moving to a dark-themed, high-contrast interface.
+
+## Proposed Changes
+### Global Styles
+#### [MODIFY] [globals.css](file:///c:/Apps/NEETrack/NEETrack/src/app/globals.css)
+- Define a new `.theme-neon-glass` class (or update root/dark variables).
+- Set background to a deep purple/black gradient.
+- Define neon color variables for primary (purple) and accent (green).
+- Create utility classes for glassmorphism (backdrop-blur, semi-transparent backgrounds/borders).
+
+### Tailwind Configuration
+#### [MODIFY] [tailwind.config.ts](file:///c:/Apps/NEETrack/NEETrack/tailwind.config.ts)
+- Extend color palette if necessary to support specific neon shades.
+- Ensure `backdrop-blur` and `background-opacity` utilities are enabled (standard in Tailwind).
+
+### Components
+#### [MODIFY] [DashboardBackground](file:///c:/Apps/NEETrack/NEETrack/src/components/ui/dashboard-background.tsx)
+- Update SVG gradients to match the new deep purple/black theme.
+
+#### [MODIFY] [Dashboard Page](file:///c:/Apps/NEETrack/NEETrack/src/app/(app)/dashboard/page.tsx)
+- Apply glassmorphism classes to card containers.
+- Update typography to be high-contrast and sleek.
+
+#### [MODIFY] [UI Components](file:///c:/Apps/NEETrack/NEETrack/src/components/ui)
+- Update `Card`, [Button](file:///c:/Apps/NEETrack/NEETrack/src/components/pomodoro-timer.tsx#50-73), and other primitives to support the glass style (e.g., removing solid backgrounds in favor of translucent ones).
+
+#### [MODIFY] [PomodoroTimer](file:///c:/Apps/NEETrack/NEETrack/src/components/pomodoro-timer.tsx)
+- Update container to use `bg-card/30`, `backdrop-blur-xl`, and neon border.
+- Update mode buttons to use `glass` variant or similar style.
+- Enhance typography for the timer display.
+
+#### [MODIFY] [CircularProgress](file:///c:/Apps/NEETrack/NEETrack/src/components/ui/circular-progress.tsx)
+- Add a new neon gradient definition (`timer-gradient-neon`) to `defs`.
+- Use this new gradient as the default or pass it from [PomodoroTimer](file:///c:/Apps/NEETrack/NEETrack/src/components/pomodoro-timer.tsx#28-244).
+
+## Verification Plan
+### Manual Verification
+- [ ] Verify the dashboard background matches the design (deep purple/black gradient).
+- [ ] Check that cards have the frosted glass effect.
+- [ ] Ensure text is legible against the dark background.
+- [ ] Verify neon accents are visible and "glowing".
+- [ ] **Pomodoro Timer**:
+    - [ ] Check glass container style.
+    - [ ] Verify neon progress ring gradient.
+    - [ ] Ensure buttons and controls match the theme.

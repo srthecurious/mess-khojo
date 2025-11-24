@@ -1,0 +1,14 @@
+# Run Application Preview
+
+## Goal Description
+The user wants to see a preview of the application. I will start the development server and open it in a browser.
+
+## Proposed Changes
+No code changes are expected. I will only run commands.
+
+## Verification Plan
+### Automated Tests
+- None.
+
+### Manual Verification
+- [ ] Open the local server URL in the browser and verify the app loads.

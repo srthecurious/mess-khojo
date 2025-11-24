@@ -1,0 +1,15 @@
+# Application Preview Walkthrough
+
+I have successfully set up the environment and started the development server.
+
+## Changes Made
+- Installed project dependencies using `npm install`.
+- Started the development server using `npm run dev`.
+
+## Verification Results
+### Automated Tests
+- The browser preview tool encountered a temporary issue, so I could not capture a screenshot.
+
+### Manual Verification
+- The server is running at [http://localhost:3000](http://localhost:3000).
+- Please open this URL in your browser to see the application preview.

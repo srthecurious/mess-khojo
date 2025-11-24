@@ -1,0 +1,53 @@
+# Mess Khojo - Implementation Plan
+
+## Goal Description
+Build "Mess Khojo", a web application connecting users with mess/hostel rooms.
+- **Admin Interface**: Secure login, manage room listings (photos, details).
+- **User Interface**: Public access to view room listings.
+- **Tech Stack**: React (Frontend), Firebase (Backend-as-a-Service).
+
+## User Review Required
+> [!IMPORTANT]
+> **Firebase Configuration**: You will need to provide the Firebase configuration object (API keys, etc.) after I set up the project structure. I cannot create the Firebase project for you on the Google Console.
+
+## Proposed Changes
+
+### Configuration
+#### [NEW] client/src/firebase.js
+- Initialize Firebase App.
+- Export `auth`, `db` (Firestore), `storage`.
+
+### Frontend (Client)
+#### [NEW] client/package.json
+- Dependencies: `firebase`, `react`, `react-dom`, `react-router-dom`, `lucide-react`, `framer-motion`.
+
+#### [NEW] client/src/App.jsx
+- Routing setup (/, /admin/login, /admin/dashboard).
+- Context providers for Auth if needed.
+
+#### [NEW] client/src/pages/Home.jsx
+- Fetch rooms from Firestore `rooms` collection.
+- Display in responsive grid.
+
+#### [NEW] client/src/pages/AdminLogin.jsx
+- Firebase `signInWithEmailAndPassword`.
+- **Note**: No sign-up option. Admins must be manually created in Firebase Console.
+
+#### [NEW] client/src/pages/AdminDashboard.jsx
+- **State Check**: Check if logged-in admin has a "Mess Profile" in `messes` collection.
+- **View 1: Create Profile**: If no profile, show form to create Mess (Name, Address, Contact).
+- **View 2: Manage Rooms**: If profile exists, show "Add Room" form and "Your Rooms" list.
+- **Room Data**: Include `messId` and `messName` when adding a room.
+
+#### [NEW] client/src/components/RoomCard.jsx
+- Display Mess Name if available.
+
+## Verification Plan
+### Manual Verification
+- **Setup**: User provides Firebase config.
+- **Admin**:
+    - Login with test credentials (created in Firebase Console).
+    - Upload a room image and details.
+    - Verify image appears in Storage and data in Firestore.
+- **User**:
+    - Verify Home page loads data from Firestore.

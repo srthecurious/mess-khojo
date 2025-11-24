@@ -1,0 +1,22 @@
+# Application Preview & PWA Walkthrough
+
+I have successfully set up the environment, started the development server, and implemented PWA functionality.
+
+## Changes Made
+- Installed project dependencies using `npm install`.
+- Installed `@ducanh2912/next-pwa` for PWA support.
+- Configured [next.config.ts](file:///c:/Apps/NEETrack/NEETrack/next.config.ts) to use the PWA plugin.
+- Verified generation of [sw.js](file:///c:/Apps/NEETrack/NEETrack/public/sw.js) (Service Worker).
+
+## Verification Results
+### Automated Tests
+- The browser preview tool encountered a temporary issue.
+
+### Manual Verification
+- The server is running at [http://localhost:3000](http://localhost:3000).
+- **To verify the "Install App" button:**
+    1. Open [http://localhost:3000](http://localhost:3000) in Chrome.
+    2. Open Developer Tools (F12) -> Application tab.
+    3. Check that a Service Worker is registered.
+    4. The "Install App" button should now be enabled (green).
+    5. Clicking it should trigger the browser's install prompt.

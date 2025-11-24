@@ -1,0 +1,9 @@
+# Task: Debug Console Errors
+
+- [x] Fix PWA Icon Error <!-- id: 0 -->
+    - [x] Regenerate [public/icon.png](file:///c:/Apps/NEETrack/NEETrack/public/icon.png) <!-- id: 0.1 -->
+    - [x] Verify manifest reference <!-- id: 0.2 -->
+- [ ] Fix SVG Path Error <!-- id: 1 -->
+    - [x] Locate source of error (Dashboard/Recharts) <!-- id: 1.1 -->
+    - [/] Fix invalid data or path <!-- id: 1.2 -->
+- [ ] Verify no console errors <!-- id: 2 -->

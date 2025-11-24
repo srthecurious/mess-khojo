@@ -1,0 +1,214 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/RoomCard.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=0bab2877"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import __vite__cjsImport1_react from "/node_modules/.vite/deps/react.js?v=0bab2877"; const React = __vite__cjsImport1_react.__esModule ? __vite__cjsImport1_react.default : __vite__cjsImport1_react;
+import { MapPin, Bed, Bath, Utensils, Droplets, Check, X } from "/node_modules/.vite/deps/lucide-react.js?v=38004c6b";
+const RoomCard = ({ room, isAdmin, onDelete }) => {
+  return /* @__PURE__ */ jsxDEV("div", { className: "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-100", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "relative h-48 overflow-hidden", children: [
+      /* @__PURE__ */ jsxDEV(
+        "img",
+        {
+          src: room.imageUrl || "https://via.placeholder.com/400x300?text=No+Image",
+          alt: `Room ${room.roomNumber}`,
+          className: "w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+          lineNumber: 8,
+          columnNumber: 17
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV("div", { className: "absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-indigo-600 shadow-sm", children: [
+        "₹",
+        room.rent,
+        "/mo"
+      ] }, void 0, true, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+        lineNumber: 13,
+        columnNumber: 17
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+      lineNumber: 7,
+      columnNumber: 13
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "p-5", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-start mb-3", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-xl font-bold text-gray-800", children: [
+            "Room ",
+            room.roomNumber
+          ] }, void 0, true, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 21,
+            columnNumber: 25
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center text-gray-500 text-sm mt-1", children: [
+            /* @__PURE__ */ jsxDEV(MapPin, { size: 14, className: "mr-1" }, void 0, false, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+              lineNumber: 23,
+              columnNumber: 29
+            }, this),
+            room.location
+          ] }, void 0, true, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 22,
+            columnNumber: 25
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+          lineNumber: 20,
+          columnNumber: 21
+        }, this),
+        isAdmin && /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            onClick: () => onDelete(room.id),
+            className: "text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors",
+            children: /* @__PURE__ */ jsxDEV(X, { size: 20 }, void 0, false, {
+              fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+              lineNumber: 32,
+              columnNumber: 29
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 28,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+        lineNumber: 19,
+        columnNumber: 17
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-2 gap-3 text-sm text-gray-600 mb-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center", children: [
+          /* @__PURE__ */ jsxDEV(Bed, { size: 16, className: "mr-2 text-indigo-500" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 38,
+            columnNumber: 56
+          }, this),
+          " ",
+          room.beds,
+          " Beds"
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+          lineNumber: 38,
+          columnNumber: 21
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center", children: [
+          /* @__PURE__ */ jsxDEV(Bath, { size: 16, className: "mr-2 text-indigo-500" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 39,
+            columnNumber: 56
+          }, this),
+          " ",
+          room.bathrooms,
+          " Baths"
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+          lineNumber: 39,
+          columnNumber: 21
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center", children: [
+          /* @__PURE__ */ jsxDEV(Utensils, { size: 16, className: "mr-2 text-indigo-500" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 41,
+            columnNumber: 25
+          }, this),
+          "Food: ",
+          room.food ? /* @__PURE__ */ jsxDEV(Check, { size: 14, className: "text-green-500 ml-1" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 42,
+            columnNumber: 44
+          }, this) : /* @__PURE__ */ jsxDEV(X, { size: 14, className: "text-red-500 ml-1" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 42,
+            columnNumber: 98
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+          lineNumber: 40,
+          columnNumber: 21
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center", children: [
+          /* @__PURE__ */ jsxDEV(Droplets, { size: 16, className: "mr-2 text-indigo-500" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 45,
+            columnNumber: 25
+          }, this),
+          "Water: ",
+          room.waterFilter ? /* @__PURE__ */ jsxDEV(Check, { size: 14, className: "text-green-500 ml-1" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 46,
+            columnNumber: 52
+          }, this) : /* @__PURE__ */ jsxDEV(X, { size: 14, className: "text-red-500 ml-1" }, void 0, false, {
+            fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+            lineNumber: 46,
+            columnNumber: 106
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+          lineNumber: 44,
+          columnNumber: 21
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+        lineNumber: 37,
+        columnNumber: 17
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "border-t border-gray-100 pt-3 mt-2", children: /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-gray-500 line-clamp-2", children: room.otherInfo }, void 0, false, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+        lineNumber: 51,
+        columnNumber: 21
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+        lineNumber: 50,
+        columnNumber: 17
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+      lineNumber: 18,
+      columnNumber: 13
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx",
+    lineNumber: 6,
+    columnNumber: 5
+  }, this);
+};
+_c = RoomCard;
+export default RoomCard;
+var _c;
+$RefreshReg$(_c, "RoomCard");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) {
+  return RefreshRuntime.register(type, "C:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/components/RoomCard.jsx " + id);
+}
+function $RefreshSig$() {
+  return RefreshRuntime.createSignatureFunctionForTransform();
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBT2dCO0FBUGhCLE9BQU9BLFdBQVc7QUFDbEIsU0FBU0MsUUFBUUMsS0FBS0MsTUFBTUMsVUFBVUMsVUFBVUMsT0FBT0MsU0FBUztBQUVoRSxNQUFNQyxXQUFXQSxDQUFDLEVBQUVDLE1BQU1DLFNBQVNDLFNBQVMsTUFBTTtBQUM5QyxTQUNJLHVCQUFDLFNBQUksV0FBVSx1SEFDWDtBQUFBLDJCQUFDLFNBQUksV0FBVSxpQ0FDWDtBQUFBO0FBQUEsUUFBQztBQUFBO0FBQUEsVUFDRyxLQUFLRixLQUFLRyxZQUFZO0FBQUEsVUFDdEIsS0FBSyxRQUFRSCxLQUFLSSxVQUFVO0FBQUEsVUFDNUIsV0FBVTtBQUFBO0FBQUEsUUFIZDtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsTUFHc0c7QUFBQSxNQUV0Ryx1QkFBQyxTQUFJLFdBQVUsOEhBQTZIO0FBQUE7QUFBQSxRQUN0SUosS0FBS0s7QUFBQUEsUUFBSztBQUFBLFdBRGhCO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFFQTtBQUFBLFNBUko7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQVNBO0FBQUEsSUFFQSx1QkFBQyxTQUFJLFdBQVUsT0FDWDtBQUFBLDZCQUFDLFNBQUksV0FBVSx5Q0FDWDtBQUFBLCtCQUFDLFNBQ0c7QUFBQSxpQ0FBQyxRQUFHLFdBQVUsbUNBQWtDO0FBQUE7QUFBQSxZQUFNTCxLQUFLSTtBQUFBQSxlQUEzRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFzRTtBQUFBLFVBQ3RFLHVCQUFDLFNBQUksV0FBVSxnREFDWDtBQUFBLG1DQUFDLFVBQU8sTUFBTSxJQUFJLFdBQVUsVUFBNUI7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBa0M7QUFBQSxZQUNqQ0osS0FBS007QUFBQUEsZUFGVjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUdBO0FBQUEsYUFMSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBTUE7QUFBQSxRQUNDTCxXQUNHO0FBQUEsVUFBQztBQUFBO0FBQUEsWUFDRyxTQUFTLE1BQU1DLFNBQVNGLEtBQUtPLEVBQUU7QUFBQSxZQUMvQixXQUFVO0FBQUEsWUFFVixpQ0FBQyxLQUFFLE1BQU0sTUFBVDtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUFZO0FBQUE7QUFBQSxVQUpoQjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsUUFLQTtBQUFBLFdBZFI7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQWdCQTtBQUFBLE1BRUEsdUJBQUMsU0FBSSxXQUFVLHFEQUNYO0FBQUEsK0JBQUMsU0FBSSxXQUFVLHFCQUFvQjtBQUFBLGlDQUFDLE9BQUksTUFBTSxJQUFJLFdBQVUsMEJBQXpCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBQStDO0FBQUEsVUFBRztBQUFBLFVBQUVQLEtBQUtRO0FBQUFBLFVBQUs7QUFBQSxhQUFqRztBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQXNHO0FBQUEsUUFDdEcsdUJBQUMsU0FBSSxXQUFVLHFCQUFvQjtBQUFBLGlDQUFDLFFBQUssTUFBTSxJQUFJLFdBQVUsMEJBQTFCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBQWdEO0FBQUEsVUFBRztBQUFBLFVBQUVSLEtBQUtTO0FBQUFBLFVBQVU7QUFBQSxhQUF2RztBQUFBO0FBQUE7QUFBQTtBQUFBLGVBQTZHO0FBQUEsUUFDN0csdUJBQUMsU0FBSSxXQUFVLHFCQUNYO0FBQUEsaUNBQUMsWUFBUyxNQUFNLElBQUksV0FBVSwwQkFBOUI7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBb0Q7QUFBQSxVQUFHO0FBQUEsVUFDaERULEtBQUtVLE9BQU8sdUJBQUMsU0FBTSxNQUFNLElBQUksV0FBVSx5QkFBM0I7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBZ0QsSUFBTSx1QkFBQyxLQUFFLE1BQU0sSUFBSSxXQUFVLHVCQUF2QjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUEwQztBQUFBLGFBRnZIO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFHQTtBQUFBLFFBQ0EsdUJBQUMsU0FBSSxXQUFVLHFCQUNYO0FBQUEsaUNBQUMsWUFBUyxNQUFNLElBQUksV0FBVSwwQkFBOUI7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBb0Q7QUFBQSxVQUFHO0FBQUEsVUFDL0NWLEtBQUtXLGNBQWMsdUJBQUMsU0FBTSxNQUFNLElBQUksV0FBVSx5QkFBM0I7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFBZ0QsSUFBTSx1QkFBQyxLQUFFLE1BQU0sSUFBSSxXQUFVLHVCQUF2QjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUEwQztBQUFBLGFBRi9IO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFHQTtBQUFBLFdBVko7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVdBO0FBQUEsTUFFQSx1QkFBQyxTQUFJLFdBQVUsc0NBQ1gsaUNBQUMsT0FBRSxXQUFVLHNDQUFzQ1gsZUFBS1ksYUFBeEQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUFrRSxLQUR0RTtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBRUE7QUFBQSxTQWxDSjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBbUNBO0FBQUEsT0EvQ0o7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQWdEQTtBQUVSO0FBQUVDLEtBcERJZDtBQXNETixlQUFlQTtBQUFTLElBQUFjO0FBQUFDLGFBQUFELElBQUEiLCJuYW1lcyI6WyJSZWFjdCIsIk1hcFBpbiIsIkJlZCIsIkJhdGgiLCJVdGVuc2lscyIsIkRyb3BsZXRzIiwiQ2hlY2siLCJYIiwiUm9vbUNhcmQiLCJyb29tIiwiaXNBZG1pbiIsIm9uRGVsZXRlIiwiaW1hZ2VVcmwiLCJyb29tTnVtYmVyIiwicmVudCIsImxvY2F0aW9uIiwiaWQiLCJiZWRzIiwiYmF0aHJvb21zIiwiZm9vZCIsIndhdGVyRmlsdGVyIiwib3RoZXJJbmZvIiwiX2MiLCIkUmVmcmVzaFJlZyQiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiUm9vbUNhcmQuanN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XHJcbmltcG9ydCB7IE1hcFBpbiwgQmVkLCBCYXRoLCBVdGVuc2lscywgRHJvcGxldHMsIENoZWNrLCBYIH0gZnJvbSAnbHVjaWRlLXJlYWN0JztcclxuXHJcbmNvbnN0IFJvb21DYXJkID0gKHsgcm9vbSwgaXNBZG1pbiwgb25EZWxldGUgfSkgPT4ge1xyXG4gICAgcmV0dXJuIChcclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJnLXdoaXRlIHJvdW5kZWQteGwgc2hhZG93LWxnIG92ZXJmbG93LWhpZGRlbiBob3ZlcjpzaGFkb3cteGwgdHJhbnNpdGlvbi1zaGFkb3cgZHVyYXRpb24tMzAwIGJvcmRlciBib3JkZXItZ3JheS0xMDBcIj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWxhdGl2ZSBoLTQ4IG92ZXJmbG93LWhpZGRlblwiPlxyXG4gICAgICAgICAgICAgICAgPGltZ1xyXG4gICAgICAgICAgICAgICAgICAgIHNyYz17cm9vbS5pbWFnZVVybCB8fCBcImh0dHBzOi8vdmlhLnBsYWNlaG9sZGVyLmNvbS80MDB4MzAwP3RleHQ9Tm8rSW1hZ2VcIn1cclxuICAgICAgICAgICAgICAgICAgICBhbHQ9e2BSb29tICR7cm9vbS5yb29tTnVtYmVyfWB9XHJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIGgtZnVsbCBvYmplY3QtY292ZXIgdHJhbnNmb3JtIGhvdmVyOnNjYWxlLTEwNSB0cmFuc2l0aW9uLXRyYW5zZm9ybSBkdXJhdGlvbi01MDBcIlxyXG4gICAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYWJzb2x1dGUgdG9wLTQgcmlnaHQtNCBiZy13aGl0ZS85MCBiYWNrZHJvcC1ibHVyLXNtIHB4LTMgcHktMSByb3VuZGVkLWZ1bGwgdGV4dC1zbSBmb250LXNlbWlib2xkIHRleHQtaW5kaWdvLTYwMCBzaGFkb3ctc21cIj5cclxuICAgICAgICAgICAgICAgICAgICDigrl7cm9vbS5yZW50fS9tb1xyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTVcIj5cclxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW4gaXRlbXMtc3RhcnQgbWItM1wiPlxyXG4gICAgICAgICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxoMyBjbGFzc05hbWU9XCJ0ZXh0LXhsIGZvbnQtYm9sZCB0ZXh0LWdyYXktODAwXCI+Um9vbSB7cm9vbS5yb29tTnVtYmVyfTwvaDM+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgdGV4dC1ncmF5LTUwMCB0ZXh0LXNtIG10LTFcIj5cclxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxNYXBQaW4gc2l6ZT17MTR9IGNsYXNzTmFtZT1cIm1yLTFcIiAvPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAge3Jvb20ubG9jYXRpb259XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgICAgIHtpc0FkbWluICYmIChcclxuICAgICAgICAgICAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gb25EZWxldGUocm9vbS5pZCl9XHJcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ0ZXh0LXJlZC01MDAgaG92ZXI6dGV4dC1yZWQtNzAwIHAtMSByb3VuZGVkLWZ1bGwgaG92ZXI6YmctcmVkLTUwIHRyYW5zaXRpb24tY29sb3JzXCJcclxuICAgICAgICAgICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgPFggc2l6ZT17MjB9IC8+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICAgICAgICAgICl9XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTIgZ2FwLTMgdGV4dC1zbSB0ZXh0LWdyYXktNjAwIG1iLTRcIj5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyXCI+PEJlZCBzaXplPXsxNn0gY2xhc3NOYW1lPVwibXItMiB0ZXh0LWluZGlnby01MDBcIiAvPiB7cm9vbS5iZWRzfSBCZWRzPC9kaXY+XHJcbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlclwiPjxCYXRoIHNpemU9ezE2fSBjbGFzc05hbWU9XCJtci0yIHRleHQtaW5kaWdvLTUwMFwiIC8+IHtyb29tLmJhdGhyb29tc30gQmF0aHM8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxVdGVuc2lscyBzaXplPXsxNn0gY2xhc3NOYW1lPVwibXItMiB0ZXh0LWluZGlnby01MDBcIiAvPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICBGb29kOiB7cm9vbS5mb29kID8gPENoZWNrIHNpemU9ezE0fSBjbGFzc05hbWU9XCJ0ZXh0LWdyZWVuLTUwMCBtbC0xXCIgLz4gOiA8WCBzaXplPXsxNH0gY2xhc3NOYW1lPVwidGV4dC1yZWQtNTAwIG1sLTFcIiAvPn1cclxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgICAgIDxEcm9wbGV0cyBzaXplPXsxNn0gY2xhc3NOYW1lPVwibXItMiB0ZXh0LWluZGlnby01MDBcIiAvPlxyXG4gICAgICAgICAgICAgICAgICAgICAgICBXYXRlcjoge3Jvb20ud2F0ZXJGaWx0ZXIgPyA8Q2hlY2sgc2l6ZT17MTR9IGNsYXNzTmFtZT1cInRleHQtZ3JlZW4tNTAwIG1sLTFcIiAvPiA6IDxYIHNpemU9ezE0fSBjbGFzc05hbWU9XCJ0ZXh0LXJlZC01MDAgbWwtMVwiIC8+fVxyXG4gICAgICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJib3JkZXItdCBib3JkZXItZ3JheS0xMDAgcHQtMyBtdC0yXCI+XHJcbiAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC14cyB0ZXh0LWdyYXktNTAwIGxpbmUtY2xhbXAtMlwiPntyb29tLm90aGVySW5mb308L3A+XHJcbiAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICApO1xyXG59O1xyXG5cclxuZXhwb3J0IGRlZmF1bHQgUm9vbUNhcmQ7XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvYmFybWEvLmdlbWluaS9hbnRpZ3Jhdml0eS9zY3JhdGNoL21lc3Mta2hvam8vY2xpZW50L3NyYy9jb21wb25lbnRzL1Jvb21DYXJkLmpzeCJ9
