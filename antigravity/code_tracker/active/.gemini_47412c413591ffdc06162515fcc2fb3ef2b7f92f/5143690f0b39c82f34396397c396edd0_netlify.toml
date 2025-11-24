@@ -1,0 +1,5 @@
+{[build]
+  base = "antigravity/scratch/mess-khojo/client"
+  command = "npm install && npm run build"
+  publish = "dist"
+{*cascade08"(47412c413591ffdc06162515fcc2fb3ef2b7f92f2+file:///c:/Users/barma/.gemini/netlify.toml:file:///c:/Users/barma/.gemini
