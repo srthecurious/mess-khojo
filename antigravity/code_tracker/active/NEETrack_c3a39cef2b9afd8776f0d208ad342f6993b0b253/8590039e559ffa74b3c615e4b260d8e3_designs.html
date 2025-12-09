@@ -1,0 +1,199 @@
+ï/<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fireball Timer Concepts</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #ff4d4d, #f9cb28);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1400px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border-radius: 20px;
+            overflow: hidden;
+            width: 400px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            border: 1px solid #333;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(255, 77, 77, 0.2);
+            border-color: #ff4d4d;
+        }
+
+        .image-container {
+            width: 100%;
+            height: 400px;
+            overflow: hidden;
+        }
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .card:hover img {
+            transform: scale(1.05);
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        h2 {
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+
+        p {
+            color: #888;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .tag.realistic {
+            background: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+        }
+
+        .tag.anime {
+            background: rgba(255, 77, 77, 0.2);
+            color: #ff4d4d;
+        }
+
+        .tag.neon {
+            background: rgba(255, 0, 255, 0.2);
+            color: #ff00ff;
+        }
+
+        .tag.cosmic {
+            background: rgba(0, 191, 255, 0.2);
+            color: #00bfff;
+        }
+
+        .tag.mystic {
+            background: rgba(50, 205, 50, 0.2);
+            color: #32cd32;
+        }
+
+        .tag.elemental {
+            background: rgba(220, 20, 60, 0.2);
+            color: #dc143c;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Choose Your Fireball Style</h1>
+    <div class="container">
+        <div class="card" onclick="alert('You chose Realistic!')">
+            <div class="image-container">
+                <img src="/design-realistic.png" alt="Realistic Solar Fireball">
+            </div>
+            <div class="content">
+                <span class="tag realistic">Option 1</span>
+                <h2>Realistic Solar</h2>
+                <p>A cinematic, high-fidelity design featuring a burning sun-like plasma sphere with orbiting solar
+                    flares.</p>
+            </div>
+        </div>
+
+        <div class="card" onclick="alert('You chose Anime!')">
+            <div class="image-container">
+                <img src="/design-anime.png" alt="Anime Stylized Fireball">
+            </div>
+            <div class="content">
+                <span class="tag anime">Option 2</span>
+                <h2>Anime Stylized</h2>
+                <p>An energetic, cel-shaded design with dynamic motion lines and magical fire runes, inspired by anime
+                    aesthetics.</p>
+            </div>
+        </div>
+
+        <div class="card" onclick="alert('You chose Neon!')">
+            <div class="image-container">
+                <img src="/design-neon.png" alt="Neon Cyber Magma">
+            </div>
+            <div class="content">
+                <span class="tag neon">Option 3</span>
+                <h2>Neon Cyber Magma</h2>
+                <p>A modern, abstract design with glowing fluid lines and a cyberpunk neon aesthetic.</p>
+            </div>
+        </div>
+
+        <div class="card" onclick="alert('You chose Cosmic!')">
+            <div class="image-container">
+                <img src="/design-cosmic.png" alt="Cosmic Contrast">
+            </div>
+            <div class="content">
+                <span class="tag cosmic">Option 4</span>
+                <h2>Cosmic Contrast</h2>
+                <p>Deep blue plasma core with a blazing orange fire ring. High contrast complementary colors.</p>
+            </div>
+        </div>
+
+        <div class="card" onclick="alert('You chose Mystic!')">
+            <div class="image-container">
+                <img src="/design-mystic.png" alt="Mystic Contrast">
+            </div>
+            <div class="content">
+                <span class="tag mystic">Option 5</span>
+                <h2>Mystic Contrast</h2>
+                <p>Dark purple void center with a toxic green magical flame ring. Vibrant neon contrast.</p>
+            </div>
+        </div>
+
+        <div class="card" onclick="alert('You chose Elemental!')">
+            <div class="image-container">
+                <img src="/design-elemental.png" alt="Elemental Contrast">
+            </div>
+            <div class="content">
+                <span class="tag elemental">Option 6</span>
+                <h2>Elemental Contrast</h2>
+                <p>Icy blue frost sphere core surrounded by an intense raging red fire ring. Fire and Ice theme.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>ï/"(c3a39cef2b9afd8776f0d208ad342f6993b0b25325file:///c:/Apps/NEETrack/NEETrack/public/designs.html:!file:///c:/Apps/NEETrack/NEETrack
