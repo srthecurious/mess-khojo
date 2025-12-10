@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import RoomCard from '../components/RoomCard';
-import { MapPin, Phone, ArrowLeft } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink } from 'lucide-react';
 
 const MessDetails = () => {
     const { messId } = useParams();
@@ -57,6 +57,17 @@ const MessDetails = () => {
                         <div className="flex items-center bg-purple-50 px-4 py-2 rounded-full">
                             <MapPin size={20} className="mr-2 text-purple-500" />
                             <span>{mess.address}</span>
+                            {mess.locationUrl && (
+                                <a
+                                    href={mess.locationUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-2 text-purple-600 hover:text-purple-800"
+                                    title="View on Google Maps"
+                                >
+                                    <ExternalLink size={16} />
+                                </a>
+                            )}
                         </div>
                         <div className="flex items-center bg-pink-50 px-4 py-2 rounded-full">
                             <Phone size={20} className="mr-2 text-pink-500" />

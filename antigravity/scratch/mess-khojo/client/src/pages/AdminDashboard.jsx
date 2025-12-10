@@ -15,8 +15,10 @@ const AdminDashboard = () => {
     // Mess Profile Form State
     const [messForm, setMessForm] = useState({
         name: '',
+        name: '',
         address: '',
-        contact: ''
+        contact: '',
+        locationUrl: ''
     });
     const [posterFile, setPosterFile] = useState(null);
     const [isEditingMess, setIsEditingMess] = useState(false);
@@ -33,6 +35,9 @@ const AdminDashboard = () => {
         food: false,
         waterFilter: false,
         tableChair: false,
+        wifi: false,
+        inverter: false,
+        ac: false,
         advanceDeposit: '',
         available: true
     });
@@ -132,15 +137,17 @@ const AdminDashboard = () => {
     const handleEditMessClick = () => {
         setMessForm({
             name: messProfile.name,
+            name: messProfile.name,
             address: messProfile.address,
-            contact: messProfile.contact
+            contact: messProfile.contact,
+            locationUrl: messProfile.locationUrl || ''
         });
         setIsEditingMess(true);
     };
 
     const handleCancelEditMess = () => {
         setIsEditingMess(false);
-        setMessForm({ name: '', address: '', contact: '' });
+        setMessForm({ name: '', address: '', contact: '', locationUrl: '' });
         setPosterFile(null);
     };
 
@@ -154,7 +161,7 @@ const AdminDashboard = () => {
         setUploading(true);
         try {
             let downloadURLs = [];
-            
+
             // Keep existing images if editing
             if (editingRoomId) {
                 const currentRoom = rooms.find(r => r.id === editingRoomId);
@@ -179,7 +186,7 @@ const AdminDashboard = () => {
                 setUploading(false);
                 return;
             }
-            
+
             // Limit to 5 images total (optional validation, but good UX)
             if (downloadURLs.length > 5) {
                 alert(`You have ${downloadURLs.length} images. Maximum allowed is 5. Please remove some.`);
@@ -191,7 +198,7 @@ const AdminDashboard = () => {
                 ...formData,
                 imageUrls: downloadURLs,
                 // Keep backward compatibility for now, or just use imageUrls
-                imageUrl: downloadURLs[0] || "", 
+                imageUrl: downloadURLs[0] || "",
                 messId: messProfile.id,
                 messName: messProfile.name,
             };
@@ -212,7 +219,7 @@ const AdminDashboard = () => {
             // Reset form
             setFormData({
                 roomNumber: '', rent: '', beds: '', bathrooms: '', location: '',
-                otherInfo: '', food: false, waterFilter: false, tableChair: false, advanceDeposit: '', available: true
+                otherInfo: '', food: false, waterFilter: false, tableChair: false, wifi: false, inverter: false, ac: false, advanceDeposit: '', available: true
             });
             setImageFiles([]);
             setEditingRoomId(null);
@@ -236,6 +243,9 @@ const AdminDashboard = () => {
             food: room.food || false,
             waterFilter: room.waterFilter || false,
             tableChair: room.tableChair || false,
+            wifi: room.wifi || false,
+            inverter: room.inverter || false,
+            ac: room.ac || false,
             advanceDeposit: room.advanceDeposit || '',
             available: room.available !== undefined ? room.available : true
         });
@@ -247,23 +257,23 @@ const AdminDashboard = () => {
         setEditingRoomId(null);
         setFormData({
             roomNumber: '', rent: '', beds: '', bathrooms: '', location: '',
-            otherInfo: '', food: false, waterFilter: false, tableChair: false, advanceDeposit: '', available: true
+            otherInfo: '', food: false, waterFilter: false, tableChair: false, wifi: false, inverter: false, ac: false, advanceDeposit: '', available: true
         });
         setImageFiles([]);
     };
 
     const removeImage = async (imageUrlToRemove) => {
         if (!editingRoomId) return;
-        
+
         try {
             const room = rooms.find(r => r.id === editingRoomId);
             const updatedUrls = (room.imageUrls || [room.imageUrl]).filter(url => url !== imageUrlToRemove);
-            
+
             await updateDoc(doc(db, "rooms", editingRoomId), {
                 imageUrls: updatedUrls,
                 imageUrl: updatedUrls[0] || ""
             });
-            
+
             // Update local state to reflect change immediately
             setRooms(rooms.map(r => {
                 if (r.id === editingRoomId) {
@@ -271,7 +281,7 @@ const AdminDashboard = () => {
                 }
                 return r;
             }));
-            
+
         } catch (error) {
             console.error("Error removing image:", error);
             alert("Failed to remove image");
@@ -361,6 +371,16 @@ const AdminDashboard = () => {
                                 />
                             </div>
                             <div>
+                                <label className="block text-sm font-medium mb-1">Google Maps Location URL</label>
+                                <input
+                                    type="url"
+                                    className="w-full p-2 border rounded"
+                                    value={messForm.locationUrl}
+                                    onChange={(e) => setMessForm({ ...messForm, locationUrl: e.target.value })}
+                                    placeholder="https://maps.google.com/..."
+                                />
+                            </div>
+                            <div>
                                 <label className="block text-sm font-medium mb-1">Mess Poster {isEditingMess && '(Leave empty to keep current)'}</label>
                                 <input
                                     type="file"
@@ -435,6 +455,15 @@ const AdminDashboard = () => {
                                     <label className="flex items-center gap-2">
                                         <input type="checkbox" checked={formData.tableChair} onChange={e => setFormData({ ...formData, tableChair: e.target.checked })} /> Table/Chair
                                     </label>
+                                    <label className="flex items-center gap-2">
+                                        <input type="checkbox" checked={formData.wifi} onChange={e => setFormData({ ...formData, wifi: e.target.checked })} /> WiFi
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input type="checkbox" checked={formData.inverter} onChange={e => setFormData({ ...formData, inverter: e.target.checked })} /> Inverter
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input type="checkbox" checked={formData.ac} onChange={e => setFormData({ ...formData, ac: e.target.checked })} /> AC
+                                    </label>
                                     <label className="flex items-center gap-2 font-medium text-green-600">
                                         <input type="checkbox" checked={formData.available} onChange={e => setFormData({ ...formData, available: e.target.checked })} /> Available for Rent
                                     </label>
@@ -445,15 +474,15 @@ const AdminDashboard = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Room Images (Max 5)</label>
-                                    <input 
-                                        type="file" 
-                                        onChange={e => setImageFiles(e.target.files)} 
-                                        className="w-full" 
-                                        accept="image/*" 
-                                        multiple 
+                                    <input
+                                        type="file"
+                                        onChange={e => setImageFiles(e.target.files)}
+                                        className="w-full"
+                                        accept="image/*"
+                                        multiple
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Select multiple files to upload.</p>
-                                    
+
                                     {editingRoomId && (
                                         <div className="mt-4">
                                             <p className="text-sm font-medium mb-2">Current Images:</p>
@@ -464,7 +493,7 @@ const AdminDashboard = () => {
                                                     return images.map((url, index) => (
                                                         <div key={index} className="relative group">
                                                             <img src={url} alt={`Room ${index + 1}`} className="w-20 h-20 object-cover rounded border" />
-                                                            <button 
+                                                            <button
                                                                 type="button"
                                                                 onClick={() => removeImage(url)}
                                                                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -494,8 +523,8 @@ const AdminDashboard = () => {
                                         <button
                                             onClick={() => toggleAvailability(room)}
                                             className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm transition-colors ${room.available
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                : 'bg-red-100 text-red-700 hover:bg-red-200'
                                                 }`}
                                         >
                                             {room.available ? 'Available' : 'Booked'}

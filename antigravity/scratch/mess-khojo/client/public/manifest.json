@@ -1,0 +1,21 @@
+{
+    "name": "Mess Khojo",
+    "short_name": "Mess Khojo",
+    "description": "Find your perfect mess or hostel.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#9333ea",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

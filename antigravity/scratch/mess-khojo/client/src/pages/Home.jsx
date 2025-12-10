@@ -2,35 +2,125 @@ import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
-import { Search } from 'lucide-react';
+import FilterBar from '../components/FilterBar';
+import { Search, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const Home = () => {
     const [messes, setMesses] = useState([]);
+    const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({
+        location: '',
+        minPrice: '',
+        maxPrice: '',
+        amenities: {
+            wifi: false,
+            inverter: false,
+            ac: false,
+            food: false,
+            waterFilter: false,
+            tableChair: false
+        },
+        availableOnly: false
+    });
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
 
     useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, "messes"), (snapshot) => {
+        const handler = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+            console.log("Install prompt captured");
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (!deferredPrompt) {
+            alert("App installation is not available right now. You may have already installed the app, or your browser might not support automatic installation. If you are on iOS, tap 'Share' > 'Add to Home Screen'.");
+            return;
+        }
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+        }
+    };
+
+    useEffect(() => {
+        // Fetch Messes
+        const unsubscribeMesses = onSnapshot(collection(db, "messes"), (snapshot) => {
             const messesData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
             setMesses(messesData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching messes:", error);
+        });
+
+        // Fetch Rooms
+        const unsubscribeRooms = onSnapshot(collection(db, "rooms"), (snapshot) => {
+            const roomsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setRooms(roomsData);
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeMesses();
+            unsubscribeRooms();
+        };
     }, []);
 
-    const filteredMesses = messes.filter(mess =>
-        mess.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        mess.address.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const handleFilterChange = (newFilters) => {
+        setFilters(newFilters);
+    };
+
+    // Filtering Logic
+    const filteredMesses = messes.filter(mess => {
+        // 1. Location Filter (Mess Address)
+        if (filters.location) {
+            const searchTerm = filters.location.toLowerCase();
+            const matchesName = mess.name.toLowerCase().includes(searchTerm);
+            const matchesAddress = mess.address.toLowerCase().includes(searchTerm);
+            if (!matchesName && !matchesAddress) return false;
+        }
+
+        // Get rooms for this mess
+        const messRooms = rooms.filter(room => room.messId === mess.id);
+
+        // If filtering by room criteria, and mess has no rooms, exclude it
+        const hasRoomCriteria = filters.minPrice || filters.maxPrice || filters.availableOnly || Object.values(filters.amenities).some(Boolean);
+        if (hasRoomCriteria && messRooms.length === 0) return false;
+
+        // Check if ANY room in this mess matches the criteria
+        const hasMatchingRoom = messRooms.some(room => {
+            // 2. Price Filter
+            if (filters.minPrice && Number(room.rent) < Number(filters.minPrice)) return false;
+            if (filters.maxPrice && Number(room.rent) > Number(filters.maxPrice)) return false;
+
+            // 3. Availability Filter
+            if (filters.availableOnly && room.available === false) return false;
+
+            // 4. Amenities Filter
+            if (filters.amenities.wifi && !room.wifi) return false;
+            if (filters.amenities.inverter && !room.inverter) return false;
+            if (filters.amenities.ac && !room.ac) return false;
+            if (filters.amenities.food && !room.food) return false;
+            if (filters.amenities.waterFilter && !room.waterFilter) return false;
+            if (filters.amenities.tableChair && !room.tableChair) return false;
+
+            return true;
+        });
+
+        // If we have room criteria, we need at least one matching room
+        if (hasRoomCriteria && !hasMatchingRoom) return false;
+
+        return true;
+    });
 
     return (
         <div className="min-h-screen bg-[#FDF8F5] font-sans text-gray-800 selection:bg-pink-200">
@@ -42,15 +132,24 @@ const Home = () => {
                             <img src="/logo.png" alt="Mess Khojo Logo" className="h-16 w-auto" />
                             <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 tracking-tight font-serif">Mess Khojo</span>
                         </div>
-                        <Link to="/admin/login" className="px-6 py-2.5 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm tracking-wide">
-                            Partner Login
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={handleInstallClick}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#01875f] hover:bg-[#016f4e] text-white font-medium transition-colors shadow-md"
+                            >
+                                <Download size={18} />
+                                <span className="hidden sm:inline">Install App</span>
+                            </button>
+                            <Link to="/admin/login" className="px-6 py-2.5 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm tracking-wide">
+                                Partner Login
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </nav>
 
             {/* Hero Section */}
-            <div className="relative bg-[#FDF8F5] pt-20 pb-32 px-4 overflow-hidden">
+            <div className="relative bg-[#FDF8F5] pt-20 pb-16 px-4 overflow-hidden">
                 {/* Pastel Blobs Background */}
                 <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob"></div>
                 <div className="absolute top-20 right-10 w-72 h-72 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
@@ -75,33 +174,11 @@ const Home = () => {
                             Discover verified messes and hostels that prioritize hygiene, comfort, and community.
                         </p>
                     </motion.div>
-
-                    {/* Search Bar */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
-                        className="w-full max-w-2xl mx-auto"
-                    >
-                        <div className="relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-300 via-pink-300 to-yellow-300 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                            <div className="relative flex items-center bg-white rounded-full shadow-xl p-2 transition-all duration-300 border border-white">
-                                <Search className="ml-6 text-gray-400" size={22} />
-                                <input
-                                    type="text"
-                                    placeholder="Search by location, mess name..."
-                                    className="w-full py-4 px-4 text-lg text-gray-700 placeholder-gray-400 bg-transparent border-none focus:ring-0 outline-none"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                <button className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-3.5 rounded-full font-semibold transition-all duration-300 shadow-lg">
-                                    Search
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
                 </div>
             </div>
+
+            {/* Filter Section */}
+            <FilterBar onFilterChange={handleFilterChange} />
 
             {/* Mess List */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-white rounded-t-[3rem] shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.05)] relative z-20 min-h-[50vh]">
@@ -128,7 +205,7 @@ const Home = () => {
                             <Search size={32} className="text-gray-300" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-700 mb-2">No matches found</h3>
-                        <p className="text-gray-500">We couldn't find any messes matching "{searchTerm}".</p>
+                        <p className="text-gray-500">We couldn't find any messes matching your filters.</p>
                     </div>
                 )}
             </div>

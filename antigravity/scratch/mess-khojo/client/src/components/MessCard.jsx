@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, ArrowRight, Star, BedDouble } from 'lucide-react';
+import { MapPin, Phone, ArrowRight, BedDouble } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -25,9 +25,7 @@ const MessCard = ({ mess, index }) => {
                     </div>
                 )}
 
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-gray-700 shadow-sm flex items-center gap-1">
-                    <Star size={12} className="fill-yellow-400 text-yellow-400" /> 4.5
-                </div>
+                {/* Star rating removed */}
             </div>
 
             <div className="p-6 flex-grow flex flex-col relative">

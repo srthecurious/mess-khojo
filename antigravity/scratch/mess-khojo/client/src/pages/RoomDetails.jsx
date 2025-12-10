@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { MapPin, Bed, Bath, Utensils, Droplets, Check, X, ArrowLeft, Phone, Calendar } from 'lucide-react';
+import { MapPin, Bed, Bath, Utensils, Droplets, Check, X, ArrowLeft, Phone, Calendar, Wifi, Zap, Wind } from 'lucide-react';
 
 const RoomDetails = () => {
     const { roomId } = useParams();
@@ -117,6 +117,18 @@ const RoomDetails = () => {
                                 <div className="flex items-center text-gray-700">
                                     <Droplets size={20} className="mr-3 text-purple-500" />
                                     <span>Water Filter: {room.waterFilter ? 'Available' : 'No'}</span>
+                                </div>
+                                <div className="flex items-center text-gray-700">
+                                    <Wifi size={20} className="mr-3 text-purple-500" />
+                                    <span>WiFi: {room.wifi ? 'Available' : 'No'}</span>
+                                </div>
+                                <div className="flex items-center text-gray-700">
+                                    <Zap size={20} className="mr-3 text-purple-500" />
+                                    <span>Inverter: {room.inverter ? 'Available' : 'No'}</span>
+                                </div>
+                                <div className="flex items-center text-gray-700">
+                                    <Wind size={20} className="mr-3 text-purple-500" />
+                                    <span>AC: {room.ac ? 'Available' : 'No'}</span>
                                 </div>
                                 <div className="flex items-center text-gray-700">
                                     <div className="w-5 h-5 mr-3 flex items-center justify-center text-purple-500 font-bold border border-purple-500 rounded text-xs">T</div>

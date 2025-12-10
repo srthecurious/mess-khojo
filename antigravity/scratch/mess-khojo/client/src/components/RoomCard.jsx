@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Bed, Bath, Utensils, Droplets, Check, X } from 'lucide-react';
+import { MapPin, Bed, Bath, Utensils, Droplets, Check, X, Wifi, Zap, Wind } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
 
@@ -66,7 +66,19 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
                     </div>
                     <div className="flex items-center">
                         <Droplets size={16} className="mr-2 text-indigo-500" />
-                        Water: {room.waterFilter ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
+                        Water Filter: {room.waterFilter ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
+                    </div>
+                    <div className="flex items-center">
+                        <Wifi size={16} className="mr-2 text-indigo-500" />
+                        WiFi: {room.wifi ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
+                    </div>
+                    <div className="flex items-center">
+                        <Zap size={16} className="mr-2 text-indigo-500" />
+                        Inverter: {room.inverter ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
+                    </div>
+                    <div className="flex items-center">
+                        <Wind size={16} className="mr-2 text-indigo-500" />
+                        AC: {room.ac ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
                     </div>
                 </div>
 
