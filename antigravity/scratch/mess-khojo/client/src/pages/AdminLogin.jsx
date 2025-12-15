@@ -16,8 +16,18 @@ const AdminLogin = () => {
             await signInWithEmailAndPassword(auth, email, password);
             navigate('/admin/dashboard');
         } catch (err) {
-            setError('Invalid email or password');
-            console.error(err);
+            console.error("Login Error:", err);
+            let errorMessage = "Failed to login";
+            if (err.code === 'auth/invalid-credential') {
+                errorMessage = "Invalid email or password.";
+            } else if (err.code === 'auth/user-not-found') {
+                errorMessage = "No user found with this email.";
+            } else if (err.code === 'auth/wrong-password') {
+                errorMessage = "Incorrect password.";
+            } else {
+                errorMessage = err.message; // Show detailed error for debugging
+            }
+            setError(errorMessage);
         }
     };
 
@@ -71,6 +81,9 @@ const AdminLogin = () => {
                     <a href="/" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
                         ← Back to Home
                     </a>
+                    <p className="text-xs text-gray-400 mt-4">
+                        Project ID: {auth.app.options.projectId}
+                    </p>
                 </div>
             </div>
         </div>

@@ -18,28 +18,32 @@ const AdminDashboard = () => {
         name: '',
         address: '',
         contact: '',
-        locationUrl: ''
+        locationUrl: '',
+        amenities: {
+            food: false,
+            waterFilter: false,
+            wifi: false,
+            inverter: false
+        }
     });
     const [posterFile, setPosterFile] = useState(null);
     const [isEditingMess, setIsEditingMess] = useState(false);
+    const [geocoding, setGeocoding] = useState(false);
 
     // Room Form State
     const [rooms, setRooms] = useState([]);
     const [formData, setFormData] = useState({
-        roomNumber: '',
-        rent: '',
-        beds: '',
-        bathrooms: '',
-        location: '',
+        occupancy: 'Double', // Single, Double, Triple, Four, Five, Six
+        category: '', // Standard, Deluxe, AC, etc.
+        totalInventory: 1,
+        price: '',
+        amenities: {
+            tableChair: false,
+            ac: false,
+            attachedBathroom: false
+        },
         otherInfo: '',
-        food: false,
-        waterFilter: false,
-        tableChair: false,
-        wifi: false,
-        inverter: false,
-        ac: false,
-        advanceDeposit: '',
-        available: true
+        availableCount: 0 // Number of beds/seats available
     });
     const [imageFiles, setImageFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
@@ -88,6 +92,95 @@ const AdminDashboard = () => {
         navigate('/admin/login');
     };
 
+    // Geocoding function to convert address to lat/lng
+    const handleGeocode = async () => {
+        if (!messForm.address) {
+            alert("Please enter an address first");
+            return;
+        }
+
+        setGeocoding(true);
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(messForm.address)}&limit=1`
+            );
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const { lat, lon } = data[0];
+                setMessForm({
+                    ...messForm,
+                    latitude: parseFloat(lat),
+                    longitude: parseFloat(lon)
+                });
+                alert(`Coordinates found!\nLatitude: ${lat}\nLongitude: ${lon}`);
+            } else {
+                alert("Could not find coordinates for this address. Please try a more specific address or enter coordinates manually.");
+            }
+        } catch (error) {
+            console.error("Geocoding error:", error);
+            alert("Error geocoding address. Please enter coordinates manually.");
+        } finally {
+            setGeocoding(false);
+        }
+    };
+
+    // Extract coordinates from Google Maps URL
+    const extractCoordsFromMapsUrl = (url) => {
+        if (!url) return null;
+
+        // Pattern 1: @lat,lng format (most common)
+        // Example: https://maps.google.com/?q=22.3193,87.3103 or https://www.google.com/maps/@22.3193,87.3103,15z
+        const atPattern = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+        const atMatch = url.match(atPattern);
+        if (atMatch) {
+            return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
+        }
+
+        // Pattern 2: q=lat,lng format
+        // Example: https://maps.google.com/?q=22.3193,87.3103
+        const qPattern = /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/;
+        const qMatch = url.match(qPattern);
+        if (qMatch) {
+            return { lat: parseFloat(qMatch[1]), lng: parseFloat(qMatch[2]) };
+        }
+
+        // Pattern 3: place/ coordinates
+        // Example: https://www.google.com/maps/place/22.3193,87.3103
+        const placePattern = /\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/;
+        const placeMatch = url.match(placePattern);
+        if (placeMatch) {
+            return { lat: parseFloat(placeMatch[1]), lng: parseFloat(placeMatch[2]) };
+        }
+
+        return null;
+    };
+
+    // Handle Google Maps URL change and auto-extract coordinates
+    const handleLocationUrlChange = (url) => {
+        setMessForm({ ...messForm, locationUrl: url });
+
+        // Check if it's a shortened URL
+        if (url.includes('goo.gl') || url.includes('maps.app.goo.gl')) {
+            alert('⚠️ Shortened URL detected!\n\nTo get coordinates:\n1. Open this link in your browser\n2. Once Google Maps opens, copy the URL from the address bar\n3. Paste that full URL here\n\nOr use the "Auto-fill Coordinates" button below instead!');
+            return;
+        }
+
+        const coords = extractCoordsFromMapsUrl(url);
+        if (coords) {
+            setMessForm(prev => ({
+                ...prev,
+                locationUrl: url,
+                latitude: coords.lat,
+                longitude: coords.lng
+            }));
+            // Show success feedback
+            setTimeout(() => {
+                alert(`✓ Coordinates extracted from URL!\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}`);
+            }, 100);
+        }
+    };
+
     const handleMessSubmit = async (e) => {
         e.preventDefault();
         if (!messForm.name || !messForm.address || !messForm.contact) {
@@ -109,6 +202,8 @@ const AdminDashboard = () => {
                 const messRef = doc(db, "messes", messProfile.id);
                 await updateDoc(messRef, {
                     ...messForm,
+                    latitude: messForm.latitude ? Number(messForm.latitude) : null,
+                    longitude: messForm.longitude ? Number(messForm.longitude) : null,
                     posterUrl
                 });
                 setMessProfile({ ...messProfile, ...messForm, posterUrl });
@@ -118,6 +213,8 @@ const AdminDashboard = () => {
                 // Create new profile
                 const docRef = await addDoc(collection(db, "messes"), {
                     ...messForm,
+                    latitude: messForm.latitude ? Number(messForm.latitude) : null,
+                    longitude: messForm.longitude ? Number(messForm.longitude) : null,
                     posterUrl,
                     adminId: user.uid,
                     createdAt: new Date()
@@ -137,17 +234,27 @@ const AdminDashboard = () => {
     const handleEditMessClick = () => {
         setMessForm({
             name: messProfile.name,
-            name: messProfile.name,
             address: messProfile.address,
             contact: messProfile.contact,
-            locationUrl: messProfile.locationUrl || ''
+            locationUrl: messProfile.locationUrl || '',
+            latitude: messProfile.latitude || '',
+            longitude: messProfile.longitude || '',
+            amenities: messProfile.amenities || {
+                food: false,
+                waterFilter: false,
+                wifi: false,
+                inverter: false
+            }
         });
         setIsEditingMess(true);
     };
 
     const handleCancelEditMess = () => {
         setIsEditingMess(false);
-        setMessForm({ name: '', address: '', contact: '', locationUrl: '' });
+        setMessForm({
+            name: '', address: '', contact: '', locationUrl: '',
+            amenities: { food: false, waterFilter: false, wifi: false, inverter: false }
+        });
         setPosterFile(null);
     };
 
@@ -182,12 +289,12 @@ const AdminDashboard = () => {
                 const newUrls = await Promise.all(uploadPromises);
                 downloadURLs = [...downloadURLs, ...newUrls];
             } else if (!editingRoomId && imageFiles.length === 0) {
-                alert("Please select at least one image for a new room");
+                alert("Please select at least one image for a new room type");
                 setUploading(false);
                 return;
             }
 
-            // Limit to 5 images total (optional validation, but good UX)
+            // Limit to 5 images total
             if (downloadURLs.length > 5) {
                 alert(`You have ${downloadURLs.length} images. Maximum allowed is 5. Please remove some.`);
                 setUploading(false);
@@ -197,29 +304,36 @@ const AdminDashboard = () => {
             const roomData = {
                 ...formData,
                 imageUrls: downloadURLs,
-                // Keep backward compatibility for now, or just use imageUrls
-                imageUrl: downloadURLs[0] || "",
+                imageUrl: downloadURLs[0] || "", // Backward compat
                 messId: messProfile.id,
                 messName: messProfile.name,
+                updatedAt: new Date()
             };
 
             if (editingRoomId) {
-                // Update existing room
                 await updateDoc(doc(db, "rooms", editingRoomId), roomData);
-                alert("Room updated successfully!");
+                alert("Room Type updated successfully!");
             } else {
-                // Add new room
                 await addDoc(collection(db, "rooms"), {
                     ...roomData,
                     createdAt: new Date()
                 });
-                alert("Room added successfully!");
+                alert("Room Type added successfully!");
             }
 
             // Reset form
             setFormData({
-                roomNumber: '', rent: '', beds: '', bathrooms: '', location: '',
-                otherInfo: '', food: false, waterFilter: false, tableChair: false, wifi: false, inverter: false, ac: false, advanceDeposit: '', available: true
+                occupancy: 'Double',
+                category: '',
+                totalInventory: 1,
+                price: '',
+                amenities: {
+                    tableChair: false,
+                    ac: false,
+                    attachedBathroom: false
+                },
+                otherInfo: '',
+                availableCount: 0
             });
             setImageFiles([]);
             setEditingRoomId(null);
@@ -234,30 +348,35 @@ const AdminDashboard = () => {
     const handleEditRoomClick = (room) => {
         setEditingRoomId(room.id);
         setFormData({
-            roomNumber: room.roomNumber,
-            rent: room.rent,
-            beds: room.beds,
-            bathrooms: room.bathrooms,
-            location: room.location,
+            occupancy: room.occupancy || 'Double',
+            category: room.category || '',
+            totalInventory: room.totalInventory || 1,
+            price: room.price || room.rent || '', // Fallback for old data
+            amenities: room.amenities || {
+                tableChair: room.tableChair || false,
+                ac: room.ac || false,
+                attachedBathroom: room.attachedBathroom || false
+            },
             otherInfo: room.otherInfo || '',
-            food: room.food || false,
-            waterFilter: room.waterFilter || false,
-            tableChair: room.tableChair || false,
-            wifi: room.wifi || false,
-            inverter: room.inverter || false,
-            ac: room.ac || false,
-            advanceDeposit: room.advanceDeposit || '',
-            available: room.available !== undefined ? room.available : true
+            availableCount: room.availableCount !== undefined ? room.availableCount : (room.available ? 1 : 0)
         });
-        // Scroll to form
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleCancelEditRoom = () => {
         setEditingRoomId(null);
         setFormData({
-            roomNumber: '', rent: '', beds: '', bathrooms: '', location: '',
-            otherInfo: '', food: false, waterFilter: false, tableChair: false, wifi: false, inverter: false, ac: false, advanceDeposit: '', available: true
+            occupancy: 'Double',
+            category: '',
+            totalInventory: 1,
+            price: '',
+            amenities: {
+                tableChair: false,
+                ac: false,
+                attachedBathroom: false
+            },
+            otherInfo: '',
+            availableCount: 0
         });
         setImageFiles([]);
     };
@@ -298,17 +417,7 @@ const AdminDashboard = () => {
         }
     };
 
-    const toggleAvailability = async (room) => {
-        try {
-            const roomRef = doc(db, "rooms", room.id);
-            await updateDoc(roomRef, {
-                available: !room.available
-            });
-        } catch (error) {
-            console.error("Error updating availability:", error);
-            alert("Failed to update availability");
-        }
-    };
+
 
     if (loadingProfile) return <div className="p-10 text-center">Loading profile...</div>;
 
@@ -374,11 +483,62 @@ const AdminDashboard = () => {
                                 <label className="block text-sm font-medium mb-1">Google Maps Location URL</label>
                                 <input
                                     type="url"
-                                    className="w-full p-2 border rounded"
+                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                                     value={messForm.locationUrl}
-                                    onChange={(e) => setMessForm({ ...messForm, locationUrl: e.target.value })}
-                                    placeholder="https://maps.google.com/..."
+                                    onChange={(e) => handleLocationUrlChange(e.target.value)}
+                                    placeholder="Paste Google Maps URL (coordinates will auto-extract)"
                                 />
+                                <p className="text-xs text-gray-500 mt-1">💡 Tip: Paste a Google Maps link and coordinates will be extracted automatically!</p>
+                                <button
+                                    type="button"
+                                    onClick={handleGeocode}
+                                    disabled={geocoding || !messForm.address}
+                                    className="mt-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                    {geocoding ? 'Geocoding...' : 'Auto-fill Coordinates'}
+                                </button>
+                            </div>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-start gap-2 mb-3">
+                                    <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-900">Location Coordinates (For Distance Calculation)</p>
+                                        <p className="text-xs text-blue-700 mt-1">Use the button above to auto-fill from address, or enter manually</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1 text-gray-700">Latitude</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                            value={messForm.latitude || ''}
+                                            onChange={(e) => setMessForm({ ...messForm, latitude: parseFloat(e.target.value) })}
+                                            placeholder="e.g. 23.2599"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1 text-gray-700">Longitude</label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                            value={messForm.longitude || ''}
+                                            onChange={(e) => setMessForm({ ...messForm, longitude: parseFloat(e.target.value) })}
+                                            placeholder="e.g. 77.4126"
+                                        />
+                                    </div>
+                                </div>
+                                {messForm.latitude && messForm.longitude && (
+                                    <p className="text-xs text-green-600 mt-2 font-medium">✓ Coordinates set - distances will be calculated</p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Mess Poster {isEditingMess && '(Leave empty to keep current)'}</label>
@@ -430,47 +590,89 @@ const AdminDashboard = () => {
                             </div>
 
                             <form onSubmit={handleRoomSubmit} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input type="text" placeholder="Room Number (e.g. 101)" className="p-2 border rounded"
-                                        value={formData.roomNumber} onChange={e => setFormData({ ...formData, roomNumber: e.target.value })} required />
-                                    <input type="number" placeholder="Rent (₹)" className="p-2 border rounded"
-                                        value={formData.rent} onChange={e => setFormData({ ...formData, rent: e.target.value })} required />
-                                    <input type="number" placeholder="Beds" className="p-2 border rounded"
-                                        value={formData.beds} onChange={e => setFormData({ ...formData, beds: e.target.value })} required />
-                                    <input type="number" placeholder="Bathrooms" className="p-2 border rounded"
-                                        value={formData.bathrooms} onChange={e => setFormData({ ...formData, bathrooms: e.target.value })} required />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Occupancy Type</label>
+                                        <select
+                                            className="w-full p-2 border rounded"
+                                            value={formData.occupancy}
+                                            onChange={e => setFormData({ ...formData, occupancy: e.target.value })}
+                                        >
+                                            <option value="Single">Single Seater</option>
+                                            <option value="Double">Double Seater</option>
+                                            <option value="Triple">Triple Seater</option>
+                                            <option value="Four">Four Seater</option>
+                                            <option value="Five">Five Seater</option>
+                                            <option value="Six">Six Seater</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Category (Optional)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Deluxe, AC, Balcony"
+                                            className="w-full p-2 border rounded"
+                                            value={formData.category}
+                                            onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Price per Student (₹/month)</label>
+                                        <input
+                                            type="number"
+                                            className="w-full p-2 border rounded"
+                                            value={formData.price}
+                                            onChange={e => setFormData({ ...formData, price: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Total Rooms of this Type</label>
+                                        <input
+                                            type="number"
+                                            className="w-full p-2 border rounded"
+                                            value={formData.totalInventory}
+                                            onChange={e => setFormData({ ...formData, totalInventory: parseInt(e.target.value) })}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1 text-green-600">Available Beds/Seats</label>
+                                        <input
+                                            type="number"
+                                            className="w-full p-2 border rounded border-green-200 bg-green-50"
+                                            value={formData.availableCount}
+                                            onChange={e => setFormData({ ...formData, availableCount: parseInt(e.target.value) })}
+                                            required
+                                        />
+                                    </div>
                                 </div>
-                                <input type="text" placeholder="Location / Address" className="w-full p-2 border rounded"
-                                    value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} required />
-                                <input type="number" placeholder="Advance Deposit (₹)" className="w-full p-2 border rounded"
-                                    value={formData.advanceDeposit} onChange={e => setFormData({ ...formData, advanceDeposit: e.target.value })} />
 
-                                <div className="flex flex-wrap gap-4">
-                                    <label className="flex items-center gap-2">
-                                        <input type="checkbox" checked={formData.food} onChange={e => setFormData({ ...formData, food: e.target.checked })} /> Food
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input type="checkbox" checked={formData.waterFilter} onChange={e => setFormData({ ...formData, waterFilter: e.target.checked })} /> Water Filter
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input type="checkbox" checked={formData.tableChair} onChange={e => setFormData({ ...formData, tableChair: e.target.checked })} /> Table/Chair
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input type="checkbox" checked={formData.wifi} onChange={e => setFormData({ ...formData, wifi: e.target.checked })} /> WiFi
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input type="checkbox" checked={formData.inverter} onChange={e => setFormData({ ...formData, inverter: e.target.checked })} /> Inverter
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input type="checkbox" checked={formData.ac} onChange={e => setFormData({ ...formData, ac: e.target.checked })} /> AC
-                                    </label>
-                                    <label className="flex items-center gap-2 font-medium text-green-600">
-                                        <input type="checkbox" checked={formData.available} onChange={e => setFormData({ ...formData, available: e.target.checked })} /> Available for Rent
-                                    </label>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Amenities Included</label>
+                                    <div className="flex flex-wrap gap-4">
+                                        <label className="flex items-center gap-2">
+                                            <input type="checkbox" checked={formData.amenities.tableChair} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, tableChair: e.target.checked } })} /> Table/Chair
+                                        </label>
+                                        <label className="flex items-center gap-2">
+                                            <input type="checkbox" checked={formData.amenities.ac} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, ac: e.target.checked } })} /> AC
+                                        </label>
+                                        <label className="flex items-center gap-2">
+                                            <input type="checkbox" checked={formData.amenities.attachedBathroom} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, attachedBathroom: e.target.checked } })} /> Attached Bathroom
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <textarea placeholder="Other Information" className="w-full p-2 border rounded"
-                                    value={formData.otherInfo} onChange={e => setFormData({ ...formData, otherInfo: e.target.value })} />
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Other Details</label>
+                                    <textarea
+                                        placeholder="Additional info about this room type..."
+                                        className="w-full p-2 border rounded"
+                                        value={formData.otherInfo}
+                                        onChange={e => setFormData({ ...formData, otherInfo: e.target.value })}
+                                        rows="3"
+                                    />
+                                </div>
 
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Room Images (Max 5)</label>
@@ -509,26 +711,17 @@ const AdminDashboard = () => {
                                 </div>
 
                                 <button type="submit" disabled={uploading} className={`w-full text-white py-2 rounded hover:opacity-90 transition-opacity ${editingRoomId ? 'bg-orange-500' : 'bg-blue-600'}`}>
-                                    {uploading ? 'Saving...' : (editingRoomId ? 'Update Room' : 'Add Room')}
+                                    {uploading ? 'Saving...' : (editingRoomId ? 'Update Room Type' : 'Add Room Type')}
                                 </button>
                             </form>
                         </div>
 
-                        <h2 className="text-2xl font-bold mb-4">Your Rooms</h2>
+                        <h2 className="text-2xl font-bold mb-4">Your Room Types</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {rooms.map(room => (
                                 <div key={room.id} className={`relative group ${editingRoomId === room.id ? 'ring-2 ring-orange-500 rounded-xl' : ''}`}>
-                                    <RoomCard room={room} />
+                                    <RoomCard room={room} isAdmin={true} />
                                     <div className="absolute top-2 right-2 flex gap-2">
-                                        <button
-                                            onClick={() => toggleAvailability(room)}
-                                            className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm transition-colors ${room.available
-                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                                }`}
-                                        >
-                                            {room.available ? 'Available' : 'Booked'}
-                                        </button>
                                         <button
                                             onClick={() => handleEditRoomClick(room)}
                                             className="bg-white text-orange-500 p-1.5 rounded-full hover:bg-orange-50 shadow-sm border border-gray-100"
@@ -553,5 +746,4 @@ const AdminDashboard = () => {
         </div>
     );
 };
-
 export default AdminDashboard;

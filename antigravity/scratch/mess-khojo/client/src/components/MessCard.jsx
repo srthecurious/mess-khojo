@@ -9,60 +9,63 @@ const MessCard = ({ mess, index }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
-            className="bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.12)] transition-all duration-300 overflow-hidden group border border-gray-50 flex flex-col h-full"
+            className="uiverse-card flex flex-col h-full"
         >
-            {/* Poster Image or Gradient */}
-            <div className="h-48 relative overflow-hidden group-hover:scale-105 transition-transform duration-700">
-                {mess.posterUrl ? (
-                    <img
-                        src={mess.posterUrl}
-                        alt={mess.name}
-                        className="w-full h-full object-cover"
-                    />
-                ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 flex items-center justify-center">
-                        <span className="text-4xl opacity-20">🏠</span>
-                    </div>
-                )}
+            <Link to={`/mess/${mess.id}`} className="block h-full flex flex-col">
+                {/* Poster Image (Optional - reduced height to fit style) */}
+                <div className="h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+                    {mess.posterUrl ? (
+                        <img src={mess.posterUrl} alt={mess.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full bg-yellow-100 flex items-center justify-center text-yellow-600">
+                            <span className="text-4xl">🏡</span>
+                        </div>
+                    )}
 
-                {/* Star rating removed */}
-            </div>
+                    {/* Filter Match Badge */}
+                    {mess.isFiltered && (
+                        <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold text-green-700 shadow-sm">
+                            {mess.matchingBeds > 0 ? `${mess.matchingBeds} Beds` : 'No Match'}
+                        </div>
+                    )}
+                </div>
 
-            <div className="p-6 flex-grow flex flex-col relative">
-                <div className="absolute -top-8 left-6">
-                    <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-50">
-                        <div className="bg-gradient-to-br from-purple-600 to-pink-500 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform duration-300">
-                            <BedDouble size={24} />
+                <div className="flex flex-col gap-2 flex-grow">
+                    {/* Header */}
+                    <div>
+                        <h3 className="uiverse-header-title mb-1 line-clamp-1">{mess.name}</h3>
+                        <div className="flex items-center gap-1 uiverse-header-subtitle">
+                            <MapPin size={12} className="opacity-60" />
+                            <span className="truncate">{mess.address}</span>
                         </div>
                     </div>
-                </div>
 
-                <div className="mt-6 mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-1 font-serif">{mess.name}</h3>
-                    <div className="flex items-center text-gray-500 text-sm mt-1">
-                        <MapPin size={14} className="mr-1 text-purple-400" />
-                        <span className="line-clamp-1">{mess.address}</span>
+                    {/* Content (Contact) */}
+                    <div className="mt-2 flex items-center gap-2 uiverse-header-subtitle">
+                        <Phone size={12} />
+                        <span>{mess.contact}</span>
                     </div>
                 </div>
 
-                <div className="space-y-3 mb-6 flex-grow">
-                    <div className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-xl">
-                        <span className="text-gray-500">Contact</span>
-                        <div className="flex items-center font-medium text-gray-700">
-                            <Phone size={14} className="mr-1.5 text-green-500" />
-                            {mess.contact}
-                        </div>
+                {/* Footer / Bottom Actions */}
+                <div className="mt-4 flex items-end justify-between">
+                    {/* View Details Button - Now on LEFT and LARGER */}
+                    <div className="uiverse-badge text-base px-6 py-2.5">
+                        View Details
+                    </div>
+
+                    {/* Distance - Now on RIGHT and SMALLER */}
+                    <div>
+                        {mess.distance !== undefined && (
+                            <div className="text-lg font-bold text-yellow-700 flex items-baseline">
+                                {mess.distance < 1 ? Math.round(mess.distance * 1000) : mess.distance.toFixed(1)}
+                                <span className="text-xs ml-1 opacity-60 font-normal">{mess.distance < 1 ? 'm' : 'km'}</span>
+                            </div>
+                        )}
+                        {!mess.distance && <div className="text-lg font-bold text-yellow-700 opacity-50">--</div>}
                     </div>
                 </div>
-
-                <Link
-                    to={`/mess/${mess.id}`}
-                    className="mt-auto w-full group/btn relative overflow-hidden bg-gray-900 hover:bg-purple-600 text-white py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-gray-200 hover:shadow-purple-200"
-                >
-                    <span className="relative z-10">View Details</span>
-                    <ArrowRight size={18} className="relative z-10 group-hover/btn:translate-x-1 transition-transform" />
-                </Link>
-            </div>
+            </Link>
         </motion.div>
     );
 };

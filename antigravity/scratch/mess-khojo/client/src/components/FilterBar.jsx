@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, X, Check } from 'lucide-react';
+import { Filter, X, Check, Search } from 'lucide-react';
 
 const FilterBar = ({ onFilterChange }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -65,33 +65,39 @@ const FilterBar = ({ onFilterChange }) => {
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* Mobile Filter Toggle */}
-                <div className="md:hidden p-4 flex justify-between items-center bg-gray-50/50">
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        className="flex items-center gap-2 text-gray-700 font-medium"
-                    >
-                        <Filter size={20} className="text-purple-500" />
-                        Filters
-                        {activeFilterCount > 0 && (
-                            <span className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded-full">
-                                {activeFilterCount}
-                            </span>
-                        )}
-                    </button>
-                    {activeFilterCount > 0 && (
-                        <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-red-500">
-                            Clear all
+                <div className="md:hidden p-3 flex justify-between items-center bg-white border-b border-gray-100 sticky top-0 z-10">
+                    <div className="flex items-center gap-3 w-full">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search areas..."
+                                className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-full text-sm border-none focus:ring-2 focus:ring-purple-100 outline-none"
+                                value={filters.location}
+                                onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                            />
+                        </div>
+
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-colors ${isOpen || activeFilterCount > 0
+                                ? 'bg-purple-50 border-purple-200 text-purple-700'
+                                : 'bg-white border-gray-200 text-gray-700'
+                                }`}
+                        >
+                            <Filter size={16} />
+                            {activeFilterCount > 0 && <span className="bg-purple-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{activeFilterCount}</span>}
                         </button>
-                    )}
+                    </div>
                 </div>
 
                 {/* Filter Content */}
                 <div className={`${isOpen ? 'block' : 'hidden'} md:block p-6`}>
                     <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
 
-                        {/* Location */}
+                        {/* Search Text */}
                         <div className="w-full md:w-1/4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Location</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Search Text</label>
                             <input
                                 type="text"
                                 placeholder="e.g. Indrapuri, MP Nagar"
@@ -139,8 +145,8 @@ const FilterBar = ({ onFilterChange }) => {
                                         key={key}
                                         onClick={() => handleAmenityChange(key)}
                                         className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all flex items-center gap-1.5 ${filters.amenities[key]
-                                                ? 'bg-purple-50 border-purple-200 text-purple-700'
-                                                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                            ? 'bg-purple-50 border-purple-200 text-purple-700'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                                             }`}
                                     >
                                         {filters.amenities[key] && <Check size={14} />}

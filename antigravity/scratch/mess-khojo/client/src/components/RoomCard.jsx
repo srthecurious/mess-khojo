@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Bed, Bath, Utensils, Droplets, Check, X, Wifi, Zap, Wind } from 'lucide-react';
+import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
 
@@ -9,94 +9,71 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
         ? room.imageUrls[0]
         : (room.imageUrl || "https://via.placeholder.com/400x300?text=No+Image");
 
+    // Handle amenities (support both new nested object and old flat structure)
+    const am = room.amenities || room;
+
+    const title = room.occupancy ? `${room.occupancy} Seater` : `Room ${room.roomNumber}`;
+    const price = room.price || room.rent;
+
     const CardContent = () => (
         <>
-            <div className="relative h-48 overflow-hidden">
-                <img
-                    src={displayImage}
-                    alt={`Room ${room.roomNumber}`}
-                    className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-indigo-600 shadow-sm">
-                        ₹{room.rent}/mo
+            <div className="h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+                <img src={displayImage} alt={title} className="w-full h-full object-cover" />
+
+                {/* Count Badge */}
+                {room.availableCount > 0 ? (
+                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-green-100/90 text-green-800 shadow-sm backdrop-blur-sm">
+                        {room.availableCount} left
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${room.available !== false
-                        ? 'bg-green-100/90 text-green-700 backdrop-blur-sm'
-                        : 'bg-red-100/90 text-red-700 backdrop-blur-sm'
-                        }`}>
-                        {room.available !== false ? 'Available' : 'Booked'}
-                    </div>
-                </div>
-                {room.imageUrls && room.imageUrls.length > 1 && (
-                    <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                        +{room.imageUrls.length - 1} more
+                ) : (
+                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-red-100/90 text-red-800 shadow-sm backdrop-blur-sm">
+                        Full
                     </div>
                 )}
             </div>
 
-            <div className="p-5">
-                <div className="flex justify-between items-start mb-3">
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-800">Room {room.roomNumber}</h3>
-                        <div className="flex items-center text-gray-500 text-sm mt-1">
-                            <MapPin size={14} className="mr-1" />
-                            {room.location}
-                        </div>
-                    </div>
-                    {isAdmin && (
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault(); // Prevent navigation when clicking delete
-                                onDelete(room.id);
-                            }}
-                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors z-10 relative"
-                        >
-                            <X size={20} />
-                        </button>
-                    )}
+            <div className="flex flex-col gap-2 flex-grow">
+                <div>
+                    <h3 className="uiverse-header-title mb-1 line-clamp-1">{title}</h3>
+                    {room.category && <p className="uiverse-header-subtitle">{room.category}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm text-gray-600 mb-4">
-                    <div className="flex items-center"><Bed size={16} className="mr-2 text-indigo-500" /> {room.beds} Beds</div>
-                    <div className="flex items-center"><Bath size={16} className="mr-2 text-indigo-500" /> {room.bathrooms} Baths</div>
-                    <div className="flex items-center">
-                        <Utensils size={16} className="mr-2 text-indigo-500" />
-                        Food: {room.food ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
-                    </div>
-                    <div className="flex items-center">
-                        <Droplets size={16} className="mr-2 text-indigo-500" />
-                        Water Filter: {room.waterFilter ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
-                    </div>
-                    <div className="flex items-center">
-                        <Wifi size={16} className="mr-2 text-indigo-500" />
-                        WiFi: {room.wifi ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
-                    </div>
-                    <div className="flex items-center">
-                        <Zap size={16} className="mr-2 text-indigo-500" />
-                        Inverter: {room.inverter ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
-                    </div>
-                    <div className="flex items-center">
-                        <Wind size={16} className="mr-2 text-indigo-500" />
-                        AC: {room.ac ? <Check size={14} className="text-green-500 ml-1" /> : <X size={14} className="text-red-500 ml-1" />}
-                    </div>
+                {/* Icons Row */}
+                <div className="flex gap-3 text-yellow-800/60 mt-2">
+                    {am.ac && <Wind size={16} />}
+                    {am.tableChair && <Home size={16} />}
+                    {am.attachedBathroom && <Droplets size={16} />}
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-4 flex items-end justify-between">
+                <div>
+                    <div className="uiverse-price">₹{price}</div>
+                    <div className="uiverse-header-subtitle text-xs">per month</div>
                 </div>
 
-                <div className="border-t border-gray-100 pt-3 mt-2">
-                    <p className="text-xs text-gray-500 line-clamp-2">{room.otherInfo}</p>
-                </div>
+                {isAdmin && (
+                    <button
+                        onClick={(e) => { e.preventDefault(); onDelete(room.id); }}
+                        className="uiverse-badge bg-red-100 text-red-600 hover:bg-red-200"
+                    >
+                        Delete
+                    </button>
+                )}
+                {!isAdmin && <div className="uiverse-badge">Book</div>}
             </div>
         </>
     );
 
     return (
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-100 block">
+        <div className="uiverse-card flex flex-col h-full">
             {isAdmin ? (
-                <div className="cursor-pointer">
+                <div className="cursor-pointer h-full relative flex flex-col">
                     <CardContent />
                 </div>
             ) : (
-                <Link to={`/room/${room.id}`} className="block h-full">
+                <Link to={`/room/${room.messId}/${room.id}`} className="block h-full relative flex flex-col">
                     <CardContent />
                 </Link>
             )}
