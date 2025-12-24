@@ -2,10 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+
+:root {
+  --brand-primary: #4B2E83;
+  --brand-primary-hover: #3F256F;
+  --brand-secondary: #F8F7F3;
+  --brand-accent-blue: #3B82F6;
+  --brand-accent-green: #22C55E;
+  --brand-light-gray: #EDEAF4;
+  --brand-text-dark: #1F2937;
+  --brand-text-gray: #6B7280;
+  --brand-white: #FFFFFF;
+}
+
 body {
-  font-family: 'Lato', sans-serif;
-  background-color: #E0E5EC;
-  color: #4A5568;
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--brand-secondary);
+  color: var(--brand-text-dark);
+  margin: 0;
+  padding: 0;
 }
 
 h1,
@@ -14,8 +29,9 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Playfair Display', serif;
-  color: #2D3748;
+  font-family: 'Outfit', sans-serif;
+  color: var(--brand-text-dark);
+  font-weight: 700;
 }
 
 /* Custom Scrollbar */
@@ -24,76 +40,82 @@ h6 {
 }
 
 ::-webkit-scrollbar-track {
-  background: #E0E5EC;
+  background: var(--brand-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E0;
+  background: var(--brand-primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #A0AEC0;
+  background: var(--brand-primary-hover);
 }
 
-/* --- Uiverse Card Design (Adapted) --- */
+/* --- Brand Card Design --- */
 .uiverse-card {
   position: relative;
-  /* width: 350px; Height auto */
-  padding: 25px;
-  background: radial-gradient(178.94% 106.41% at 26.42% 106.41%, #FFF7B1 0%, rgba(255, 255, 255, 0) 71.88%), #FFFFFF;
-  box-shadow: 0px 155px 62px rgba(0, 0, 0, 0.01),
-    0px 87px 52px rgba(0, 0, 0, 0.05),
-    0px 39px 39px rgba(0, 0, 0, 0.09),
-    0px 10px 21px rgba(0, 0, 0, 0.1),
-    0px 0px 0px rgba(0, 0, 0, 0.1);
-  border-radius: 23px;
-  transition: all 0.8s cubic-bezier(0.15, 0.83, 0.66, 1);
-  cursor: pointer;
+  padding: 0.75rem;
+  background: var(--brand-white);
+  border: 1px solid var(--brand-light-gray);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border-radius: 16px;
+  transition: all 0.3s ease;
   overflow: hidden;
-  /* Keep content inside */
+  height: 100%;
 }
 
 .uiverse-card:hover {
-  transform: scale(1.05);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--brand-primary);
 }
 
-/* Header Text Style from snippet */
+/* Header Text Style */
 .uiverse-header-title {
-  word-break: break-all;
-  font-weight: 800;
-  font-size: 18px;
-  /* Slightly larger for titles */
-  line-height: 135%;
-  color: rgba(87, 77, 51, 0.85);
-  /* Darker for readability */
+  word-break: break-word;
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  color: var(--brand-text-dark);
 }
 
 .uiverse-header-subtitle {
-  font-weight: 700;
-  font-size: 14px;
-  line-height: 135%;
-  color: rgba(87, 77, 51, 0.5);
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--brand-text-gray);
 }
 
-/* Big Temp Style -> Price */
+/* Price/Distance Text */
 .uiverse-price {
   font-weight: 700;
-  font-size: 32px;
-  /* Adjusted from 64px to fit card */
-  line-height: 1.2;
-  color: rgba(87, 77, 51, 1);
+  font-size: 1.25rem;
+  color: var(--brand-primary);
 }
 
-/* Badge Style */
+/* Badge/Button Style */
 .uiverse-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 9px;
-  padding: 4px 12px;
-  font-weight: 700;
-  font-size: 13px;
-  color: rgba(87, 77, 51, 0.66);
+  background-color: var(--brand-primary);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.uiverse-badge:hover {
+  background-color: var(--brand-primary-hover);
+  transform: translateY(-1px);
+}
+
+.uiverse-badge.success {
+  background-color: var(--brand-accent-green);
+}
+
+.uiverse-badge.info {
+  background-color: var(--brand-accent-blue);
 }

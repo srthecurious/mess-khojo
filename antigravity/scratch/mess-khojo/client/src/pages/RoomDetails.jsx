@@ -1,155 +1,290 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { MapPin, Bed, Bath, Utensils, Droplets, Check, X, ArrowLeft, Phone, Calendar, Wifi, Zap, Wind } from 'lucide-react';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const RoomDetails = () => {
-    const { roomId } = useParams();
+    const { messId, roomId } = useParams();
+    const navigate = useNavigate();
+    const { currentUser, userRole } = useAuth();
+
+    const [mess, setMess] = useState(null);
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [bookingProcessing, setBookingProcessing] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     useEffect(() => {
-        const fetchRoom = async () => {
+        const fetchDetails = async () => {
             try {
+                // Fetch Mess
+                const messDoc = await getDoc(doc(db, "messes", messId));
+                if (messDoc.exists()) {
+                    setMess({ id: messDoc.id, ...messDoc.data() });
+                }
+
+                // Fetch Room
                 const roomDoc = await getDoc(doc(db, "rooms", roomId));
                 if (roomDoc.exists()) {
                     setRoom({ id: roomDoc.id, ...roomDoc.data() });
                 }
-                setLoading(false);
             } catch (error) {
-                console.error("Error fetching room:", error);
+                console.error("Error details:", error);
+            } finally {
                 setLoading(false);
             }
         };
 
-        fetchRoom();
-    }, [roomId]);
+        fetchDetails();
+    }, [messId, roomId]);
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center text-purple-600">Loading...</div>;
-    if (!room) return <div className="min-h-screen flex items-center justify-center text-red-500">Room not found</div>;
+    const handleBookClick = () => {
+        if (!currentUser) {
+            // Redirect to Login
+            navigate('/user-login');
+            return;
+        }
+        if (userRole !== 'user') {
+            alert("Partners cannot book rooms. Please login as a User.");
+            return;
+        }
+        setShowConfirmModal(true);
+    };
 
-    const images = room.imageUrls || (room.imageUrl ? [room.imageUrl] : ["https://via.placeholder.com/800x600?text=No+Image"]);
+    const handleConfirmBooking = async () => {
+        setBookingProcessing(true);
+        try {
+            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+            const userData = userDoc.exists() ? userDoc.data() : {};
+
+            await addDoc(collection(db, "bookings"), {
+                userId: currentUser.uid,
+                userName: userData.name || currentUser.displayName || "User",
+                userPhone: userData.phone || "N/A",
+                messId: mess.id,
+                messName: mess.name,
+                roomId: room.id,
+                roomType: room.occupancy || "Standard",
+                price: room.price,
+                status: 'pending',
+                createdAt: serverTimestamp()
+            });
+            setShowConfirmModal(false);
+            navigate('/booking-success');
+        } catch (error) {
+            console.error("Booking failed:", error);
+            alert("Booking failed. Please try again.");
+        } finally {
+            setBookingProcessing(false);
+        }
+    };
+
+    if (loading) return <div className="p-10 text-center">Loading details...</div>;
+    if (!mess || !room) return <div className="p-10 text-center">Details not found.</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans pb-12">
+        <div className="min-h-screen bg-brand-secondary pb-20">
             {/* Header / Nav */}
-            <div className="bg-white shadow-sm p-4 sticky top-0 z-10">
-                <div className="max-w-6xl mx-auto flex items-center">
-                    <Link to={`/mess/${room.messId}`} className="flex items-center text-gray-600 hover:text-purple-600 transition-colors">
-                        <ArrowLeft size={20} className="mr-2" /> Back to Mess
-                    </Link>
-                </div>
+            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-brand-light-gray px-4 py-3 flex items-center gap-4">
+                <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <ArrowLeft size={20} className="text-brand-text-dark" />
+                </button>
+                <h1 className="text-lg font-bold text-brand-text-dark truncate">Room Details</h1>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Image Gallery */}
-                    <div className="space-y-4">
-                        <div className="aspect-video w-full overflow-hidden rounded-2xl shadow-lg bg-gray-200">
-                            <img
-                                src={images[activeImageIndex]}
-                                alt={`Room View ${activeImageIndex + 1}`}
-                                className="w-full h-full object-cover"
-                            />
+            <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+
+                {/* Image Gallery */}
+                <div className="bg-white rounded-2xl p-2 shadow-sm border border-brand-light-gray overflow-hidden">
+                    {room.imageUrls && room.imageUrls.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                            <img src={room.imageUrls[0]} alt="Room Main" className="w-full h-64 object-cover rounded-xl col-span-2" />
+                            {room.imageUrls.slice(1, 3).map((url, idx) => (
+                                <img key={idx} src={url} alt={`Room ${idx + 1}`} className="w-full h-32 object-cover rounded-xl" />
+                            ))}
                         </div>
-                        {images.length > 1 && (
-                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                {images.map((img, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setActiveImageIndex(idx)}
-                                        className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${activeImageIndex === idx ? 'border-purple-600 ring-2 ring-purple-200' : 'border-transparent opacity-70 hover:opacity-100'
-                                            }`}
-                                    >
-                                        <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
-                                    </button>
-                                ))}
+                    ) : (
+                        <img src={room.imageUrl || "https://placehold.co/600x400?text=No+Image"} alt="Room" className="w-full h-64 object-cover rounded-xl" />
+                    )}
+                </div>
+
+                {/* Title & Price */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <h2 className="text-2xl font-bold text-brand-text-dark">{room.occupancy} Room</h2>
+                            <span className="bg-brand-accent-green/10 text-brand-accent-green text-xs font-bold px-2 py-0.5 rounded-full border border-brand-accent-green/20">
+                                {room.category || 'Standard'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-brand-text-gray">
+                            <MapPin size={16} className="text-brand-primary" />
+                            <span className="font-medium text-brand-primary">{mess.name}</span>
+                        </div>
+                    </div>
+                    <div className="text-left md:text-right">
+                        <div className="text-3xl font-black text-brand-text-dark">₹{room.price}<span className="text-sm font-medium text-gray-400">/mo</span></div>
+                        <p className="text-xs text-green-600 font-bold bg-green-50 inline-block px-2 py-1 rounded mt-1">
+                            {room.availableCount > 0 ? `${room.availableCount} Beds Available` : 'Sold Out'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Amenities */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray">
+                    <h3 className="text-lg font-bold text-brand-text-dark mb-4">Amenities</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {room.amenities?.ac && (
+                            <div className="flex flex-col items-center justify-center p-4 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
+                                <Wind size={24} className="mb-2" />
+                                <span className="text-sm font-bold">AC</span>
+                            </div>
+                        )}
+                        {room.amenities?.attachedBathroom && (
+                            <div className="flex flex-col items-center justify-center p-4 bg-cyan-50 text-cyan-600 rounded-xl border border-cyan-100">
+                                <Droplets size={24} className="mb-2" />
+                                <span className="text-sm font-bold">Bathroom</span>
+                            </div>
+                        )}
+                        {mess.amenities?.wifi && (
+                            <div className="flex flex-col items-center justify-center p-4 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
+                                <Wifi size={24} className="mb-2" />
+                                <span className="text-sm font-bold">Wi-Fi</span>
+                            </div>
+                        )}
+                        {mess.amenities?.food && (
+                            <div className="flex flex-col items-center justify-center p-4 bg-orange-50 text-orange-600 rounded-xl border border-orange-100">
+                                <Utensils size={24} className="mb-2" />
+                                <span className="text-sm font-bold">Food</span>
                             </div>
                         )}
                     </div>
+                </div>
 
-                    {/* Room Info */}
-                    <div className="space-y-6">
+                {/* Description */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray">
+                    <h3 className="text-lg font-bold text-brand-text-dark mb-2">Description</h3>
+                    <p className="text-gray-600 leading-relaxed">
+                        {room.otherInfo || "No additional description provided for this room."}
+                    </p>
+
+                    <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <div className="flex justify-between items-start">
-                                <h1 className="text-3xl font-bold text-gray-900 mb-2">Room {room.roomNumber}</h1>
-                                <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${room.available !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                    }`}>
-                                    {room.available !== false ? 'Available' : 'Booked'}
-                                </span>
-                            </div>
-                            <p className="text-gray-500 flex items-center text-lg">
-                                <MapPin size={18} className="mr-2" /> {room.location}
-                            </p>
-                            <p className="text-sm text-gray-400 mt-1">Part of {room.messName}</p>
+                            <h4 className="font-bold text-gray-900 mb-2">Mess Rules</h4>
+                            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                <li>Deposit: {mess.advanceDeposit || 'Contact Owner'}</li>
+                                <li>Type: {mess.messType}</li>
+                            </ul>
                         </div>
-
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h2 className="text-xl font-semibold mb-4">Pricing</h2>
-                            <div className="flex items-baseline gap-2 mb-2">
-                                <span className="text-3xl font-bold text-purple-600">₹{room.rent}</span>
-                                <span className="text-gray-500">/ month</span>
-                            </div>
-                            {room.advanceDeposit && (
-                                <p className="text-gray-600 text-sm">
-                                    Advance Deposit: <span className="font-semibold">₹{room.advanceDeposit}</span>
-                                </p>
-                            )}
+                        <div>
+                            <h4 className="font-bold text-gray-900 mb-2">Facilities</h4>
+                            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                <li>{mess.foodFacility || 'Standard Menu'}</li>
+                                <li>{mess.extraAppliances || 'No heavy appliances'}</li>
+                                <li>{mess.security || 'Standard Security'}</li>
+                            </ul>
                         </div>
-
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h2 className="text-xl font-semibold mb-4">Amenities & Details</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex items-center text-gray-700">
-                                    <Bed size={20} className="mr-3 text-purple-500" />
-                                    <span>{room.beds} Beds</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <Bath size={20} className="mr-3 text-purple-500" />
-                                    <span>{room.bathrooms} Bathrooms</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <Utensils size={20} className="mr-3 text-purple-500" />
-                                    <span>Food: {room.food ? 'Included' : 'Not Included'}</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <Droplets size={20} className="mr-3 text-purple-500" />
-                                    <span>Water Filter: {room.waterFilter ? 'Available' : 'No'}</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <Wifi size={20} className="mr-3 text-purple-500" />
-                                    <span>WiFi: {room.wifi ? 'Available' : 'No'}</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <Zap size={20} className="mr-3 text-purple-500" />
-                                    <span>Inverter: {room.inverter ? 'Available' : 'No'}</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <Wind size={20} className="mr-3 text-purple-500" />
-                                    <span>AC: {room.ac ? 'Available' : 'No'}</span>
-                                </div>
-                                <div className="flex items-center text-gray-700">
-                                    <div className="w-5 h-5 mr-3 flex items-center justify-center text-purple-500 font-bold border border-purple-500 rounded text-xs">T</div>
-                                    <span>Table/Chair: {room.tableChair ? 'Yes' : 'No'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {room.otherInfo && (
-                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                                <h2 className="text-xl font-semibold mb-2">Description</h2>
-                                <p className="text-gray-600 leading-relaxed">{room.otherInfo}</p>
-                            </div>
-                        )}
-
-                        <button className="w-full bg-purple-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200 flex items-center justify-center gap-2">
-                            <Phone size={20} /> Contact Owner to Book
-                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Bottom Action Bar */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 px-6 md:hidden z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <div>
+                    <p className="text-xs text-gray-500 font-bold uppercase">Total Rent</p>
+                    <p className="text-2xl font-black text-brand-text-dark">₹{room.price}</p>
+                </div>
+                <button
+                    onClick={handleBookClick}
+                    disabled={room.availableCount <= 0}
+                    className="bg-brand-primary text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-brand-primary-hover active:scale-95 transition-all disabled:bg-gray-300 disabled:shadow-none"
+                >
+                    {room.availableCount > 0 ? 'Book Now' : 'Sold Out'}
+                </button>
+            </div>
+
+            {/* Desktop Action Button (Floating) */}
+            <div className="hidden md:block fixed bottom-8 right-8 z-30">
+                <button
+                    onClick={handleBookClick}
+                    disabled={room.availableCount <= 0}
+                    className="bg-brand-primary text-white px-10 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:bg-brand-primary-hover hover:scale-105 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-3"
+                >
+                    {room.availableCount > 0 ? (
+                        <>
+                            <span>Book Now</span>
+                            <div className="w-px h-6 bg-white/20"></div>
+                            <span className="font-normal text-white/80">₹{room.price}</span>
+                        </>
+                    ) : 'Sold Out'}
+                </button>
+            </div>
+
+
+            {/* Confirmation Modal */}
+            <AnimatePresence>
+                {showConfirmModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                            onClick={() => setShowConfirmModal(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl"
+                        >
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-primary">
+                                    <CheckCircle size={32} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-brand-text-dark">Confirm Booking?</h3>
+                                <p className="text-gray-500 mt-2 text-sm">
+                                    You are sending a booking request for <strong>{mess.name}</strong>.
+                                </p>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Room Type</span>
+                                    <span className="font-bold text-gray-900">{room.occupancy}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Price</span>
+                                    <span className="font-bold text-gray-900">₹{room.price}/mo</span>
+                                </div>
+                                <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm">
+                                    <span className="text-gray-500">Your Contact</span>
+                                    <span className="font-bold text-gray-900">{currentUser.email}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfirmModal(false)}
+                                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmBooking}
+                                    disabled={bookingProcessing}
+                                    className="flex-1 py-3 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-xl transition-colors shadow-lg disabled:opacity-70"
+                                >
+                                    {bookingProcessing ? 'Sending...' : 'Confirm'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

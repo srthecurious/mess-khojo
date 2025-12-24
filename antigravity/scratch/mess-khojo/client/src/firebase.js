@@ -17,8 +17,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-});
+export const db = initializeFirestore(app, {});
 export const storage = getStorage(app);
 export const analytics = getAnalytics(app);
+
+// Initialize Secondary App for Admin Creation (so we don't logout the current user)
+const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+export const secondaryAuth = getAuth(secondaryApp);

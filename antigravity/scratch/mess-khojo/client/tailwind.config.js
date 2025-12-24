@@ -7,6 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: {
+          primary: '#4B2E83',
+          'primary-hover': '#3F256F',
+          secondary: '#F8F7F3',
+          'accent-blue': '#3B82F6',
+          'accent-green': '#22C55E',
+          'light-gray': '#EDEAF4',
+          'text-dark': '#1F2937',
+          'text-gray': '#6B7280',
+          white: '#FFFFFF',
+          amber: '#F59E0B',
+          red: '#EF4444'
+        },
         neu: {
           base: '#E0E5EC',
           text: '#4A5568',

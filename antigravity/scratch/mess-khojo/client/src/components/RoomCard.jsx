@@ -17,7 +17,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
 
     const CardContent = () => (
         <>
-            <div className="h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+            <div className="h-44 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
                 <img src={displayImage} alt={title} className="w-full h-full object-cover" />
 
                 {/* Count Badge */}
@@ -41,7 +41,6 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
                 {/* Icons Row */}
                 <div className="flex gap-3 text-yellow-800/60 mt-2">
                     {am.ac && <Wind size={16} />}
-                    {am.tableChair && <Home size={16} />}
                     {am.attachedBathroom && <Droplets size={16} />}
                 </div>
             </div>

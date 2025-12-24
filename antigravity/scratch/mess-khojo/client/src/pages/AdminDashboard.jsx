@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, storage } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 import RoomCard from '../components/RoomCard';
@@ -15,13 +15,18 @@ const AdminDashboard = () => {
     // Mess Profile Form State
     const [messForm, setMessForm] = useState({
         name: '',
-        name: '',
         address: '',
         contact: '',
         locationUrl: '',
+        messType: 'Boys', // Default
+        extraAppliances: '',
+        foodFacility: '',
+        security: '',
+        advanceDeposit: '',
+        isUserSourced: false,
+        lastUpdatedDate: '',
         amenities: {
             food: false,
-            waterFilter: false,
             wifi: false,
             inverter: false
         }
@@ -38,7 +43,6 @@ const AdminDashboard = () => {
         totalInventory: 1,
         price: '',
         amenities: {
-            tableChair: false,
             ac: false,
             attachedBathroom: false
         },
@@ -48,6 +52,10 @@ const AdminDashboard = () => {
     const [imageFiles, setImageFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [editingRoomId, setEditingRoomId] = useState(null);
+
+    // Booking State
+    const [bookings, setBookings] = useState([]);
+    const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
 
     const navigate = useNavigate();
 
@@ -71,6 +79,21 @@ const AdminDashboard = () => {
         return () => unsubscribeAuth();
     }, [navigate]);
 
+    // Security Check: Ensure user is NOT a student
+    useEffect(() => {
+        const checkRole = async () => {
+            if (user) {
+                const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", user.uid)));
+                if (!userDoc.empty) {
+                    alert("Access Denied: Student accounts cannot access the Partner Dashboard.");
+                    await signOut(auth);
+                    navigate('/');
+                }
+            }
+        };
+        checkRole();
+    }, [user, navigate]);
+
     // Listen for rooms ONLY if mess profile exists
     useEffect(() => {
         if (!messProfile) return;
@@ -85,6 +108,24 @@ const AdminDashboard = () => {
         });
 
         return () => unsubscribeRooms();
+    }, [messProfile]);
+
+    // Listen for Bookings
+    useEffect(() => {
+        if (!messProfile) return;
+
+        const q = query(collection(db, "bookings"), where("messId", "==", messProfile.id));
+        const unsubscribeBookings = onSnapshot(q, (snapshot) => {
+            const bookingsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            // Sort by Date (Newest First)
+            bookingsData.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+            setBookings(bookingsData);
+        });
+
+        return () => unsubscribeBookings();
     }, [messProfile]);
 
     const handleLogout = async () => {
@@ -204,7 +245,9 @@ const AdminDashboard = () => {
                     ...messForm,
                     latitude: messForm.latitude ? Number(messForm.latitude) : null,
                     longitude: messForm.longitude ? Number(messForm.longitude) : null,
-                    posterUrl
+                    posterUrl,
+                    isUserSourced: messForm.isUserSourced || false,
+                    lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null
                 });
                 setMessProfile({ ...messProfile, ...messForm, posterUrl });
                 setIsEditingMess(false);
@@ -216,6 +259,8 @@ const AdminDashboard = () => {
                     latitude: messForm.latitude ? Number(messForm.latitude) : null,
                     longitude: messForm.longitude ? Number(messForm.longitude) : null,
                     posterUrl,
+                    isUserSourced: messForm.isUserSourced || false,
+                    lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null,
                     adminId: user.uid,
                     createdAt: new Date()
                 });
@@ -239,9 +284,15 @@ const AdminDashboard = () => {
             locationUrl: messProfile.locationUrl || '',
             latitude: messProfile.latitude || '',
             longitude: messProfile.longitude || '',
+            messType: messProfile.messType || 'Boys',
+            extraAppliances: messProfile.extraAppliances || '',
+            foodFacility: messProfile.foodFacility || '',
+            security: messProfile.security || '',
+            advanceDeposit: messProfile.advanceDeposit || '',
+            isUserSourced: messProfile.isUserSourced || false,
+            lastUpdatedDate: messProfile.lastUpdatedDate || '',
             amenities: messProfile.amenities || {
                 food: false,
-                waterFilter: false,
                 wifi: false,
                 inverter: false
             }
@@ -252,8 +303,10 @@ const AdminDashboard = () => {
     const handleCancelEditMess = () => {
         setIsEditingMess(false);
         setMessForm({
-            name: '', address: '', contact: '', locationUrl: '',
-            amenities: { food: false, waterFilter: false, wifi: false, inverter: false }
+            name: '', address: '', contact: '', locationUrl: '', messType: 'Boys',
+            extraAppliances: '', foodFacility: '', security: '', advanceDeposit: '',
+            isUserSourced: false, lastUpdatedDate: '',
+            amenities: { food: false, wifi: false, inverter: false }
         });
         setPosterFile(null);
     };
@@ -328,7 +381,6 @@ const AdminDashboard = () => {
                 totalInventory: 1,
                 price: '',
                 amenities: {
-                    tableChair: false,
                     ac: false,
                     attachedBathroom: false
                 },
@@ -353,7 +405,6 @@ const AdminDashboard = () => {
             totalInventory: room.totalInventory || 1,
             price: room.price || room.rent || '', // Fallback for old data
             amenities: room.amenities || {
-                tableChair: room.tableChair || false,
                 ac: room.ac || false,
                 attachedBathroom: room.attachedBathroom || false
             },
@@ -371,7 +422,6 @@ const AdminDashboard = () => {
             totalInventory: 1,
             price: '',
             amenities: {
-                tableChair: false,
                 ac: false,
                 attachedBathroom: false
             },
@@ -407,6 +457,26 @@ const AdminDashboard = () => {
         }
     };
 
+    const handleUpdateBookingStatus = async (bookingId, newStatus) => {
+        try {
+            const remark = bookingRemarks[bookingId] || "";
+            await updateDoc(doc(db, "bookings", bookingId), {
+                status: newStatus,
+                remark: remark,
+                respondedAt: serverTimestamp()
+            });
+            // Clear remark after action
+            setBookingRemarks(prev => {
+                const updated = { ...prev };
+                delete updated[bookingId];
+                return updated;
+            });
+        } catch (error) {
+            console.error("Error updating booking:", error);
+            alert("Failed to update booking status");
+        }
+    };
+
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this room?")) {
             try {
@@ -422,17 +492,17 @@ const AdminDashboard = () => {
     if (loadingProfile) return <div className="p-10 text-center">Loading profile...</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-brand-secondary">
             <nav className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-xl font-bold text-blue-600">Admin Dashboard</h1>
+                    <h1 className="text-xl font-bold text-brand-primary">Admin Dashboard</h1>
                     <a href="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
                         ← Home
                     </a>
                 </div>
                 <div className="flex items-center gap-4">
-                    {messProfile && <span className="font-semibold">{messProfile.name}</span>}
-                    <button onClick={handleLogout} className="text-red-500 hover:text-red-700">Logout</button>
+                    {messProfile && <span className="font-semibold text-brand-text-dark">{messProfile.name}</span>}
+                    <button onClick={handleLogout} className="text-brand-red hover:text-red-700 font-medium transition-colors">Logout</button>
                 </div>
             </nav>
 
@@ -441,7 +511,7 @@ const AdminDashboard = () => {
                 {!messProfile || isEditingMess ? (
                     <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">{isEditingMess ? 'Edit Mess Profile' : 'Create Mess Profile'}</h2>
+                            <h2 className="text-2xl font-bold text-brand-text-dark">{isEditingMess ? 'Edit Mess Profile' : 'Create Mess Profile'}</h2>
                             {isEditingMess && (
                                 <button onClick={handleCancelEditMess} className="text-gray-500 hover:text-gray-700">
                                     <X size={24} />
@@ -458,6 +528,18 @@ const AdminDashboard = () => {
                                     onChange={(e) => setMessForm({ ...messForm, name: e.target.value })}
                                     required
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Mess Type</label>
+                                <select
+                                    className="w-full p-2 border rounded"
+                                    value={messForm.messType}
+                                    onChange={(e) => setMessForm({ ...messForm, messType: e.target.value })}
+                                >
+                                    <option value="Boys">Boys Mess</option>
+                                    <option value="Girls">Girls Mess</option>
+                                    <option value="Co-ed">Co-ed Mess</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Address</label>
@@ -483,7 +565,7 @@ const AdminDashboard = () => {
                                 <label className="block text-sm font-medium mb-1">Google Maps Location URL</label>
                                 <input
                                     type="url"
-                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                    className="w-full p-2 border border-brand-light-gray rounded focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
                                     value={messForm.locationUrl}
                                     onChange={(e) => handleLocationUrlChange(e.target.value)}
                                     placeholder="Paste Google Maps URL (coordinates will auto-extract)"
@@ -493,7 +575,7 @@ const AdminDashboard = () => {
                                     type="button"
                                     onClick={handleGeocode}
                                     disabled={geocoding || !messForm.address}
-                                    className="mt-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+                                    className="mt-2 px-4 py-2 bg-brand-accent-blue text-white rounded-lg hover:bg-brand-accent-blue/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
@@ -502,34 +584,34 @@ const AdminDashboard = () => {
                                     {geocoding ? 'Geocoding...' : 'Auto-fill Coordinates'}
                                 </button>
                             </div>
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="bg-brand-accent-blue/5 border border-brand-accent-blue/20 rounded-lg p-4">
                                 <div className="flex items-start gap-2 mb-3">
-                                    <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-brand-accent-blue mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                     <div>
-                                        <p className="text-sm font-semibold text-blue-900">Location Coordinates (For Distance Calculation)</p>
-                                        <p className="text-xs text-blue-700 mt-1">Use the button above to auto-fill from address, or enter manually</p>
+                                        <p className="text-sm font-semibold text-brand-text-dark">Location Coordinates (For Distance Calculation)</p>
+                                        <p className="text-xs text-brand-text-gray mt-1">Use the button above to auto-fill from address, or enter manually</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1 text-gray-700">Latitude</label>
+                                        <label className="block text-sm font-medium mb-1 text-brand-text-dark">Latitude</label>
                                         <input
                                             type="number"
                                             step="any"
-                                            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-2 border border-brand-light-gray rounded focus:ring-2 focus:ring-brand-primary"
                                             value={messForm.latitude || ''}
                                             onChange={(e) => setMessForm({ ...messForm, latitude: parseFloat(e.target.value) })}
                                             placeholder="e.g. 23.2599"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1 text-gray-700">Longitude</label>
+                                        <label className="block text-sm font-medium mb-1 text-brand-text-dark">Longitude</label>
                                         <input
                                             type="number"
                                             step="any"
-                                            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-2 border border-brand-light-gray rounded focus:ring-2 focus:ring-brand-primary"
                                             value={messForm.longitude || ''}
                                             onChange={(e) => setMessForm({ ...messForm, longitude: parseFloat(e.target.value) })}
                                             placeholder="e.g. 77.4126"
@@ -537,8 +619,108 @@ const AdminDashboard = () => {
                                     </div>
                                 </div>
                                 {messForm.latitude && messForm.longitude && (
-                                    <p className="text-xs text-green-600 mt-2 font-medium">✓ Coordinates set - distances will be calculated</p>
+                                    <p className="text-xs text-brand-accent-green mt-2 font-medium">✓ Coordinates set - distances will be calculated</p>
                                 )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Advance Deposit Policy</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 1 Month Rent"
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.advanceDeposit}
+                                        onChange={(e) => setMessForm({ ...messForm, advanceDeposit: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Extra Electric Appliances</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Iron, Kettle allowed"
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.extraAppliances}
+                                        onChange={(e) => setMessForm({ ...messForm, extraAppliances: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Food Facility Details</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 3 Meals, Pure Veg"
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.foodFacility}
+                                        onChange={(e) => setMessForm({ ...messForm, foodFacility: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Security Details</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. CCTV, Guard 24/7"
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.security}
+                                        onChange={(e) => setMessForm({ ...messForm, security: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-brand-secondary p-4 rounded-lg border border-brand-light-gray">
+                                <div className="flex items-center gap-4 mb-3">
+                                    <label className="flex items-center gap-2 cursor-pointer font-medium text-brand-text-dark">
+                                        <input
+                                            type="checkbox"
+                                            className="w-5 h-5 accent-brand-primary"
+                                            checked={messForm.isUserSourced}
+                                            onChange={(e) => setMessForm({ ...messForm, isUserSourced: e.target.checked })}
+                                        />
+                                        Mark as "User Sourced"
+                                    </label>
+                                </div>
+                                {messForm.isUserSourced && (
+                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="block text-sm font-medium mb-1 text-brand-text-dark">Last Date of Update</label>
+                                        <input
+                                            type="date"
+                                            className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-primary outline-none"
+                                            value={messForm.lastUpdatedDate}
+                                            onChange={(e) => setMessForm({ ...messForm, lastUpdatedDate: e.target.value })}
+                                            required={messForm.isUserSourced}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1 italic">Note: This will be shown to users as unverified information.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Amenities Available</label>
+                                <div className="flex flex-wrap gap-4">
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={messForm.amenities.wifi}
+                                            onChange={(e) => setMessForm({ ...messForm, amenities: { ...messForm.amenities, wifi: e.target.checked } })}
+                                        />
+                                        Wifi Availability
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={messForm.amenities.inverter}
+                                            onChange={(e) => setMessForm({ ...messForm, amenities: { ...messForm.amenities, inverter: e.target.checked } })}
+                                        />
+                                        Electricity Backup
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={messForm.amenities.food}
+                                            onChange={(e) => setMessForm({ ...messForm, amenities: { ...messForm.amenities, food: e.target.checked } })}
+                                        />
+                                        Food Service
+                                    </label>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Mess Poster {isEditingMess && '(Leave empty to keep current)'}</label>
@@ -555,7 +737,7 @@ const AdminDashboard = () => {
                                     </div>
                                 )}
                             </div>
-                            <button type="submit" disabled={uploading} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                            <button type="submit" disabled={uploading} className="w-full bg-brand-primary text-white py-2 rounded hover:bg-brand-primary-hover shadow-md transition-all">
                                 {uploading ? 'Saving...' : (isEditingMess ? 'Update Profile' : 'Create Profile')}
                             </button>
                         </form>
@@ -579,7 +761,7 @@ const AdminDashboard = () => {
                 {/* Room Management Section */}
                 {messProfile && !isEditingMess && (
                     <>
-                        <div className="bg-white p-6 rounded-lg shadow-md mb-8 border-t-4 border-blue-500">
+                        <div className="bg-white p-6 rounded-lg shadow-md mb-8 border-t-4 border-brand-primary">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-2xl font-bold">{editingRoomId ? 'Edit Room' : 'Add New Room'}</h2>
                                 {editingRoomId && (
@@ -637,10 +819,10 @@ const AdminDashboard = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1 text-green-600">Available Beds/Seats</label>
+                                        <label className="block text-sm font-medium mb-1 text-brand-accent-green">Available Beds/Seats</label>
                                         <input
                                             type="number"
-                                            className="w-full p-2 border rounded border-green-200 bg-green-50"
+                                            className="w-full p-2 border border-brand-accent-green/20 bg-brand-accent-green/5 outline-none rounded"
                                             value={formData.availableCount}
                                             onChange={e => setFormData({ ...formData, availableCount: parseInt(e.target.value) })}
                                             required
@@ -651,9 +833,6 @@ const AdminDashboard = () => {
                                 <div>
                                     <label className="block text-sm font-medium mb-2">Amenities Included</label>
                                     <div className="flex flex-wrap gap-4">
-                                        <label className="flex items-center gap-2">
-                                            <input type="checkbox" checked={formData.amenities.tableChair} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, tableChair: e.target.checked } })} /> Table/Chair
-                                        </label>
                                         <label className="flex items-center gap-2">
                                             <input type="checkbox" checked={formData.amenities.ac} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, ac: e.target.checked } })} /> AC
                                         </label>
@@ -710,7 +889,7 @@ const AdminDashboard = () => {
                                     )}
                                 </div>
 
-                                <button type="submit" disabled={uploading} className={`w-full text-white py-2 rounded hover:opacity-90 transition-opacity ${editingRoomId ? 'bg-orange-500' : 'bg-blue-600'}`}>
+                                <button type="submit" disabled={uploading} className={`w-full text-white py-2 rounded shadow-md hover:bg-opacity-90 transition-all ${editingRoomId ? 'bg-brand-amber font-bold' : 'bg-brand-primary'}`}>
                                     {uploading ? 'Saving...' : (editingRoomId ? 'Update Room Type' : 'Add Room Type')}
                                 </button>
                             </form>
@@ -719,19 +898,19 @@ const AdminDashboard = () => {
                         <h2 className="text-2xl font-bold mb-4">Your Room Types</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {rooms.map(room => (
-                                <div key={room.id} className={`relative group ${editingRoomId === room.id ? 'ring-2 ring-orange-500 rounded-xl' : ''}`}>
+                                <div key={room.id} className={`relative group ${editingRoomId === room.id ? 'ring-2 ring-brand-amber rounded-xl' : ''}`}>
                                     <RoomCard room={room} isAdmin={true} />
                                     <div className="absolute top-2 right-2 flex gap-2">
                                         <button
                                             onClick={() => handleEditRoomClick(room)}
-                                            className="bg-white text-orange-500 p-1.5 rounded-full hover:bg-orange-50 shadow-sm border border-gray-100"
+                                            className="bg-white text-brand-amber p-1.5 rounded-full hover:bg-brand-amber/10 shadow-sm border border-brand-light-gray"
                                             title="Edit Room"
                                         >
                                             <Pencil size={16} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(room.id)}
-                                            className="bg-white text-red-500 p-1.5 rounded-full hover:bg-red-50 shadow-sm border border-gray-100"
+                                            className="bg-white text-brand-red p-1.5 rounded-full hover:bg-brand-red/10 shadow-sm border border-brand-light-gray"
                                             title="Delete Room"
                                         >
                                             <Trash2 size={16} />
@@ -739,6 +918,79 @@ const AdminDashboard = () => {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+
+                        {/* Booking Requests Section */}
+                        <div className="mt-12 mb-8 border-t border-brand-light-gray pt-8">
+                            <h2 className="text-2xl font-bold mb-6 text-brand-text-dark flex items-center gap-3">
+                                Booking Requests
+                                {bookings.filter(b => b.status === 'pending').length > 0 && (
+                                    <span className="text-sm font-normal bg-brand-primary text-white px-3 py-1 rounded-full">
+                                        {bookings.filter(b => b.status === 'pending').length} New
+                                    </span>
+                                )}
+                            </h2>
+
+                            {bookings.length === 0 ? (
+                                <div className="bg-white p-8 rounded-xl text-center border-2 border-dashed border-gray-200 text-gray-400">
+                                    <p>No booking requests yet.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {bookings.map(booking => (
+                                        <div key={booking.id} className="bg-white p-5 rounded-xl shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between gap-4">
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <h3 className="font-bold text-lg text-brand-text-dark">{booking.userName || 'Unknown User'}</h3>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                                        booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                            'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                        {booking.status}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-600 mb-2">📞 {booking.userPhone}</p>
+                                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                                    <span>🛏️ {booking.roomType} Room</span>
+                                                    <span>💰 ₹{booking.price}/mo</span>
+                                                    <span>📅 {booking.createdAt ? new Date(booking.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                                                </div>
+                                            </div>
+
+                                            {booking.status === 'pending' && (
+                                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                                    <textarea
+                                                        placeholder="Remark (optional)"
+                                                        value={bookingRemarks[booking.id] || ''}
+                                                        onChange={(e) => setBookingRemarks(prev => ({ ...prev, [booking.id]: e.target.value }))}
+                                                        className="w-full px-3 py-1.5 border border-brand-light-gray rounded-lg text-sm focus:ring-1 focus:ring-brand-primary outline-none resize-none h-16"
+                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleUpdateBookingStatus(booking.id, 'confirmed')}
+                                                            className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow-sm transition-colors text-sm"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateBookingStatus(booking.id, 'rejected')}
+                                                            className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors text-sm"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {booking.status !== 'pending' && booking.remark && (
+                                                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100 text-xs text-gray-500 italic md:max-w-xs">
+                                                    Remark: {booking.remark}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </>
                 )}
