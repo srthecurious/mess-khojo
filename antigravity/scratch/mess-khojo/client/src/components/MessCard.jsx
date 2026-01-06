@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { MapPin, Phone, ArrowRight, BedDouble, Briefcase, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,7 +6,7 @@ import { storage, auth, db } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, query, getDocs, where } from 'firebase/firestore';
 
-const MessCard = ({ mess, index }) => {
+const MessCard = memo(({ mess, index }) => {
     const [imageUrl, setImageUrl] = useState(null);
 
     useEffect(() => {
@@ -65,84 +65,97 @@ const MessCard = ({ mess, index }) => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.5, type: "spring", stiffness: 100, damping: 20 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            whileHover={{
+                y: -6,
+                scale: 1.01,
+                transition: { duration: 0.2, ease: "easeOut" }
+            }}
             className="uiverse-card flex flex-col h-full"
+            style={{ willChange: "transform" }}
         >
             <Link to={`/mess/${mess.id}`} className="block h-full flex flex-col">
                 {/* Poster Image (Optional - reduced height to fit style) */}
-                <div className="h-44 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+                <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden mb-3 relative shadow-sm bg-gray-100">
                     {imageUrl ? (
-                        <img
-                            src={imageUrl}
-                            alt={mess.name}
-                            className="w-full h-full object-cover"
-                            onError={() => setImageUrl(null)}
-                        />
+                        <>
+                            <img
+                                src={imageUrl}
+                                alt={mess.name}
+                                className="w-full h-full object-cover"
+                                onError={() => setImageUrl(null)}
+                            />
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none"></div>
+                        </>
                     ) : (
-                        <div className="w-full h-full bg-brand-light-gray flex items-center justify-center text-brand-primary">
+                        <div className="w-full h-full bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] flex items-center justify-center text-brand-primary">
                             <span className="text-4xl drop-shadow-md">🏡</span>
                         </div>
                     )}
 
+
                     {/* Filter Match Badge */}
                     {mess.isFiltered && (
-                        <div className="absolute top-2 left-2 bg-brand-accent-green px-2 py-1 rounded-lg text-xs font-bold text-white shadow-sm">
+                        <div className="absolute top-2 left-2 bg-brand-accent-green px-2 py-0.5 rounded-md text-[10px] font-bold text-white shadow-md">
                             {mess.matchingBeds > 0 ? `${mess.matchingBeds} Beds` : 'No Match'}
                         </div>
                     )}
 
                     {/* User Sourced Badge */}
                     {mess.isUserSourced && (
-                        <div className="absolute top-2 right-2 bg-brand-amber px-2 py-1 rounded-lg text-[10px] font-bold text-brand-text-dark shadow-sm flex items-center gap-1">
-                            <Info size={10} /> USER SOURCED
+                        <div className="absolute top-2 right-2 bg-brand-amber px-1.5 py-0.5 rounded-md text-[9px] font-bold text-brand-text-dark shadow-md flex items-center gap-0.5">
+                            <Info size={9} /> USER SOURCED
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-col gap-2 flex-grow">
+                <div className="flex flex-col gap-1.5 flex-grow">
                     {/* Header */}
                     <div>
-                        <h3 className="uiverse-header-title mb-1 line-clamp-1">{mess.name}</h3>
-                        <div className="flex items-center gap-1 uiverse-header-subtitle">
-                            <MapPin size={12} className="opacity-60" />
+                        <h3 className="text-base font-bold text-gray-800 mb-0.5 line-clamp-1">{mess.name}</h3>
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <MapPin size={11} className="opacity-60 flex-shrink-0" />
                             <span className="truncate">{mess.address || "No information"}</span>
                         </div>
                     </div>
 
                     {/* Content (Contact) */}
-                    <div className="mt-2 flex items-center gap-2 uiverse-header-subtitle">
-                        <Phone size={12} />
-                        <span>{mess.contact || "No information"}</span>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Phone size={11} className="flex-shrink-0" />
+                        <span className="truncate">{mess.hideContact ? "Not Available" : (mess.contact || "No information")}</span>
                     </div>
                 </div>
 
                 {/* Footer / Bottom Actions */}
-                <div className="mt-4 flex items-end justify-between">
-                    {/* View Details Button - Now on LEFT and LARGER */}
-                    <div className="uiverse-badge text-base px-6 py-2.5">
+                <div className="mt-3 flex items-end justify-between">
+                    {/* View Details Button */}
+                    <div className="uiverse-badge text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2">
                         View Details
                     </div>
 
-                    {/* Distance - Now on RIGHT and SMALLER */}
-                    <div>
+                    {/* Distance - Hidden for now */}
+                    {/* <div>
                         {typeof mess.distance === 'number' && isFinite(mess.distance) ? (
-                            <div className="text-lg font-bold text-brand-primary flex items-baseline">
+                            <div className="text-base sm:text-lg font-bold text-brand-primary flex items-baseline">
                                 {mess.distance < 1 ? Math.round(mess.distance * 1000) : mess.distance.toFixed(1)}
-                                <span className="text-xs ml-1 opacity-60 font-normal">{mess.distance < 1 ? 'm' : 'km'}</span>
+                                <span className="text-[10px] ml-0.5 opacity-60 font-normal">{mess.distance < 1 ? 'm' : 'km'}</span>
                             </div>
                         ) : (
-                            <div className="text-lg font-bold text-brand-primary opacity-50">--</div>
+                            <div className="text-base sm:text-lg font-bold text-brand-primary opacity-50">--</div>
                         )}
-                    </div>
+                    </div> */}
                 </div>
 
 
             </Link>
         </motion.div>
     );
-};
+});
+
+MessCard.displayName = 'MessCard';
 
 export default MessCard;

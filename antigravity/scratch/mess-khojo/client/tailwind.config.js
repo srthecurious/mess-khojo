@@ -49,7 +49,16 @@ export default {
         'neu-dark-out': '8px 8px 16px #16191b, -8px -8px 16px #2c3137',
         'neu-dark-in': 'inset 8px 8px 16px #16191b, inset -8px -8px 16px #2c3137',
         'neu-dark-btn': '5px 5px 10px #16191b, -5px -5px 10px #2c3137',
-      }
+      },
+      animation: {
+        'shimmer': 'shimmer 2s infinite linear',
+      },
+      keyframes: {
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
     },
   },
   plugins: [],

@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, getDocs, updateDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
+import SkeletonCard from '../components/SkeletonCard';
 import FilterBar from '../components/FilterBar';
 import Header from '../components/Header'; // Import new Header
-import { Search, MapPin, Home as HomeIcon } from 'lucide-react';
+import FeedbackForm from '../components/FeedbackForm';
+import { Search, MapPin, Home as HomeIcon, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Home = () => {
@@ -196,12 +198,11 @@ const Home = () => {
             // Visibility Filter
             if (mess.hidden) return null;
 
-            // 1. Location Filter (Mess Address/Name)
+            // 1. Location Filter (Mess Name Only)
             if (filters.location) {
                 const searchTerm = filters.location.toLowerCase();
                 const matchesName = (mess.name || '').toLowerCase().includes(searchTerm);
-                const matchesAddress = (mess.address || '').toLowerCase().includes(searchTerm);
-                if (!matchesName && !matchesAddress) return null;
+                if (!matchesName) return null;
             }
 
             // 2. Mess Type Filter (Gender)
@@ -209,11 +210,7 @@ const Home = () => {
                 if (mess.messType !== filters.messType) return null;
             }
 
-            // 3. Max Distance Filter
-            if (filters.maxDistance && filters.maxDistance !== '') {
-                const maxDist = Number(filters.maxDistance);
-                if (distance === null || distance > maxDist) return null;
-            }
+
 
             // Get rooms for this mess
             const messRooms = rooms.filter(room => room.messId === mess.id);
@@ -294,46 +291,46 @@ const Home = () => {
                 setIsLocationModalOpen={setIsLocationModalOpen}
             />
 
-            {/* Spotlight Hero Section - Full Screen */}
-            <div className="px-0">
+            {/* Filter Section - Moved to Top */}
+            <div className="pt-2 pb-6 relative z-40">
+                <FilterBar onFilterChange={handleFilterChange} />
+            </div>
+
+            {/* Spotlight Hero Section - Reduced Height */}
+            <div className="px-0 mb-8">
                 <div
-                    className="w-full h-[calc(100vh-64px-120px)] flex items-end justify-center overflow-hidden relative"
-                    style={{
-                        backgroundImage: 'url(/spotlight-bg.png)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center top'
-                    }}
+                    className="w-full h-[38vh] flex items-center justify-center overflow-hidden relative"
                 >
                     {/* Brand gradient overlay for hero section */}
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/95 to-brand-primary/80"></div>
 
                     {/* Content positioned below spotlights */}
-                    <div className="relative z-10 text-center px-6 pb-12 max-w-2xl">
-                        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+                    <div className="relative z-10 text-center px-6 max-w-2xl">
+                        <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
                             Find your comfortable <span className="text-brand-accent-green">stay</span>.
                         </h1>
-                        <p className="text-white/90 font-medium mb-8 text-lg">
+                        <p className="text-white/90 font-medium mb-6 text-base">
                             Search for the best student messes nearby.
                         </p>
 
                         {!userLocation && (
-                            <div className="relative max-w-sm mx-auto">
+                            <div className="relative max-w-xs mx-auto">
                                 <button
                                     onClick={() => handleLocationSelect()}
-                                    className="w-full py-4 px-6 bg-brand-primary text-white font-bold rounded-2xl border-2 border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                                    className="w-full py-2.5 px-5 bg-brand-primary text-white font-semibold rounded-xl border-2 border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                                 >
-                                    <MapPin size={20} className="fill-current" />
+                                    <MapPin size={18} className="fill-current" />
                                     <span>Use Current Location</span>
                                 </button>
                             </div>
                         )}
 
                         {userLocation && (
-                            <div className="mt-6 flex flex-col items-center animate-fade-in-up">
+                            <div className="mt-4 flex flex-col items-center animate-fade-in-up">
                                 <span className="text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Location Active</span>
                                 <button
                                     onClick={() => setIsLocationModalOpen(true)}
-                                    className="px-6 py-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white font-bold flex items-center gap-2 shadow-lg hover:bg-white/30 transition-all hover:scale-105 active:scale-95"
+                                    className="px-6 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white font-bold flex items-center gap-2 shadow-lg hover:bg-white/30 transition-all hover:scale-105 active:scale-95"
                                 >
                                     <MapPin size={16} className="text-brand-accent-green" />
                                     {userLocation.address || "Using GPS Location"}
@@ -344,17 +341,9 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* Filter Section - Reduced spacing from hero */}
-            <div className="pt-4">
-                <FilterBar onFilterChange={handleFilterChange} />
-            </div>
-
             {/* Mess List */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
-                <div className="flex items-center justify-between mb-6 px-1">
-                    <h2 className="text-2xl font-bold text-brand-text-dark">
-                        {userLocation ? 'Nearest to you' : 'Explore Stays'}
-                    </h2>
+                <div className="flex items-center justify-end mb-4 px-1">
                     <div className="flex flex-col items-end">
                         <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-lg border border-gray-100">
                             {filteredMesses.length} results
@@ -368,26 +357,80 @@ const Home = () => {
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center items-center py-20">
-                        <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-light-gray border-t-brand-primary"></div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                        {[...Array(6)].map((_, i) => (
+                            <SkeletonCard key={i} />
+                        ))}
                     </div>
                 ) : filteredMesses.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <motion.div
+                        className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6"
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.05
+                                }
+                            }
+                        }}
+                    >
                         {filteredMesses.map((mess, index) => (
                             <MessCard key={mess.id} mess={mess} index={index} />
                         ))}
-                    </div>
+                    </motion.div>
                 ) : (
-                    <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Search size={24} className="text-gray-400" />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4 }}
+                        className="text-center py-16 px-6 bg-gradient-to-br from-white via-purple-50/30 to-white rounded-3xl border border-purple-100 shadow-lg"
+                    >
+                        <motion.div
+                            animate={{
+                                rotate: [0, 10, -10, 10, 0],
+                                scale: [1, 1.1, 1, 1.1, 1]
+                            }}
+                            transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                repeatDelay: 3
+                            }}
+                            className="bg-gradient-to-br from-purple-100 to-purple-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md"
+                        >
+                            <Search size={32} className="text-purple-400" />
+                        </motion.div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">No messes found</h3>
+                        <p className="text-sm text-gray-600 mb-6">Try adjusting your filters or search criteria.</p>
+
+                        <div className="bg-purple-50/50 rounded-2xl p-4 border border-purple-100 max-w-md mx-auto">
+                            <div className="flex items-center gap-2 mb-3 justify-center">
+                                <TrendingUp size={16} className="text-purple-500" />
+                                <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Suggestions</span>
+                            </div>
+                            <ul className="text-sm text-left text-gray-700 space-y-2">
+                                <li className="flex items-start gap-2">
+                                    <span className="text-purple-500 mt-0.5">•</span>
+                                    <span>Try removing some filters</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-purple-500 mt-0.5">•</span>
+                                    <span>Expand your price range</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-purple-500 mt-0.5">•</span>
+                                    <span>Search in a different location</span>
+                                </li>
+                            </ul>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-700 mb-1">No matches found</h3>
-                        <p className="text-sm text-gray-500">Try adjusting your filters.</p>
-                    </div>
+                    </motion.div>
                 )}
             </div>
 
+            {/* Feedback Section */}
+            <div id="feedback-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
+                <FeedbackForm />
+            </div>
 
         </div>
     );

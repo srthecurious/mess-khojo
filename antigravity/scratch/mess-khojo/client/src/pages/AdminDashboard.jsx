@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 import RoomCard from '../components/RoomCard';
 import { Pencil, Trash2, X } from 'lucide-react';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
 const AdminDashboard = () => {
     const [user, setUser] = useState(null);
@@ -694,33 +695,20 @@ const AdminDashboard = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-2">Amenities Available</label>
-                                <div className="flex flex-wrap gap-4">
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={messForm.amenities.wifi}
-                                            onChange={(e) => setMessForm({ ...messForm, amenities: { ...messForm.amenities, wifi: e.target.checked } })}
-                                        />
-                                        Wifi Availability
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={messForm.amenities.inverter}
-                                            onChange={(e) => setMessForm({ ...messForm, amenities: { ...messForm.amenities, inverter: e.target.checked } })}
-                                        />
-                                        Electricity Backup
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={messForm.amenities.food}
-                                            onChange={(e) => setMessForm({ ...messForm, amenities: { ...messForm.amenities, food: e.target.checked } })}
-                                        />
-                                        Food Service
-                                    </label>
-                                </div>
+                                <MultiSelectDropdown
+                                    label="Amenities Available"
+                                    options={[
+                                        { key: 'wifi', label: 'Wifi Availability' },
+                                        { key: 'inverter', label: 'Electricity Backup' },
+                                        { key: 'food', label: 'Food Service' }
+                                    ]}
+                                    selected={messForm.amenities}
+                                    onChange={(key, checked) => setMessForm({
+                                        ...messForm,
+                                        amenities: { ...messForm.amenities, [key]: checked }
+                                    })}
+                                    color="indigo"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Mess Poster {isEditingMess && '(Leave empty to keep current)'}</label>
@@ -831,15 +819,19 @@ const AdminDashboard = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium mb-2">Amenities Included</label>
-                                    <div className="flex flex-wrap gap-4">
-                                        <label className="flex items-center gap-2">
-                                            <input type="checkbox" checked={formData.amenities.ac} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, ac: e.target.checked } })} /> AC
-                                        </label>
-                                        <label className="flex items-center gap-2">
-                                            <input type="checkbox" checked={formData.amenities.attachedBathroom} onChange={e => setFormData({ ...formData, amenities: { ...formData.amenities, attachedBathroom: e.target.checked } })} /> Attached Bathroom
-                                        </label>
-                                    </div>
+                                    <MultiSelectDropdown
+                                        label="Amenities Included"
+                                        options={[
+                                            { key: 'ac', label: 'AC' },
+                                            { key: 'attachedBathroom', label: 'Attached Bathroom' }
+                                        ]}
+                                        selected={formData.amenities}
+                                        onChange={(key, checked) => setFormData({
+                                            ...formData,
+                                            amenities: { ...formData.amenities, [key]: checked }
+                                        })}
+                                        color="cyan"
+                                    />
                                 </div>
 
                                 <div>

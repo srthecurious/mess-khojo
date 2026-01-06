@@ -1,0 +1,80 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check for specific operator email
+    // REPLACE 'operator@example.com' with your actual operator email or use Custom Claims
+    function isOperator() {
+      return isAuthenticated() && request.auth.token.email == 'messkhojooperator@gmail.com'; 
+    }
+
+    // --- Users Collection ---
+    // Users can read/write ONLY their own document
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Prevent users from escalating privileges (e.g. settings role: 'admin')
+      // This requires more complex validation logic on update, 
+      // but strictly separating Admin/User collections or using Custom Claims is better.
+    }
+
+    // --- Messes Collection ---
+    // Public Read
+    // Write only by authenticated Admins (Mess Owners) or System Operators
+    match /messes/{messId} {
+      allow read: if true; 
+      allow create: if isAuthenticated(); // Allow any auth user to *try* to create (logic handled in app)
+      allow update, delete: if isAuthenticated() && (resource.data.adminId == request.auth.uid || isOperator());
+    }
+
+    // --- Rooms Collection ---
+    // Public Read
+    // Write only by Mess Owners
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if isAuthenticated(); // Ideally check ownership relationship to mess
+    }
+
+    // --- Bookings Collection ---
+    // Users can read/create their own bookings
+    // Operators can read/manage all bookings
+    match /bookings/{bookingId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isOperator());
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isOperator());
+    }
+
+    // --- Claims & Inquiries ---
+    // Public create (for inquiries), Restricted read
+    match /claims/{claimId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isOperator();
+    }
+    
+    match /inquiries/{inquiryId} {
+      allow create: if true; // Unregistered users can inquire
+      allow read, update, delete: if isOperator();
+    }
+    // --- Feedbacks Collection ---
+    // Anyone can create (submit feedback)
+    // Only Operators can read users' feedback and reply
+    match /feedbacks/{feedbackId} {
+      allow create: if true;
+      allow read, update, delete: if isOperator();
+    }
+
+    // --- Mess Registrations ---
+    // Public create (anyone can register a mess)
+    // Only Operators can read and manage registrations
+    match /mess_registrations/{registrationId} {
+        allow create: if true;
+        allow read, update, delete: if isOperator();
+    }
+  }
+}

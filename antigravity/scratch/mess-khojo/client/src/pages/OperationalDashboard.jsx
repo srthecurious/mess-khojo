@@ -4,13 +4,17 @@ import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2 } from 'lucide-react';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
 const OperationalDashboard = () => {
-    const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'messes', 'rooms'
+    const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
     const [bookings, setBookings] = useState([]);
     const [claims, setClaims] = useState([]);
     const [inquiries, setInquiries] = useState([]);
+    const [feedbacks, setFeedbacks] = useState([]);
+    const [feedbackReplies, setFeedbackReplies] = useState({}); // { feedbackId: replyText }
+    const [registrations, setRegistrations] = useState([]);
     const [messes, setMesses] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
@@ -31,6 +35,7 @@ const OperationalDashboard = () => {
     const navigate = useNavigate();
 
     // Security Check
+    // Security Check & Reactive Auth Listener
     // Security Check & Reactive Auth Listener
     useEffect(() => {
         const allowedEmail = import.meta.env.VITE_OP_EMAIL;
@@ -75,6 +80,28 @@ const OperationalDashboard = () => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
             setInquiries(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Fetch ALL Feedbacks
+    useEffect(() => {
+        const q = query(collection(db, "feedbacks"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+            setFeedbacks(data);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Fetch ALL Mess Registrations
+    useEffect(() => {
+        const q = query(collection(db, "mess_registrations"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+            setRegistrations(data);
         });
         return () => unsubscribe();
     }, []);
@@ -147,6 +174,7 @@ const OperationalDashboard = () => {
                 isUserSourced: item.isUserSourced || false,
                 lastUpdatedDate: item.lastUpdatedDate || '',
                 hidden: item.hidden || false,
+                hideContact: item.hideContact || false,
                 posterUrl: item.posterUrl || '',
                 amenities: item.amenities || { food: false, wifi: false, inverter: false }
             });
@@ -286,6 +314,22 @@ const OperationalDashboard = () => {
                         )}
                     </button>
                     <button
+                        onClick={() => setActiveTab('registrations')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registrations'
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            }`}
+                    >
+                        <Building2 size={20} />
+                        Mess Registrations
+                        {registrations.filter(r => r.status === 'pending').length > 0 && (
+                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                {registrations.filter(r => r.status === 'pending').length}
+                            </span>
+                        )}
+                    </button>
+
+                    <button
                         onClick={() => setActiveTab('inquiries')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inquiries'
                             ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
@@ -297,6 +341,22 @@ const OperationalDashboard = () => {
                         {inquiries.filter(i => i.status === 'pending').length > 0 && (
                             <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
                                 {inquiries.filter(i => i.status === 'pending').length}
+                            </span>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => setActiveTab('feedbacks')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'feedbacks'
+                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            }`}
+                    >
+                        <MessageSquare size={20} />
+                        User Feedbacks
+                        {feedbacks.filter(f => f.status === 'pending').length > 0 && (
+                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                {feedbacks.filter(f => f.status === 'pending').length}
                             </span>
                         )}
                     </button>
@@ -538,6 +598,7 @@ const OperationalDashboard = () => {
                                                         </div>
                                                         <div>
                                                             <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Request Date</p>
+
                                                             <p className="text-slate-200 font-medium">
                                                                 {claim.createdAt?.seconds ? new Date(claim.createdAt.seconds * 1000).toLocaleString() : 'N/A'}
                                                             </p>
@@ -580,6 +641,110 @@ const OperationalDashboard = () => {
                                             </div>
                                         </div>
                                     ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mess Registrations Tab */}
+                    {activeTab === 'registrations' && (
+                        <div className="space-y-6">
+                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-500">
+                                <Building2 />
+                                New Mess Registrations
+                            </h2>
+                            <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
+                                {registrations.map(reg => (
+                                    <div key={reg.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-3 bg-blue-500/10 rounded-lg">
+                                                    <Building2 className="text-blue-500" size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-white text-lg">{reg.messName}</h3>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${reg.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
+                                                            {reg.status}
+                                                        </span>
+                                                        <span className="text-slate-500 text-xs flex items-center gap-1">
+                                                            <Calendar size={12} />
+                                                            {reg.createdAt?.seconds ? new Date(reg.createdAt.seconds * 1000).toLocaleDateString() : 'Recently'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    if (window.confirm("Delete this registration?")) {
+                                                        try {
+                                                            await deleteDoc(doc(db, "mess_registrations", reg.id));
+                                                        } catch (e) { alert("Delete failed"); }
+                                                    }
+                                                }}
+                                                className="p-2 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3 bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p className="text-slate-500 text-xs uppercase font-bold mb-1">Mess Type</p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {reg.messType?.map((t, i) => (
+                                                            <span key={i} className="px-2 py-1 bg-slate-800 rounded text-xs text-white border border-slate-700">
+                                                                {t}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-500 text-xs uppercase font-bold mb-1">Phone</p>
+                                                    <a href={`tel:${reg.phoneNumber}`} className="text-blue-400 hover:underline flex items-center gap-1 font-mono text-sm">
+                                                        <Phone size={14} /> {reg.phoneNumber}
+                                                    </a>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Landmark</p>
+                                                <div className="flex items-start gap-1 text-slate-300 text-sm">
+                                                    <MapPin size={14} className="mt-0.5 shrink-0 text-slate-500" />
+                                                    {reg.landmark}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Room Types</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {reg.roomTypes?.map((t, i) => (
+                                                        <span key={i} className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-xs">
+                                                            {t}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Facilities</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {reg.facilities?.map((f, i) => (
+                                                        <span key={i} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-xs">
+                                                            {f}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {registrations.length === 0 && (
+                                    <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
+                                        <Building2 size={48} className="mb-4 opacity-50" />
+                                        <p className="text-lg font-medium">No mess registrations yet</p>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -671,6 +836,135 @@ const OperationalDashboard = () => {
                                                             <Trash2 size={14} /> Delete
                                                         </button>
                                                     </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FEEDBACKS TAB */}
+                    {activeTab === 'feedbacks' && (
+                        <div className="max-w-5xl mx-auto">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold flex items-center gap-2 text-purple-500">
+                                    <MessageSquare />
+                                    User Feedbacks
+                                </h2>
+                                <span className="bg-purple-500/10 text-purple-500 px-3 py-1 rounded-full text-sm font-bold border border-purple-500/20">
+                                    {feedbacks.length} Total
+                                </span>
+                            </div>
+
+                            <div className="space-y-4">
+                                {feedbacks.length === 0 ? (
+                                    <div className="text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
+                                        No feedbacks submitted yet.
+                                    </div>
+                                ) : (
+                                    feedbacks.map(feedback => (
+                                        <div key={feedback.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm">
+                                            <div className="flex flex-col gap-4">
+                                                {/* Header */}
+                                                <div className="flex justify-between items-start">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${feedback.status === 'replied' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                                                feedback.status === 'resolved' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                                                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                                                                }`}>
+                                                                {feedback.status}
+                                                            </span>
+                                                            <span className="text-slate-500 text-xs">ID: {feedback.id.slice(0, 8)}</span>
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-white text-base">{feedback.userName}</h3>
+                                                            {feedback.userEmail && (
+                                                                <p className="text-slate-400 text-sm">{feedback.userEmail}</p>
+                                                            )}
+                                                            <p className="text-slate-500 text-xs mt-1">
+                                                                {feedback.createdAt?.seconds ? new Date(feedback.createdAt.seconds * 1000).toLocaleString() : 'Recently'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Delete Button */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (window.confirm("Delete this feedback?")) {
+                                                                try {
+                                                                    await deleteDoc(doc(db, "feedbacks", feedback.id));
+                                                                } catch (e) { alert("Delete failed"); }
+                                                            }
+                                                        }}
+                                                        className="flex items-center gap-1 px-3 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"
+                                                    >
+                                                        <Trash2 size={16} /> Delete
+                                                    </button>
+                                                </div>
+
+                                                {/* Feedback Message */}
+                                                <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                                                    <p className="text-sm font-bold text-slate-400 uppercase mb-2">Feedback Message</p>
+                                                    <p className="text-white text-sm leading-relaxed">{feedback.message}</p>
+                                                </div>
+
+                                                {/* Operator Reply Display */}
+                                                {feedback.operatorReply && (
+                                                    <div className="p-4 bg-emerald-900/10 rounded-xl border border-emerald-500/20">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Reply size={14} className="text-emerald-500" />
+                                                            <p className="text-xs font-bold text-emerald-500 uppercase">Your Reply</p>
+                                                        </div>
+                                                        <p className="text-slate-300 text-sm leading-relaxed">{feedback.operatorReply}</p>
+                                                        {feedback.repliedAt?.seconds && (
+                                                            <p className="text-slate-500 text-xs mt-2">
+                                                                Replied: {new Date(feedback.repliedAt.seconds * 1000).toLocaleString()}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Reply Form */}
+                                                {!feedback.operatorReply && (
+                                                    <div className="space-y-3">
+                                                        <textarea
+                                                            placeholder="Write your reply to this feedback..."
+                                                            value={feedbackReplies[feedback.id] || ''}
+                                                            onChange={(e) => setFeedbackReplies(prev => ({ ...prev, [feedback.id]: e.target.value }))}
+                                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none resize-none h-24"
+                                                        />
+                                                        <button
+                                                            onClick={async () => {
+                                                                const reply = feedbackReplies[feedback.id];
+                                                                if (!reply?.trim()) {
+                                                                    alert("Please enter a reply");
+                                                                    return;
+                                                                }
+                                                                try {
+                                                                    await updateDoc(doc(db, "feedbacks", feedback.id), {
+                                                                        operatorReply: reply.trim(),
+                                                                        repliedAt: serverTimestamp(),
+                                                                        repliedBy: auth.currentUser?.email,
+                                                                        status: 'replied'
+                                                                    });
+                                                                    setFeedbackReplies(prev => {
+                                                                        const updated = { ...prev };
+                                                                        delete updated[feedback.id];
+                                                                        return updated;
+                                                                    });
+                                                                } catch (error) {
+                                                                    console.error("Reply failed:", error);
+                                                                    alert("Failed to send reply");
+                                                                }
+                                                            }}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors shadow-lg shadow-purple-900/20 text-sm"
+                                                        >
+                                                            <Reply size={16} /> Send Reply
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -929,30 +1223,23 @@ const OperationalDashboard = () => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Mess Amenities</label>
-                                        <div className="flex flex-wrap gap-4 p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
-                                            {[
+                                        <MultiSelectDropdown
+                                            label="Mess Amenities"
+                                            options={[
                                                 { key: 'food', label: 'Food' },
                                                 { key: 'wifi', label: 'WiFi' },
                                                 { key: 'inverter', label: 'Electricity Backup' }
-                                            ].map(am => (
-                                                <label key={am.key} className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="w-4 h-4 accent-indigo-500"
-                                                        checked={editForm.amenities[am.key]}
-                                                        onChange={e => setEditForm({
-                                                            ...editForm,
-                                                            amenities: { ...editForm.amenities, [am.key]: e.target.checked }
-                                                        })}
-                                                    />
-                                                    <span className="text-sm text-slate-300 group-hover:text-white capitalize">{am.label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
+                                            ]}
+                                            selected={editForm.amenities}
+                                            onChange={(key, checked) => setEditForm({
+                                                ...editForm,
+                                                amenities: { ...editForm.amenities, [key]: checked }
+                                            })}
+                                            color="indigo"
+                                        />
                                     </div>
 
-                                    <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
+                                    <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-700 flex flex-col gap-4">
                                         <label className="flex items-center gap-3 cursor-pointer">
                                             <input
                                                 type="checkbox"
@@ -963,6 +1250,19 @@ const OperationalDashboard = () => {
                                             <div>
                                                 <span className="text-sm font-bold text-white">Private Listing</span>
                                                 <p className="text-[10px] text-slate-500">Hide this mess from the public home page</p>
+                                            </div>
+                                        </label>
+
+                                        <label className="flex items-center gap-3 cursor-pointer border-t border-slate-700/50 pt-3">
+                                            <input
+                                                type="checkbox"
+                                                className="w-5 h-5 accent-indigo-500"
+                                                checked={editForm.hideContact}
+                                                onChange={e => setEditForm({ ...editForm, hideContact: e.target.checked })}
+                                            />
+                                            <div>
+                                                <span className="text-sm font-bold text-white">Hide Contact Number</span>
+                                                <p className="text-[10px] text-slate-500">Show "Not Available" instead of phone number</p>
                                             </div>
                                         </label>
                                     </div>
@@ -1065,26 +1365,19 @@ const OperationalDashboard = () => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Room Amenities</label>
-                                        <div className="flex flex-wrap gap-4 p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
-                                            {[
+                                        <MultiSelectDropdown
+                                            label="Room Amenities"
+                                            options={[
                                                 { key: 'ac', label: 'AC' },
                                                 { key: 'attachedBathroom', label: 'Attached Bathroom' }
-                                            ].map(am => (
-                                                <label key={am.key} className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="w-4 h-4 accent-cyan-500"
-                                                        checked={editForm.amenities[am.key]}
-                                                        onChange={e => setEditForm({
-                                                            ...editForm,
-                                                            amenities: { ...editForm.amenities, [am.key]: e.target.checked }
-                                                        })}
-                                                    />
-                                                    <span className="text-sm text-slate-300 group-hover:text-white capitalize">{am.label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
+                                            ]}
+                                            selected={editForm.amenities}
+                                            onChange={(key, checked) => setEditForm({
+                                                ...editForm,
+                                                amenities: { ...editForm.amenities, [key]: checked }
+                                            })}
+                                            color="cyan"
+                                        />
                                     </div>
                                 </>
                             )}
@@ -1109,7 +1402,9 @@ const OperationalDashboard = () => {
                     </div>
                 </div>
             )}
-        </div>
+
+
+        </div >
     );
 };
 

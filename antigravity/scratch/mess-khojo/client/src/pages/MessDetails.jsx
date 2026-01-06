@@ -189,7 +189,7 @@ const MessDetails = () => {
                             </div>
                             <div className="flex items-center bg-brand-light-gray px-4 py-2 rounded-full">
                                 <Phone size={20} className="mr-2 text-brand-accent-green" />
-                                <span>{mess.contact || "No information"}</span>
+                                <span>{mess.hideContact ? "Not Available" : (mess.contact || "No information")}</span>
                             </div>
                         </div>
 
@@ -401,7 +401,7 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
                 <div className="flex items-center gap-4 mt-4 md:mt-0">
                     {totalAvailable > 0 ? (
                         <span className="text-brand-accent-green text-sm font-medium bg-brand-accent-green/10 px-3 py-1 rounded-full">
-                            {totalAvailable} Beds Available Total
+                            Available
                         </span>
                     ) : (
                         <span className="text-brand-red text-sm font-medium bg-brand-red/10 px-3 py-1 rounded-full">

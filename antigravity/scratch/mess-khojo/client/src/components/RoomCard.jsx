@@ -23,7 +23,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
                 {/* Count Badge */}
                 {room.availableCount > 0 ? (
                     <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-green-100/90 text-green-800 shadow-sm backdrop-blur-sm">
-                        {room.availableCount} left
+                        Available
                     </div>
                 ) : (
                     <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-red-100/90 text-red-800 shadow-sm backdrop-blur-sm">
