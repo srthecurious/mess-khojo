@@ -82,7 +82,7 @@ const AdminLogin = () => {
                         ← Back to Home
                     </a>
                     <p className="text-xs text-gray-400 mt-4">
-                        Project ID: {auth.app.options.projectId}
+
                     </p>
                 </div>
             </div>

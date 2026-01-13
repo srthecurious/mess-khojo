@@ -5,6 +5,7 @@ import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/fires
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PhoneCollectionModal from '../components/PhoneCollectionModal';
 
 const RoomDetails = () => {
     const { messId, roomId } = useParams();
@@ -16,6 +17,9 @@ const RoomDetails = () => {
     const [loading, setLoading] = useState(true);
     const [bookingProcessing, setBookingProcessing] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [userPhone, setUserPhone] = useState('');
+
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -41,17 +45,32 @@ const RoomDetails = () => {
         fetchDetails();
     }, [messId, roomId]);
 
-    const handleBookClick = () => {
+    const handleBookClick = async () => {
         if (!currentUser) {
-            // Redirect to Login
-            navigate('/user-login');
+            // Redirect to Login with return URL
+            const returnUrl = `/room/${messId}/${roomId}`;
+            console.log('🔗 Redirecting to login with return URL:', returnUrl);
+            navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
             return;
         }
         if (userRole !== 'user') {
             alert("Partners cannot book rooms. Please login as a User.");
             return;
         }
-        setShowConfirmModal(true);
+
+        // Check if user has a phone number
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const phone = userData.phone || '';
+
+        if (!phone || phone === 'N/A') {
+            // No phone - show phone collection modal
+            setShowPhoneModal(true);
+        } else {
+            // Has phone - proceed to booking confirmation
+            setUserPhone(phone);
+            setShowConfirmModal(true);
+        }
     };
 
     const handleConfirmBooking = async () => {
@@ -63,7 +82,7 @@ const RoomDetails = () => {
             await addDoc(collection(db, "bookings"), {
                 userId: currentUser.uid,
                 userName: userData.name || currentUser.displayName || "User",
-                userPhone: userData.phone || "N/A",
+                userPhone: userPhone || userData.phone || "N/A",
                 messId: mess.id,
                 messName: mess.name,
                 roomId: room.id,
@@ -202,7 +221,7 @@ const RoomDetails = () => {
                     disabled={room.availableCount <= 0}
                     className="bg-brand-primary text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-brand-primary-hover active:scale-95 transition-all disabled:bg-gray-300 disabled:shadow-none"
                 >
-                    {room.availableCount > 0 ? 'Book Now' : 'Sold Out'}
+                    {room.availableCount > 0 ? 'Request Booking' : 'Sold Out'}
                 </button>
             </div>
 
@@ -215,7 +234,7 @@ const RoomDetails = () => {
                 >
                     {room.availableCount > 0 ? (
                         <>
-                            <span>Book Now</span>
+                            <span>Request Booking</span>
                             <div className="w-px h-6 bg-white/20"></div>
                             <span className="font-normal text-white/80">₹{room.price}</span>
                         </>
@@ -285,6 +304,22 @@ const RoomDetails = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Phone Collection Modal */}
+            {showPhoneModal && currentUser && (
+                <PhoneCollectionModal
+                    user={currentUser}
+                    onClose={(phone) => {
+                        setUserPhone(phone);
+                        setShowPhoneModal(false);
+                        setShowConfirmModal(true); // Proceed to booking confirmation
+                    }}
+                    onSkip={() => {
+                        setShowPhoneModal(false);
+                        // Don't proceed to booking without phone
+                    }}
+                />
+            )}
         </div>
     );
 };

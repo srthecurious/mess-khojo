@@ -7,11 +7,32 @@ import { useNavigate } from 'react-router-dom';
 import RoomCard from '../components/RoomCard';
 import { Pencil, Trash2, X } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import imageCompression from 'browser-image-compression';
+import MapPicker from '../components/MapPicker';
 
 const AdminDashboard = () => {
     const [user, setUser] = useState(null);
     const [messProfile, setMessProfile] = useState(null);
     const [loadingProfile, setLoadingProfile] = useState(true);
+
+    // Image compression helper
+    const compressImage = async (file) => {
+        const options = {
+            maxSizeMB: 0.5, // 500KB
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+            fileType: 'image/jpeg'
+        };
+        try {
+            console.log(`Original file size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+            const compressedFile = await imageCompression(file, options);
+            console.log(`Compressed file size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+            return compressedFile;
+        } catch (error) {
+            console.error('Compression error:', error);
+            return file; // Return original if compression fails
+        }
+    };
 
     // Mess Profile Form State
     const [messForm, setMessForm] = useState({
@@ -35,6 +56,19 @@ const AdminDashboard = () => {
     const [posterFile, setPosterFile] = useState(null);
     const [isEditingMess, setIsEditingMess] = useState(false);
     const [geocoding, setGeocoding] = useState(false);
+    const [showMapPicker, setShowMapPicker] = useState(false);
+
+    // Map Picker Handler
+    const handleMapConfirm = (location) => {
+        setMessForm(prev => ({
+            ...prev,
+            latitude: location.lat,
+            longitude: location.lng,
+            // Only update address if it's empty or user wants to (here we just update it)
+            address: location.address || prev.address
+        }));
+        setShowMapPicker(false);
+    };
 
     // Room Form State
     const [rooms, setRooms] = useState([]);
@@ -134,7 +168,7 @@ const AdminDashboard = () => {
         navigate('/admin/login');
     };
 
-    // Geocoding function to convert address to lat/lng
+    // Geocoding function to convert address to lat/lng using Google Maps
     const handleGeocode = async () => {
         if (!messForm.address) {
             alert("Please enter an address first");
@@ -143,19 +177,20 @@ const AdminDashboard = () => {
 
         setGeocoding(true);
         try {
+            const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(messForm.address)}&limit=1`
+                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(messForm.address)}&key=${GOOGLE_MAPS_API_KEY}`
             );
             const data = await response.json();
 
-            if (data && data.length > 0) {
-                const { lat, lon } = data[0];
+            if (data.status === 'OK' && data.results && data.results.length > 0) {
+                const { lat, lng } = data.results[0].geometry.location;
                 setMessForm({
                     ...messForm,
                     latitude: parseFloat(lat),
-                    longitude: parseFloat(lon)
+                    longitude: parseFloat(lng)
                 });
-                alert(`Coordinates found!\nLatitude: ${lat}\nLongitude: ${lon}`);
+                alert(`Coordinates found!\nLatitude: ${lat}\nLongitude: ${lng}`);
             } else {
                 alert("Could not find coordinates for this address. Please try a more specific address or enter coordinates manually.");
             }
@@ -234,8 +269,10 @@ const AdminDashboard = () => {
         try {
             let posterUrl = messProfile?.posterUrl || "";
             if (posterFile) {
+                // Compress image before upload
+                const compressedFile = await compressImage(posterFile);
                 const storageRef = ref(storage, `posters/${Date.now()}_${posterFile.name}`);
-                const snapshot = await uploadBytes(storageRef, posterFile);
+                const snapshot = await uploadBytes(storageRef, compressedFile);
                 posterUrl = await getDownloadURL(snapshot.ref);
             }
 
@@ -333,11 +370,13 @@ const AdminDashboard = () => {
                 }
             }
 
-            // Upload new images
+            // Upload new images with compression
             if (imageFiles.length > 0) {
                 const uploadPromises = Array.from(imageFiles).map(async (file) => {
+                    // Compress each image
+                    const compressedFile = await compressImage(file);
                     const storageRef = ref(storage, `rooms/${Date.now()}_${file.name}`);
-                    const snapshot = await uploadBytes(storageRef, file);
+                    const snapshot = await uploadBytes(storageRef, compressedFile);
                     return getDownloadURL(snapshot.ref);
                 });
                 const newUrls = await Promise.all(uploadPromises);
@@ -583,6 +622,17 @@ const AdminDashboard = () => {
                                         <circle cx="12" cy="10" r="3"></circle>
                                     </svg>
                                     {geocoding ? 'Geocoding...' : 'Auto-fill Coordinates'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMapPicker(true)}
+                                    className="mt-2 ml-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                    Pick on Map
                                 </button>
                             </div>
                             <div className="bg-brand-accent-blue/5 border border-brand-accent-blue/20 rounded-lg p-4">
@@ -987,6 +1037,22 @@ const AdminDashboard = () => {
                     </>
                 )}
             </div>
+            {/* Map Picker Modal */}
+            {showMapPicker && (
+                <div className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col">
+                        <MapPicker
+                            onConfirm={handleMapConfirm}
+                            onCancel={() => setShowMapPicker(false)}
+                            initialLocation={
+                                messForm.latitude && messForm.longitude
+                                    ? { lat: parseFloat(messForm.latitude), lng: parseFloat(messForm.longitude), address: messForm.address }
+                                    : null
+                            }
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

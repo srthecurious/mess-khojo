@@ -124,3 +124,8 @@ h6 {
 .uiverse-badge.info {
   background-color: var(--brand-accent-blue);
 }
+
+/* Fix for Google Maps Autocomplete dropdown in modals */
+.pac-container {
+  z-index: 3000 !important;
+}

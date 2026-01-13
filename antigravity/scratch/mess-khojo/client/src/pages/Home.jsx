@@ -6,6 +6,8 @@ import SkeletonCard from '../components/SkeletonCard';
 import FilterBar from '../components/FilterBar';
 import Header from '../components/Header'; // Import new Header
 import FeedbackForm from '../components/FeedbackForm';
+import MessExplorer from '../components/MessExplorer';
+import MapLocationModal from '../components/MapLocationModal';
 import { Search, MapPin, Home as HomeIcon, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -27,9 +29,13 @@ const Home = () => {
         },
         availableOnly: false,
         messType: '',
-        maxDistance: ''
+        messName: ''
     });
+    const [showMapModal, setShowMapModal] = useState(false);
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+    const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
+
+    const CARDS_PER_PAGE = 12;
 
 
     // Location & Distance Logic
@@ -74,10 +80,11 @@ const Home = () => {
         }
 
         // GPS Logic with Retry
+        console.log("🎯 Requesting GPS location...");
         if (navigator.geolocation) {
             const successCallback = (position) => {
                 let { latitude, longitude } = position.coords;
-                console.log("GPS Location detected:", latitude, longitude);
+                console.log("✅ GPS Location detected:", latitude, longitude);
 
                 // AUTO-CORRECT: If GPS places user in Bhubaneswar/Cuttack region (Lat ~19.8 - 20.8), override to Baleshwar center
                 // This ensures testers in the capital see meaningful Baleshwar distances
@@ -93,49 +100,56 @@ const Home = () => {
                     address: "Your Location"
                 });
                 setFilters(prev => ({ ...prev, location: '' }));
+                console.log("✅ Location set successfully!");
             };
 
             const errorCallback = (error, isRetry = false) => {
-                console.warn(`Geolocation error (${isRetry ? 'Low' : 'High'} Accuracy):`, error);
+                console.error(`❌ Geolocation error (${isRetry ? 'Low' : 'High'} Accuracy):`, error.code, error.message);
 
                 // If High Accuracy failed, try Low Accuracy once
                 if (!isRetry) {
-                    console.log("Retrying with low accuracy...");
+                    console.log("🔄 Retrying with low accuracy...");
                     navigator.geolocation.getCurrentPosition(
                         successCallback,
                         (finalError) => errorCallback(finalError, true),
-                        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+                        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
                     );
                     return;
                 }
 
                 // Final Failure Handling
-                let errorMessage = "Unable to retrieve your location. ";
+                let errorMessage = "Unable to get your location.\n\n";
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
-                        errorMessage += "Please allow location access in settings.";
+                        errorMessage += "❌ Location permission denied.\n\nPlease:\n1. Click the location icon in your browser's address bar\n2. Allow location access\n3. Try again";
+                        console.error("User denied location permission");
                         break;
                     case error.POSITION_UNAVAILABLE:
-                        errorMessage += "Location unavailable. Try the map.";
+                        errorMessage += "📍 Location unavailable.\n\nPlease use 'Select on Map' instead.";
+                        console.error("Position unavailable");
                         break;
                     case error.TIMEOUT:
-                        errorMessage += "Request timed out. Try the map.";
+                        errorMessage += "⏱️ Request timed out.\n\nPlease:\n1. Check your GPS/location services\n2. Try 'Select on Map' instead";
+                        console.error("Geolocation timeout");
                         break;
                     default:
-                        errorMessage += "Please use 'Select on Map'.";
+                        errorMessage += "Please use 'Select on Map' to choose your location.";
+                        console.error("Unknown geolocation error:", error);
                 }
                 alert(errorMessage);
             };
 
             // 1. Try High Accuracy first
+            console.log("📍 Attempting high accuracy GPS...");
             navigator.geolocation.getCurrentPosition(
                 successCallback,
                 (err) => errorCallback(err, false),
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
             );
 
         } else {
-            alert("Geolocation not supported. Please use the map.");
+            console.error("❌ Geolocation not supported by browser");
+            alert("Your browser doesn't support location services.\n\nPlease use 'Select on Map' instead.");
         }
     };
 
@@ -281,6 +295,19 @@ const Home = () => {
 
     }, [messes, rooms, filters, userLocation]);
 
+    // Paginated messes for display
+    const displayedMesses = filteredMesses.slice(0, displayCount);
+    const hasMore = displayCount < filteredMesses.length;
+
+    const loadMore = () => {
+        setDisplayCount(prev => prev + CARDS_PER_PAGE);
+    };
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setDisplayCount(CARDS_PER_PAGE);
+    }, [filters, userLocation]);
+
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
             {/* New Header */}
@@ -296,50 +323,66 @@ const Home = () => {
                 <FilterBar onFilterChange={handleFilterChange} />
             </div>
 
-            {/* Spotlight Hero Section - Reduced Height */}
-            <div className="px-0 mb-8">
-                <div
-                    className="w-full h-[38vh] flex items-center justify-center overflow-hidden relative"
-                >
-                    {/* Brand gradient overlay for hero section */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/95 to-brand-primary/80"></div>
+            {/* Mess Explorer Map Banner */}
+            <MessExplorer messes={messes} userLocation={userLocation} />
 
-                    {/* Content positioned below spotlights */}
-                    <div className="relative z-10 text-center px-6 max-w-2xl">
-                        <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
-                            Find your comfortable <span className="text-brand-accent-green">stay</span>.
-                        </h1>
-                        <p className="text-white/90 font-medium mb-6 text-base">
-                            Search for the best student messes nearby.
-                        </p>
+            {/* Spotlight Hero Section - Only show when no filters are active */}
+            {!filters.location && !filters.messType && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
+                <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
+                    <div
+                        className="w-full h-[38vh] flex items-center justify-center overflow-hidden relative rounded-3xl shadow-lg"
+                    >
+                        {/* Brand gradient overlay for hero section */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/95 to-brand-primary/80 rounded-3xl"></div>
 
-                        {!userLocation && (
-                            <div className="relative max-w-xs mx-auto">
-                                <button
-                                    onClick={() => handleLocationSelect()}
-                                    className="w-full py-2.5 px-5 bg-brand-primary text-white font-semibold rounded-xl border-2 border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                                >
-                                    <MapPin size={18} className="fill-current" />
-                                    <span>Use Current Location</span>
-                                </button>
-                            </div>
-                        )}
+                        {/* Content positioned below spotlights */}
+                        <div className="relative z-10 text-center px-6 max-w-2xl">
+                            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
+                                Find your comfortable <span className="text-brand-accent-green">stay</span>
+                            </h1>
+                            <p className="text-white/90 font-medium mb-6 text-base">
+                                Mess Dhundo, Ghar Baithe
+                            </p>
 
-                        {userLocation && (
-                            <div className="mt-4 flex flex-col items-center animate-fade-in-up">
-                                <span className="text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Location Active</span>
-                                <button
-                                    onClick={() => setIsLocationModalOpen(true)}
-                                    className="px-6 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white font-bold flex items-center gap-2 shadow-lg hover:bg-white/30 transition-all hover:scale-105 active:scale-95"
-                                >
-                                    <MapPin size={16} className="text-brand-accent-green" />
-                                    {userLocation.address || "Using GPS Location"}
-                                </button>
-                            </div>
-                        )}
+
+                            {!userLocation && (
+                                <div className="relative max-w-md mx-auto">
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => handleLocationSelect()}
+                                            className="flex-1 py-2.5 px-4 bg-white/20 backdrop-blur-md text-white font-semibold rounded-xl border-2 border-white/30 hover:bg-white/30 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                                        >
+                                            <MapPin size={18} className="fill-current" />
+                                            <span>Use GPS</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setShowMapModal(true)}
+                                            className="flex-1 py-2.5 px-4 bg-brand-primary text-white font-semibold rounded-xl border-2 border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                                        >
+                                            <MapPin size={18} />
+                                            <span>Select on Map</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+
+                            {userLocation && (
+                                <div className="mt-4 flex flex-col items-center animate-fade-in-up">
+                                    <span className="text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Location Active</span>
+                                    <button
+                                        onClick={() => setIsLocationModalOpen(true)}
+                                        className="px-6 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white font-bold flex items-center gap-2 shadow-lg hover:bg-white/30 transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        <MapPin size={16} className="text-brand-accent-green" />
+                                        {userLocation.address || "Using GPS Location"}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Mess List */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
@@ -375,7 +418,7 @@ const Home = () => {
                             }
                         }}
                     >
-                        {filteredMesses.map((mess, index) => (
+                        {displayedMesses.map((mess, index) => (
                             <MessCard key={mess.id} mess={mess} index={index} />
                         ))}
                     </motion.div>
@@ -427,10 +470,38 @@ const Home = () => {
                 )}
             </div>
 
+            {/* Load More Button */}
+            {!loading && hasMore && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
+                    <div className="flex justify-center my-8">
+                        <button
+                            onClick={loadMore}
+                            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                        >
+                            <TrendingUp size={20} />
+                            Load More ({filteredMesses.length - displayCount} remaining)
+                        </button>
+                    </div>
+                </div>
+            )}
+
+
             {/* Feedback Section */}
             <div id="feedback-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
                 <FeedbackForm />
             </div>
+
+            {/* Map Location Modal */}
+            {showMapModal && (
+                <MapLocationModal
+                    initialLocation={userLocation}
+                    onLocationSelect={(location) => {
+                        setUserLocation(location);
+                        setShowMapModal(false);
+                    }}
+                    onClose={() => setShowMapModal(false)}
+                />
+            )}
 
         </div>
     );

@@ -18,22 +18,39 @@ export function AuthProvider({ children }) {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setCurrentUser(user);
-                // Check if this is a regular user (student)
+                // Check user role from Firestore
                 try {
                     const userDocRef = doc(db, "users", user.uid);
                     const userDoc = await getDoc(userDocRef);
 
                     if (userDoc.exists()) {
-                        setUserRole("user");
+                        const userData = userDoc.data();
+                        // Use the 'role' field from the document
+                        setUserRole(userData.role || 'user');
                     } else {
-                        // If not in 'users', they might be an admin (partner)
-                        // For now, we assume they are an admin if they aren't a user
-                        // In a stricter system, we'd check 'messes' or an 'admins' collection
-                        setUserRole("admin");
+                        // Document doesn't exist yet - check if it's a partner/admin
+                        const messesRef = doc(db, "messes", user.uid);
+                        const messDoc = await getDoc(messesRef);
+
+                        if (messDoc.exists()) {
+                            setUserRole("admin"); // Partner who owns a mess
+                        } else {
+                            // New user - document might be created soon
+                            // Wait a bit and check again
+                            setTimeout(async () => {
+                                const retryUserDoc = await getDoc(userDocRef);
+                                if (retryUserDoc.exists()) {
+                                    const retryUserData = retryUserDoc.data();
+                                    setUserRole(retryUserData.role || 'user');
+                                } else {
+                                    setUserRole('user'); // Default to user if still nothing
+                                }
+                            }, 1000);
+                        }
                     }
                 } catch (error) {
                     console.error("Error fetching user role:", error);
-                    setUserRole(null);
+                    setUserRole('user'); // Default to user on error
                 }
             } else {
                 setCurrentUser(null);

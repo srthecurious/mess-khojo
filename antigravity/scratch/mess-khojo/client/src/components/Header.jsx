@@ -69,7 +69,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
 
     // Lock Body Scroll
     useEffect(() => {
-        if (isMenuOpen || isNotificationModalOpen || isLocationModalOpen) {
+        if (isMenuOpen || isNotificationModalOpen) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'unset';
@@ -77,7 +77,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
         return () => {
             document.body.style.overflow = 'unset';
         }
-    }, [isMenuOpen, isNotificationModalOpen, isLocationModalOpen]);
+    }, [isMenuOpen, isNotificationModalOpen]);
 
 
 
@@ -128,58 +128,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                 </div>
             </nav>
 
-            {/* Location Modal - Portal */}
-            {createPortal(
-                <AnimatePresence>
-                    {isLocationModalOpen && (
-                        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center pointer-events-none">
-                            {/* Backdrop */}
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute inset-0 bg-brand-primary/20 backdrop-blur-sm pointer-events-auto"
-                                onClick={() => setIsLocationModalOpen(false)}
-                            />
 
-                            {/* Modal Content */}
-                            <motion.div
-                                initial={{ y: '100%', opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                exit={{ y: '100%', opacity: 0 }}
-                                transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
-                                className="bg-brand-secondary w-full max-w-md h-[80vh] sm:h-auto sm:rounded-3xl rounded-t-3xl overflow-hidden pointer-events-auto shadow-2xl relative flex flex-col border border-white/40"
-                            >
-                                {/* Header of Modal */}
-                                <div className="flex justify-between items-center p-6 border-b border-brand-light-gray shrink-0">
-                                    <h3 className="text-xl font-bold text-brand-text-dark">Select Location</h3>
-                                    <button onClick={() => setIsLocationModalOpen(false)} className="p-3 text-brand-text-dark hover:bg-brand-light-gray rounded-full transition-all">
-                                        <X size={20} />
-                                    </button>
-                                </div>
-
-                                <div className="flex-1 shrink-0">
-                                    <div className="p-6">
-                                        <button
-                                            onClick={handleUseCurrentLocation}
-                                            className="w-full flex items-center gap-4 px-4 py-4 bg-brand-primary text-white rounded-2xl font-bold border border-white/20 shadow-lg active:scale-[0.98] transition-all group"
-                                        >
-                                            <div className="p-3 bg-white/10 rounded-full group-hover:scale-95 transition-transform">
-                                                <MapPin size={24} className="fill-current" />
-                                            </div>
-                                            <div className="text-left">
-                                                <div className="text-lg">Use current location</div>
-                                                <div className="text-xs opacity-70 font-medium">Using GPS</div>
-                                            </div>
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>,
-                document.body
-            )}
 
             {/* Notification Modal - Portal */}
             {createPortal(
@@ -299,6 +248,17 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
 
                                     {/* Menu Items */}
                                     <div className="flex-1 overflow-y-auto py-4 px-2 space-y-2">
+                                        {/* My Profile - Moved to Top */}
+                                        <Link
+                                            to={currentUser ? "/profile" : "/user-login"}
+                                            className="group w-full flex items-center gap-4 py-4 px-5 text-base font-semibold text-white bg-white/10 border-r-4 border-brand-accent-green rounded-l-xl transition-all hover:bg-white/20 relative overflow-hidden"
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            <UserCircle size={20} className="text-white relative z-10" />
+                                            <span className="relative z-10">{currentUser ? "My Profile" : "Login / Signup"}</span>
+                                            <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
+                                        </Link>
+
                                         <Link
                                             to="/register-mess"
                                             onClick={() => setIsMenuOpen(false)}
@@ -311,12 +271,12 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
 
                                         <Link
                                             to="/"
-                                            className="group flex items-center gap-4 py-4 px-5 text-base font-semibold text-white bg-white/10 border-r-4 border-white rounded-l-xl transition-all hover:bg-white/20 relative overflow-hidden"
+                                            className="group flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-white rounded-l-xl transition-all hover:bg-white/10 relative overflow-hidden"
                                             onClick={() => setIsMenuOpen(false)}
                                         >
                                             <Home size={20} className="relative z-10" />
                                             <span className="relative z-10">Home</span>
-                                            <div className="ml-auto w-2 h-2 rounded-full bg-brand-accent-green animate-pulse relative z-10"></div>
+                                            <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </Link>
 
                                         <Link
@@ -372,22 +332,6 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                             <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </a>
 
-                                        <div className="py-4">
-                                            <div className="h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
-                                        </div>
-
-                                        <div className="px-5 py-2">
-                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Quick Links</p>
-                                        </div>
-
-                                        <Link
-                                            to={currentUser ? "/profile" : "/user-login"}
-                                            className="group w-full flex items-center gap-4 py-3 px-5 text-base font-medium text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-                                            onClick={() => setIsMenuOpen(false)}
-                                        >
-                                            <UserCircle size={20} className="text-white/80 group-hover:text-white transition-colors" />
-                                            <span>{currentUser ? "My Profile" : "Login / Signup"}</span>
-                                        </Link>
                                     </div>
 
                                     {/* Footer Removed */}

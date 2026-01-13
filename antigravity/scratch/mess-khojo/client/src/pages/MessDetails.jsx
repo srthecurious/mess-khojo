@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
 
 const MessDetails = () => {
     const { id: messId } = useParams();
+    const navigate = useNavigate();
     const [mess, setMess] = useState(null);
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -18,6 +19,21 @@ const MessDetails = () => {
     const handleClaimListing = async () => {
         if (!auth.currentUser) {
             alert("Please login to claim this listing.");
+            return;
+        }
+
+        // Always ask for phone number
+        const phoneNumber = prompt("Please enter your mobile number for verification:");
+
+        if (!phoneNumber) {
+            // User cancelled or didn't provide phone
+            return;
+        }
+
+        // Validate phone number (at least 10 digits)
+        const cleanPhone = phoneNumber.replace(/\D/g, '');
+        if (cleanPhone.length < 10) {
+            alert("Please enter a valid 10-digit phone number.");
             return;
         }
 
@@ -35,7 +51,7 @@ const MessDetails = () => {
                 userId: auth.currentUser.uid,
                 userName: userData.name || auth.currentUser.displayName || "Registered User",
                 userEmail: auth.currentUser.email,
-                userPhone: userData.phone || "Not provided",
+                userPhone: phoneNumber, // Use the phone number provided by user
                 status: 'pending',
                 createdAt: serverTimestamp()
             });
@@ -172,21 +188,23 @@ const MessDetails = () => {
                     <h1 className="text-4xl font-bold text-brand-text-dark mb-4">{mess.name}</h1>
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-wrap gap-6 text-brand-text-dark">
-                            <div className="flex items-center bg-brand-light-gray px-4 py-2 rounded-full">
-                                <MapPin size={20} className="mr-2 text-brand-accent-blue" />
-                                <span>{(!mess.address || mess.address.startsWith('http')) ? "No information" : mess.address}</span>
-                                {mess.locationUrl && (
-                                    <a
-                                        href={mess.locationUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="ml-2 text-brand-accent-blue hover:text-brand-primary"
-                                        title="View on Google Maps"
-                                    >
-                                        <ExternalLink size={16} />
-                                    </a>
-                                )}
-                            </div>
+                            {mess.locationUrl ? (
+                                <a
+                                    href={mess.locationUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-full transition-colors cursor-pointer group text-white"
+                                >
+                                    <MapPin size={20} className="mr-2 text-white" />
+                                    <span>Locate on map</span>
+                                    <ExternalLink size={16} className="ml-2 text-white group-hover:text-white/80 transition-colors" />
+                                </a>
+                            ) : (
+                                <div className="flex items-center bg-purple-600 px-4 py-2 rounded-full text-white">
+                                    <MapPin size={20} className="mr-2 text-white" />
+                                    <span>Locate on map</span>
+                                </div>
+                            )}
                             <div className="flex items-center bg-brand-light-gray px-4 py-2 rounded-full">
                                 <Phone size={20} className="mr-2 text-brand-accent-green" />
                                 <span>{mess.hideContact ? "Not Available" : (mess.contact || "No information")}</span>
@@ -290,15 +308,6 @@ const MessDetails = () => {
                                 Know Seat Availability
                             </button>
                         </div>
-
-                        <button
-                            onClick={handleClaimListing}
-                            disabled={claiming}
-                            className="w-full md:w-auto flex items-center justify-center gap-3 bg-brand-amber text-brand-text-dark px-10 py-4 rounded-2xl font-bold hover:bg-brand-amber/90 transition-all shadow-xl hover:shadow-brand-amber/20 active:scale-95 disabled:bg-gray-400 border-2 border-brand-amber/20"
-                        >
-                            <Briefcase size={24} />
-                            {claiming ? 'Sending Request...' : 'Are you the Owner? Claim this Listing'}
-                        </button>
                     </div>
                 )}
             </div>
@@ -368,6 +377,23 @@ const MessDetails = () => {
                     </div>
                 </div>
             )}
+
+
+            {/* Claim Listing - Small Footer Link */}
+            {mess?.isUserSourced && (
+                <div className="max-w-7xl mx-auto px-4 py-6 mt-8 border-t border-gray-200">
+                    <div className="flex justify-center">
+                        <button
+                            onClick={handleClaimListing}
+                            disabled={claiming}
+                            className="text-xs text-gray-400 hover:text-brand-primary underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {claiming ? 'Sending...' : 'Claim Listing'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };

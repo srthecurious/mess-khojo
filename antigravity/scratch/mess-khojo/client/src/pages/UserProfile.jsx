@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X } from 'lucide-react';
 
 const UserProfile = () => {
     const { currentUser, logout, userRole } = useAuth();
     const [userData, setUserData] = useState(null);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isEditingPhone, setIsEditingPhone] = useState(false);
+    const [editedPhone, setEditedPhone] = useState('');
+    const [phoneError, setPhoneError] = useState('');
+    const [savingPhone, setSavingPhone] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -51,6 +55,44 @@ const UserProfile = () => {
 
         fetchData();
     }, [currentUser, navigate]);
+
+    const handleEditPhone = () => {
+        setEditedPhone(userData?.phone || '');
+        setIsEditingPhone(true);
+        setPhoneError('');
+    };
+
+    const handleCancelEditPhone = () => {
+        setIsEditingPhone(false);
+        setEditedPhone('');
+        setPhoneError('');
+    };
+
+    const handleSavePhone = async () => {
+        if (editedPhone.length < 10) {
+            setPhoneError('Please enter a valid 10-digit phone number');
+            return;
+        }
+
+        setSavingPhone(true);
+        setPhoneError('');
+
+        try {
+            const userDocRef = doc(db, "users", currentUser.uid);
+            await updateDoc(userDocRef, {
+                phone: editedPhone
+            });
+
+            // Update local state
+            setUserData({ ...userData, phone: editedPhone });
+            setIsEditingPhone(false);
+        } catch (error) {
+            console.error("Failed to update phone:", error);
+            setPhoneError('Failed to save phone number');
+        } finally {
+            setSavingPhone(false);
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -110,10 +152,54 @@ const UserProfile = () => {
                                         <Mail size={14} className="text-blue-500 shrink-0" />
                                         <span className="truncate">{currentUser.email}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-brand-text-dark bg-gray-50/50 px-3 py-2 rounded-xl border border-gray-100 w-full sm:w-auto justify-center md:justify-start">
-                                        <Phone size={14} className="text-green-500 shrink-0" />
-                                        <span>{userData?.phone || "Phone Not Set"}</span>
-                                    </div>
+                                    {/* Phone Section - Editable */}
+                                    {!isEditingPhone ? (
+                                        <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-brand-text-dark bg-gray-50/50 px-3 py-2 rounded-xl border border-gray-100 w-full sm:w-auto justify-between group">
+                                            <div className="flex items-center gap-2">
+                                                <Phone size={14} className="text-green-500 shrink-0" />
+                                                <span>{userData?.phone || "Phone Not Set"}</span>
+                                            </div>
+                                            <button
+                                                onClick={handleEditPhone}
+                                                className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Edit phone number"
+                                            >
+                                                <Edit2 size={12} className="text-brand-primary" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="tel"
+                                                    value={editedPhone}
+                                                    onChange={(e) => setEditedPhone(e.target.value)}
+                                                    className="px-3 py-2 text-xs md:text-sm border border-brand-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary w-full"
+                                                    placeholder="+91 98765 43210"
+                                                    maxLength="13"
+                                                />
+                                                <button
+                                                    onClick={handleSavePhone}
+                                                    disabled={savingPhone}
+                                                    className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg disabled:opacity-50 transition-colors"
+                                                    title="Save"
+                                                >
+                                                    <Check size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={handleCancelEditPhone}
+                                                    disabled={savingPhone}
+                                                    className="p-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg disabled:opacity-50 transition-colors"
+                                                    title="Cancel"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                            {phoneError && (
+                                                <p className="text-xs text-red-600">{phoneError}</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

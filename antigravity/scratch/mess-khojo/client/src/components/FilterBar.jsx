@@ -176,8 +176,7 @@ const FilterBar = ({ onFilterChange }) => {
                     </div>
                 </div>
 
-                {/* 3D Bottom Edge Effect */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-400/20 via-blue-400/20 to-purple-400/20"></div>
+                {/* 3D Bottom Edge Effect - REMOVED */}
             </div>
         </div>
     );

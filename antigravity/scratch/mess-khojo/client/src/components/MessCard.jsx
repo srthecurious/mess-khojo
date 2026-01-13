@@ -86,6 +86,7 @@ const MessCard = memo(({ mess, index }) => {
                                 src={imageUrl}
                                 alt={mess.name}
                                 className="w-full h-full object-cover"
+                                loading="lazy"
                                 onError={() => setImageUrl(null)}
                             />
                             {/* Gradient Overlay */}
@@ -98,10 +99,11 @@ const MessCard = memo(({ mess, index }) => {
                     )}
 
 
-                    {/* Filter Match Badge */}
-                    {mess.isFiltered && (
+
+                    {/* Filter Match Badge - Only show when there are matching beds */}
+                    {mess.isFiltered && mess.matchingBeds > 0 && (
                         <div className="absolute top-2 left-2 bg-brand-accent-green px-2 py-0.5 rounded-md text-[10px] font-bold text-white shadow-md">
-                            {mess.matchingBeds > 0 ? `${mess.matchingBeds} Beds` : 'No Match'}
+                            Available
                         </div>
                     )}
 
