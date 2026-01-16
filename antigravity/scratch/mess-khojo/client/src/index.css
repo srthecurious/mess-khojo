@@ -58,7 +58,7 @@ h6 {
 /* --- Brand Card Design --- */
 .uiverse-card {
   position: relative;
-  padding: 0.75rem;
+  padding: 0.5rem;
   background: var(--brand-white);
   border: 1px solid var(--brand-light-gray);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
@@ -128,4 +128,23 @@ h6 {
 /* Fix for Google Maps Autocomplete dropdown in modals */
 .pac-container {
   z-index: 3000 !important;
+}
+
+/* Slow Bounce Animation for WhatsApp FAB */
+.animate-bounce-slow {
+  animation: bounce 3s infinite;
+}
+
+@keyframes bounce {
+
+  0%,
+  100% {
+    transform: translateY(-5%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
 }

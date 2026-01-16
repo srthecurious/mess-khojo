@@ -381,10 +381,11 @@ const AdminDashboard = () => {
                 });
                 const newUrls = await Promise.all(uploadPromises);
                 downloadURLs = [...downloadURLs, ...newUrls];
-            } else if (!editingRoomId && imageFiles.length === 0) {
-                alert("Please select at least one image for a new room type");
-                setUploading(false);
-                return;
+            }
+
+            // Use default placeholder if no images provided
+            if (downloadURLs.length === 0) {
+                downloadURLs = ["/default-room.jpg"];
             }
 
             // Limit to 5 images total

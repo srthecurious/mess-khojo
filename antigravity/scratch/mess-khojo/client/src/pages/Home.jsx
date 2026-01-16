@@ -35,6 +35,8 @@ const Home = () => {
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
 
+    const [loadingLocation, setLoadingLocation] = useState(false);
+
     const CARDS_PER_PAGE = 12;
 
 
@@ -81,6 +83,7 @@ const Home = () => {
 
         // GPS Logic with Retry
         console.log("🎯 Requesting GPS location...");
+        setLoadingLocation(true); // Start Loading
         if (navigator.geolocation) {
             const successCallback = (position) => {
                 let { latitude, longitude } = position.coords;
@@ -101,6 +104,7 @@ const Home = () => {
                 });
                 setFilters(prev => ({ ...prev, location: '' }));
                 console.log("✅ Location set successfully!");
+                setLoadingLocation(false); // Stop Loading
             };
 
             const errorCallback = (error, isRetry = false) => {
@@ -118,6 +122,7 @@ const Home = () => {
                 }
 
                 // Final Failure Handling
+                setLoadingLocation(false); // Stop Loading on Error
                 let errorMessage = "Unable to get your location.\n\n";
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
@@ -149,6 +154,7 @@ const Home = () => {
 
         } else {
             console.error("❌ Geolocation not supported by browser");
+            setLoadingLocation(false);
             alert("Your browser doesn't support location services.\n\nPlease use 'Select on Map' instead.");
         }
     };
@@ -346,21 +352,22 @@ const Home = () => {
 
 
                             {!userLocation && (
-                                <div className="relative max-w-md mx-auto">
+                                <div className="relative max-w-xs mx-auto">
                                     <div className="flex gap-3">
                                         <button
                                             onClick={() => handleLocationSelect()}
-                                            className="flex-1 py-2.5 px-4 bg-white/20 backdrop-blur-md text-white font-semibold rounded-xl border-2 border-white/30 hover:bg-white/30 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                                            disabled={loadingLocation}
+                                            className="flex-1 py-1.5 px-3 bg-white/20 backdrop-blur-md text-white text-sm font-medium rounded-xl border border-white/30 hover:bg-white/30 transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <MapPin size={18} className="fill-current" />
-                                            <span>Use GPS</span>
+                                            <MapPin size={16} className="fill-current" />
+                                            <span>{loadingLocation ? 'Locating...' : 'Use GPS'}</span>
                                         </button>
                                         <button
                                             onClick={() => setShowMapModal(true)}
-                                            className="flex-1 py-2.5 px-4 bg-brand-primary text-white font-semibold rounded-xl border-2 border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                                            className="flex-1 py-1.5 px-3 bg-brand-primary text-white text-sm font-medium rounded-xl border border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98]"
                                         >
-                                            <MapPin size={18} />
-                                            <span>Select on Map</span>
+                                            <MapPin size={16} />
+                                            <span>Map</span>
                                         </button>
                                     </div>
                                 </div>
@@ -379,6 +386,18 @@ const Home = () => {
                                     </button>
                                 </div>
                             )}
+
+                            {/* Social Proof Stats - Option 3: Clean Inline Text */}
+                            <div className="mt-5 flex items-center justify-center gap-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+                                <div className="flex items-center gap-2 text-white/90">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-green shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                                    <span className="text-sm font-medium tracking-wide shadow-sm">{messes.length}+ Messes Listed</span>
+                                </div>
+                                <div className="w-px h-4 bg-white/20"></div>
+                                <div className="flex items-center gap-2 text-white/90">
+                                    <span className="text-sm font-medium tracking-wide shadow-sm">✨ Free Bookings</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -501,6 +520,17 @@ const Home = () => {
                     }}
                     onClose={() => setShowMapModal(false)}
                 />
+            )}
+
+            {/* GPS Loader Overlay */}
+            {loadingLocation && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl p-6 flex flex-col items-center shadow-2xl animate-in fade-in zoom-in duration-300">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-primary border-t-transparent mb-4"></div>
+                        <p className="text-brand-text-dark font-bold text-lg">Locating...</p>
+                        <p className="text-sm text-gray-500">Getting your best position</p>
+                    </div>
+                </div>
             )}
 
         </div>

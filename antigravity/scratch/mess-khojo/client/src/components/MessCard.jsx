@@ -74,12 +74,12 @@ const MessCard = memo(({ mess, index }) => {
                 scale: 1.01,
                 transition: { duration: 0.2, ease: "easeOut" }
             }}
-            className="uiverse-card flex flex-col h-full"
+            className="uiverse-card flex flex-col h-full group bg-gradient-to-br from-white via-white to-purple-50/50"
             style={{ willChange: "transform" }}
         >
             <Link to={`/mess/${mess.id}`} className="block h-full flex flex-col">
                 {/* Poster Image (Optional - reduced height to fit style) */}
-                <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden mb-3 relative shadow-sm bg-gray-100">
+                <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden mb-2 relative shadow-sm bg-gray-100">
                     {imageUrl ? (
                         <>
                             <img
@@ -118,25 +118,25 @@ const MessCard = memo(({ mess, index }) => {
                 <div className="flex flex-col gap-1.5 flex-grow">
                     {/* Header */}
                     <div>
-                        <h3 className="text-base font-bold text-gray-800 mb-0.5 line-clamp-1">{mess.name}</h3>
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <MapPin size={11} className="opacity-60 flex-shrink-0" />
+                        <h3 className="text-lg font-bold text-brand-text-dark mb-1 line-clamp-1 leading-tight">{mess.name}</h3>
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                            <MapPin size={14} className="text-gray-400 flex-shrink-0" />
                             <span className="truncate">{mess.address || "No information"}</span>
                         </div>
                     </div>
 
                     {/* Content (Contact) */}
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <Phone size={11} className="flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <Phone size={14} className="text-gray-400 flex-shrink-0" />
                         <span className="truncate">{mess.hideContact ? "Not Available" : (mess.contact || "No information")}</span>
                     </div>
                 </div>
 
                 {/* Footer / Bottom Actions */}
-                <div className="mt-3 flex items-end justify-between">
-                    {/* View Details Button */}
-                    <div className="uiverse-badge text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2">
-                        View Details
+                <div className="mt-2 flex items-end justify-between">
+                    {/* View Details Button - Option 3: Sleek Circular Arrow */}
+                    <div className="w-10 h-10 rounded-full bg-brand-light-gray flex items-center justify-center text-brand-primary transition-all duration-300 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-110 shadow-sm ml-auto">
+                        <ArrowRight size={20} strokeWidth={2.5} />
                     </div>
 
                     {/* Distance - Hidden for now */}

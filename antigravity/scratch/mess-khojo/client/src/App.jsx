@@ -15,6 +15,7 @@ import OperationalLogin from './pages/OperationalLogin';
 import OperationalDashboard from './pages/OperationalDashboard';
 import BookingSuccess from './pages/BookingSuccess';
 import MessRegistration from './pages/MessRegistration';
+import BookRoomComingSoon from './pages/BookRoomComingSoon';
 
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
             <Route path="/profile" element={<UserProfile />} />
             <Route path="/booking-success" element={<BookingSuccess />} />
             <Route path="/register-mess" element={<MessRegistration />} />
+            <Route path="/book-room" element={<BookRoomComingSoon />} />
           </Routes>
           <Footer />
         </div>

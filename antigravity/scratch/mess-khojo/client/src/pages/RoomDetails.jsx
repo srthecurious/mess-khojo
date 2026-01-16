@@ -126,7 +126,7 @@ const RoomDetails = () => {
                             ))}
                         </div>
                     ) : (
-                        <img src={room.imageUrl || "https://placehold.co/600x400?text=No+Image"} alt="Room" className="w-full h-64 object-cover rounded-xl" />
+                        <img src={room.imageUrl || "/default-room.jpg"} alt="Room" className="w-full h-64 object-cover rounded-xl" />
                     )}
                 </div>
 

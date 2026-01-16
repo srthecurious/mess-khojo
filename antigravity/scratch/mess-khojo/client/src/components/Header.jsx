@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -14,6 +14,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
     const [notifications, setNotifications] = useState([]);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
     const [hasUnread, setHasUnread] = useState(false);
+    const [isContactOpen, setIsContactOpen] = useState(false);
 
     // Fetch Notifications
     useEffect(() => {
@@ -86,6 +87,11 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
         setIsLocationModalOpen(false);
     };
 
+    const location = useLocation();
+
+    // Helper to check if a link is active
+    const isActive = (path) => location.pathname === path;
+
     return (
         <>
             <nav className="sticky top-0 z-50 bg-brand-primary shadow-md">
@@ -99,7 +105,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                 <img
                                     src="/logo.png"
                                     alt="Mess Khojo"
-                                    className="h-full w-auto object-contain scale-[1.8]"
+                                    className="h-full w-auto object-contain scale-[1.9]"
                                 />
                             </div>
                         </div>
@@ -251,32 +257,41 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                         {/* My Profile - Moved to Top */}
                                         <Link
                                             to={currentUser ? "/profile" : "/user-login"}
-                                            className="group w-full flex items-center gap-4 py-4 px-5 text-base font-semibold text-white bg-white/10 border-r-4 border-brand-accent-green rounded-l-xl transition-all hover:bg-white/20 relative overflow-hidden"
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-semibold border-r-4 rounded-l-xl transition-all relative overflow-hidden ${isActive(currentUser ? "/profile" : "/user-login")
+                                                ? "text-white bg-white/10 border-brand-accent-green"
+                                                : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-accent-green"
+                                                }`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <UserCircle size={20} className="text-white relative z-10" />
+                                            <UserCircle size={20} className={`relative z-10 ${isActive(currentUser ? "/profile" : "/user-login") ? "text-white" : "group-hover:text-white transition-colors"}`} />
                                             <span className="relative z-10">{currentUser ? "My Profile" : "Login / Signup"}</span>
-                                            <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
+                                            <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive(currentUser ? "/profile" : "/user-login") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                                         </Link>
 
                                         <Link
                                             to="/register-mess"
                                             onClick={() => setIsMenuOpen(false)}
-                                            className="group w-full flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-blue-400 rounded-l-xl transition-all relative overflow-hidden text-left"
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/register-mess") || isActive("/register-mess-success")
+                                                ? "text-white bg-white/10 border-blue-400"
+                                                : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-blue-400"
+                                                }`}
                                         >
-                                            <Building2 size={20} className="relative z-10 group-hover:text-blue-400 transition-colors" />
+                                            <Building2 size={20} className={`relative z-10 transition-colors ${isActive("/register-mess") ? "text-blue-400" : "group-hover:text-blue-400"}`} />
                                             <span className="relative z-10">Register your mess</span>
-                                            <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
+                                            <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive("/register-mess") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                                         </Link>
 
                                         <Link
                                             to="/"
-                                            className="group flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-white rounded-l-xl transition-all hover:bg-white/10 relative overflow-hidden"
+                                            className={`group flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden ${isActive("/")
+                                                ? "text-white bg-white/10 border-brand-white"
+                                                : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-white"
+                                                }`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <Home size={20} className="relative z-10" />
+                                            <Home size={20} className={`relative z-10 ${isActive("/") ? "text-white" : "group-hover:text-white transition-colors"}`} />
                                             <span className="relative z-10">Home</span>
-                                            <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
+                                            <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive("/") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                                         </Link>
 
                                         <Link
@@ -299,11 +314,18 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                             <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </Link>
 
-                                        <button className="group w-full flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-brand-accent-green rounded-l-xl transition-all relative overflow-hidden text-left">
-                                            <BedDouble size={20} className="relative z-10 group-hover:text-brand-accent-green transition-colors" />
+                                        <Link
+                                            to="/book-room"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/book-room")
+                                                    ? "text-white bg-white/10 border-brand-accent-green"
+                                                    : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-accent-green"
+                                                }`}
+                                        >
+                                            <BedDouble size={20} className={`relative z-10 transition-colors ${isActive("/book-room") ? "text-brand-accent-green" : "group-hover:text-brand-accent-green"}`} />
                                             <span className="relative z-10">Book Room</span>
-                                            <span className="ml-auto px-2 py-0.5 text-[10px] font-bold text-brand-accent-green bg-brand-accent-green/10 rounded-full border border-brand-accent-green/20 relative z-10">SOON</span>
-                                        </button>
+                                            <span className="ml-auto px-2 py-0.5 text-[10px] font-bold text-brand-accent-green bg-brand-accent-green/10 rounded-full border border-brand-accent-green/20 relative z-10">NEW</span>
+                                        </Link>
 
                                         <button
                                             onClick={() => {
@@ -323,14 +345,49 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                             <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </button>
 
-                                        <a
-                                            href="mailto:support@messkhojo.com"
-                                            className="group flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-brand-secondary/50 rounded-l-xl transition-all relative overflow-hidden"
-                                        >
-                                            <Phone size={20} className="relative z-10 group-hover:text-brand-secondary transition-colors" />
-                                            <span className="relative z-10">Contact Us</span>
-                                            <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
-                                        </a>
+                                        {/* Contact Us - Expandable Section */}
+                                        <div className="pt-2 px-2 pb-6">
+                                            <button
+                                                onClick={() => setIsContactOpen(!isContactOpen)}
+                                                className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium transition-all relative overflow-hidden rounded-xl ${isContactOpen ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                                            >
+                                                <Phone size={20} className={`relative z-10 transition-colors ${isContactOpen ? 'text-brand-secondary' : 'group-hover:text-brand-secondary'}`} />
+                                                <span className="relative z-10">Contact Us</span>
+                                                <ChevronRight size={16} className={`ml-auto transition-transform duration-300 relative z-10 ${isContactOpen ? 'rotate-90 text-white' : 'text-white/50 group-hover:text-white'}`} />
+                                            </button>
+
+                                            <AnimatePresence>
+                                                {isContactOpen && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="pl-4 pr-1 py-2 space-y-2">
+                                                            <a
+                                                                href="https://wa.me/919692819621?text=Hi%20MessKhojo,%20I%20need%20help..."
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-3 py-3 px-4 text-sm font-medium text-white/90 bg-green-600/20 border border-green-500/30 hover:bg-green-600 hover:text-white rounded-xl transition-all"
+                                                                onClick={() => setIsMenuOpen(false)}
+                                                            >
+                                                                <MessageSquare size={18} />
+                                                                <span>WhatsApp Us</span>
+                                                            </a>
+
+                                                            <a
+                                                                href="mailto:messkhojobalasore@gmail.com"
+                                                                className="flex items-center gap-3 py-3 px-4 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/30 rounded-xl transition-all"
+                                                            >
+                                                                <div className="w-[18px] flex justify-center font-bold">@</div>
+                                                                <span className="truncate">messkhojobalasore@gmail.com</span>
+                                                            </a>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
 
                                     </div>
 

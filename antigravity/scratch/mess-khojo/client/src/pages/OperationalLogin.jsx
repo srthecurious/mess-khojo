@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Server } from 'lucide-react';
@@ -79,6 +79,7 @@ const OperationalLogin = () => {
                     >
                         Authenticate
                     </button>
+
                 </form>
 
                 <div className="mt-6 text-center">

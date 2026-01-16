@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
@@ -180,88 +180,103 @@ const MessDetails = () => {
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
             {/* Header Area */}
-            <div className="bg-white border-b border-brand-light-gray shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-8">
-                    <Link to="/" className="inline-flex items-center text-brand-text-gray hover:text-brand-primary mb-6 transition-colors font-medium">
-                        <ArrowLeft size={20} className="mr-2" /> Back to Explore
+            {/* Header Area */}
+            <div className="bg-gradient-to-b from-purple-100 to-white border-b border-brand-light-gray/60 shadow-sm relative overflow-hidden">
+                {/* Decorative background blob */}
+                <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-purple-200/40 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
+                    <Link to="/" className="inline-flex items-center text-sm font-medium text-brand-text-gray hover:text-brand-primary mb-6 transition-colors bg-white/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-brand-light-gray hover:border-brand-primary/30 shadow-sm">
+                        <ArrowLeft size={16} className="mr-1.5" /> Back to Explore
                     </Link>
-                    <h1 className="text-4xl font-bold text-brand-text-dark mb-4">{mess.name}</h1>
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-wrap gap-6 text-brand-text-dark">
+
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+                        <div>
+                            <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-purple-600 mb-2 tracking-tight drop-shadow-sm">{mess.name}</h1>
+                            <div className="flex items-center text-brand-text-gray mb-4">
+                                <MapPin size={18} className="text-gray-400 mr-1.5 flex-shrink-0" />
+                                <span className="text-lg">{mess.address || "Address not available"}</span>
+                            </div>
+
+                            {/* Global Amenities Display - Modern Pills */}
+                            <div className="flex flex-wrap gap-3 mt-1">
+                                {hasFood && (
+                                    <div className="flex items-center text-sm font-semibold text-green-700 bg-green-50 px-3 py-1.5 rounded-full border border-green-100/50">
+                                        <Utensils size={14} className="mr-1.5" /> Food Available
+                                    </div>
+                                )}
+                                {hasWifi && (
+                                    <div className="flex items-center text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100/50">
+                                        <Wifi size={14} className="mr-1.5" /> WiFi
+                                    </div>
+                                )}
+                                {hasInverter && (
+                                    <div className="flex items-center text-sm font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100/50">
+                                        <Zap size={14} className="mr-1.5" /> Power Backup
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
                             {mess.locationUrl ? (
                                 <a
                                     href={mess.locationUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-full transition-colors cursor-pointer group text-white"
+                                    className="flex items-center bg-brand-primary text-white border border-brand-primary hover:bg-brand-primary-hover px-5 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
                                 >
-                                    <MapPin size={20} className="mr-2 text-white" />
-                                    <span>Locate on map</span>
-                                    <ExternalLink size={16} className="ml-2 text-white group-hover:text-white/80 transition-colors" />
+                                    <MapPin size={18} className="mr-2" />
+                                    <span className="font-semibold">Locate</span>
+                                    <ExternalLink size={14} className="ml-2 opacity-70" />
                                 </a>
                             ) : (
-                                <div className="flex items-center bg-purple-600 px-4 py-2 rounded-full text-white">
-                                    <MapPin size={20} className="mr-2 text-white" />
-                                    <span>Locate on map</span>
-                                </div>
+                                <button disabled className="flex items-center bg-gray-100 text-gray-400 px-5 py-2.5 rounded-xl cursor-not-allowed">
+                                    <MapPin size={18} className="mr-2" />
+                                    <span>Locate</span>
+                                </button>
                             )}
-                            <div className="flex items-center bg-brand-light-gray px-4 py-2 rounded-full">
-                                <Phone size={20} className="mr-2 text-brand-accent-green" />
-                                <span>{mess.hideContact ? "Not Available" : (mess.contact || "No information")}</span>
-                            </div>
-                        </div>
 
-                        {/* Global Amenities Display */}
-                        <div className="flex flex-wrap gap-4 mt-2">
-                            {hasFood && (
-                                <div className="flex items-center text-sm font-medium text-brand-text-dark bg-brand-secondary px-3 py-1.5 rounded-lg border border-brand-light-gray">
-                                    <Utensils size={16} className="mr-2 text-brand-accent-green" /> Food Available
-                                </div>
-                            )}
-                            {hasWifi && (
-                                <div className="flex items-center text-sm font-medium text-brand-text-dark bg-brand-secondary px-3 py-1.5 rounded-lg border border-brand-light-gray">
-                                    <Wifi size={16} className="mr-2 text-brand-primary" /> Free WiFi
-                                </div>
-                            )}
-                            {hasInverter && (
-                                <div className="flex items-center text-sm font-medium text-brand-text-dark bg-brand-secondary px-3 py-1.5 rounded-lg border border-brand-light-gray">
-                                    <Zap size={16} className="mr-2 text-brand-amber" /> Power Backup
+                            {!mess.hideContact && (
+                                <div className="flex items-center px-5 py-2.5 rounded-xl border bg-white border-brand-light-gray text-brand-text-dark shadow-sm">
+                                    <Phone size={18} className="mr-2 text-brand-accent-green" />
+                                    <span className="font-semibold">{mess.contact || "No Contact"}</span>
                                 </div>
                             )}
                         </div>
                     </div>
-
-                    {mess.isUserSourced && (
-                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-brand-amber/10 border border-brand-amber/20 rounded-2xl p-5 flex items-start gap-4">
-                                <div className="bg-brand-amber/20 p-2 rounded-lg text-brand-amber mt-1">
-                                    <Info size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-brand-text-dark mb-1">User Sourced Listing</h3>
-                                    <p className="text-sm text-brand-text-gray mb-2">This information was provided by our community and has not been verified by the owner yet.</p>
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-brand-amber uppercase tracking-wider">
-                                        <AlertCircle size={14} /> Last updated: {mess.lastUpdatedDate ? new Date(mess.lastUpdatedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-brand-accent-blue/10 border border-brand-accent-blue/20 rounded-2xl p-5 flex items-start gap-4">
-                                <div className="bg-brand-accent-blue/20 p-2 rounded-lg text-brand-accent-blue mt-1">
-                                    <ShieldCheck size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-brand-text-dark mb-1">Our Policy</h3>
-                                    <p className="text-sm text-brand-text-gray leading-relaxed">
-                                        We strive for accuracy, but we recommend visiting the premises before making any payments.
-                                        <strong> Mess Khojo is not responsible for any discrepancies in user-sourced details.</strong>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
+
+            {mess.isUserSourced && (
+                <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-brand-amber/10 border border-brand-amber/20 rounded-2xl p-5 flex items-start gap-4">
+                        <div className="bg-brand-amber/20 p-2 rounded-lg text-brand-amber mt-1">
+                            <Info size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-brand-text-dark mb-1">User Sourced Listing</h3>
+                            <p className="text-sm text-brand-text-gray mb-2">This information was provided by our community and has not been verified by the owner yet.</p>
+                            <div className="flex items-center gap-2 text-xs font-semibold text-brand-amber uppercase tracking-wider">
+                                <AlertCircle size={14} /> Last updated: {mess.lastUpdatedDate ? new Date(mess.lastUpdatedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-brand-accent-blue/10 border border-brand-accent-blue/20 rounded-2xl p-5 flex items-start gap-4">
+                        <div className="bg-brand-accent-blue/20 p-2 rounded-lg text-brand-accent-blue mt-1">
+                            <ShieldCheck size={24} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-brand-text-dark mb-1">Our Policy</h3>
+                            <p className="text-sm text-brand-text-gray leading-relaxed">
+                                We strive for accuracy, but we recommend visiting the premises before making any payments.
+                                <strong> Mess Khojo is not responsible for any discrepancies in user-sourced details.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Rooms Grid */}
             <div className="max-w-7xl mx-auto px-4 py-12">
@@ -270,131 +285,152 @@ const MessDetails = () => {
                     <div className="ml-4 h-px flex-grow bg-brand-light-gray"></div>
                 </div>
 
-                {rooms.length > 0 ? (
-                    <div className="space-y-8">
-                        {sortedGroups.map(([occupancy, groupRooms]) => (
-                            <RoomTypeGroup key={occupancy} occupancy={occupancy} rooms={groupRooms} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 bg-white rounded-3xl shadow-sm border border-dashed border-brand-light-gray flex flex-col items-center gap-4">
-                        <div className="bg-brand-secondary p-4 rounded-full text-brand-primary">
-                            <Utensils size={40} className="opacity-40" />
+                {
+                    rooms.length > 0 ? (
+                        <div className="space-y-8">
+                            {sortedGroups.map(([occupancy, groupRooms]) => (
+                                <RoomTypeGroup key={occupancy} occupancy={occupancy} rooms={groupRooms} />
+                            ))}
                         </div>
-                        <div>
-                            <p className="text-brand-text-dark font-bold text-xl">More details coming soon!</p>
-                            <p className="text-brand-text-gray">We're collecting more information about this mess. Please contact the provider for current availability.</p>
+                    ) : (
+                        <div className="text-center py-16 bg-white rounded-3xl shadow-sm border border-dashed border-brand-light-gray flex flex-col items-center gap-4">
+                            <div className="bg-brand-secondary p-4 rounded-full text-brand-primary">
+                                <Utensils size={40} className="opacity-40" />
+                            </div>
+                            <div>
+                                <p className="text-brand-text-dark font-bold text-xl">More details coming soon!</p>
+                                <p className="text-brand-text-gray">We're collecting more information about this mess. Please contact the provider for current availability.</p>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Global Actions for User Sourced */}
-                {mess.isUserSourced && (
-                    <div className="mt-12 flex flex-col items-center gap-6">
-                        <div className="text-center bg-white p-8 rounded-3xl shadow-lg border-2 border-brand-amber/20 w-full max-w-2xl">
-                            <div className="bg-brand-amber/10 w-16 h-16 rounded-full flex items-center justify-center text-brand-amber mx-auto mb-4">
-                                <Info size={32} />
+                {
+                    mess.isUserSourced && (
+                        <div className="mt-12 flex flex-col items-center gap-6">
+                            <div className="text-center bg-white p-8 rounded-3xl shadow-lg border-2 border-brand-amber/20 w-full max-w-2xl">
+                                <div className="bg-brand-amber/10 w-16 h-16 rounded-full flex items-center justify-center text-brand-amber mx-auto mb-4">
+                                    <Info size={32} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-brand-text-dark mb-2">Know Seat Availability</h3>
+                                <p className="text-brand-text-gray mb-6 leading-relaxed">
+                                    We're currently collecting more information about this mess.
+                                    If you're interested, you can inquire directly about seat availability.
+                                </p>
+                                <button
+                                    onClick={() => setShowInquiryModal(true)}
+                                    className="w-full md:w-auto flex items-center justify-center gap-3 bg-brand-primary text-white px-10 py-4 rounded-2xl font-bold hover:bg-brand-primary/90 transition-all shadow-xl active:scale-95"
+                                >
+                                    <BedDouble size={24} />
+                                    Know Seat Availability
+                                </button>
                             </div>
-                            <h3 className="text-2xl font-bold text-brand-text-dark mb-2">Know Seat Availability</h3>
-                            <p className="text-brand-text-gray mb-6 leading-relaxed">
-                                We're currently collecting more information about this mess.
-                                If you're interested, you can inquire directly about seat availability.
-                            </p>
-                            <button
-                                onClick={() => setShowInquiryModal(true)}
-                                className="w-full md:w-auto flex items-center justify-center gap-3 bg-brand-primary text-white px-10 py-4 rounded-2xl font-bold hover:bg-brand-primary/90 transition-all shadow-xl active:scale-95"
-                            >
-                                <BedDouble size={24} />
-                                Know Seat Availability
-                            </button>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
 
             {/* Inquiry Modal */}
-            {showInquiryModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-brand-text-dark/60 backdrop-blur-sm" onClick={() => setShowInquiryModal(false)}></div>
-                    <div className="uiverse-card w-full max-w-md relative z-10 bg-white p-8 overflow-y-auto max-h-[90vh]">
-                        <h2 className="text-2xl font-bold text-brand-text-dark mb-2">Seat Availability Inquiry</h2>
-                        <p className="text-brand-text-gray text-sm mb-6">Fill in your details and we'll help you connect with the owner on WhatsApp.</p>
+            {
+                showInquiryModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-brand-text-dark/60 backdrop-blur-sm" onClick={() => setShowInquiryModal(false)}></div>
+                        <div className="uiverse-card w-full max-w-md relative z-10 bg-white p-8 overflow-y-auto max-h-[90vh]">
+                            <h2 className="text-2xl font-bold text-brand-text-dark mb-2">Seat Availability Inquiry</h2>
+                            <p className="text-brand-text-gray text-sm mb-6">Fill in your details and we'll help you connect with the owner on WhatsApp.</p>
 
-                        <form onSubmit={handleInquirySubmit} className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Your Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="uiverse-input w-full"
-                                    value={inquiryData.name}
-                                    onChange={(e) => setInquiryData({ ...inquiryData, name: e.target.value })}
-                                    placeholder="Enter your full name"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Phone Number</label>
-                                <input
-                                    type="tel"
-                                    required
-                                    className="uiverse-input w-full"
-                                    value={inquiryData.phone}
-                                    onChange={(e) => setInquiryData({ ...inquiryData, phone: e.target.value })}
-                                    placeholder="10 digit mobile number"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Looking for (Seater)</label>
-                                <select
-                                    className="uiverse-input w-full"
-                                    value={inquiryData.seating}
-                                    onChange={(e) => setInquiryData({ ...inquiryData, seating: e.target.value })}
-                                >
-                                    <option value="Any">Any Choice</option>
-                                    <option value="1 Seater">Single (1 Seater)</option>
-                                    <option value="2 Seater">Double (2 Seater)</option>
-                                    <option value="3 Seater">Triple (3 Seater)</option>
-                                </select>
-                            </div>
+                            <form onSubmit={handleInquirySubmit} className="space-y-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Your Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="uiverse-input w-full"
+                                        value={inquiryData.name}
+                                        onChange={(e) => setInquiryData({ ...inquiryData, name: e.target.value })}
+                                        placeholder="Enter your full name"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        required
+                                        className="uiverse-input w-full"
+                                        value={inquiryData.phone}
+                                        onChange={(e) => setInquiryData({ ...inquiryData, phone: e.target.value })}
+                                        placeholder="10 digit mobile number"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Looking for (Seater)</label>
+                                    <select
+                                        className="uiverse-input w-full"
+                                        value={inquiryData.seating}
+                                        onChange={(e) => setInquiryData({ ...inquiryData, seating: e.target.value })}
+                                    >
+                                        <option value="Any">Any Choice</option>
+                                        <option value="1 Seater">Single (1 Seater)</option>
+                                        <option value="2 Seater">Double (2 Seater)</option>
+                                        <option value="3 Seater">Triple (3 Seater)</option>
+                                    </select>
+                                </div>
 
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowInquiryModal(false)}
-                                    className="flex-1 py-4 px-6 border border-brand-light-gray text-brand-text-gray font-bold rounded-2xl hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submittingInquiry}
-                                    className="flex-[2] py-4 px-6 bg-brand-primary text-white font-bold rounded-2xl shadow-lg hover:bg-brand-primary/90 transition-all active:scale-95 disabled:opacity-50"
-                                >
-                                    {submittingInquiry ? 'Please wait...' : 'Submit Inquiry'}
-                                </button>
-                            </div>
-                        </form>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowInquiryModal(false)}
+                                        className="flex-1 py-4 px-6 border border-brand-light-gray text-brand-text-gray font-bold rounded-2xl hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingInquiry}
+                                        className="flex-[2] py-4 px-6 bg-brand-primary text-white font-bold rounded-2xl shadow-lg hover:bg-brand-primary/90 transition-all active:scale-95 disabled:opacity-50"
+                                    >
+                                        {submittingInquiry ? 'Please wait...' : 'Submit Inquiry'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
 
             {/* Claim Listing - Small Footer Link */}
-            {mess?.isUserSourced && (
-                <div className="max-w-7xl mx-auto px-4 py-6 mt-8 border-t border-gray-200">
-                    <div className="flex justify-center">
-                        <button
-                            onClick={handleClaimListing}
-                            disabled={claiming}
-                            className="text-xs text-gray-400 hover:text-brand-primary underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {claiming ? 'Sending...' : 'Claim Listing'}
-                        </button>
+            {
+                mess?.isUserSourced && (
+                    <div className="max-w-7xl mx-auto px-4 py-6 mt-8 border-t border-gray-200">
+                        <div className="flex justify-center">
+                            <button
+                                onClick={handleClaimListing}
+                                disabled={claiming}
+                                className="text-xs text-gray-400 hover:text-brand-primary underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {claiming ? 'Sending...' : 'Claim Listing'}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-        </div>
+            <button
+                onClick={() => {
+                    const message = `Hi MessKhojo, I want to know more about ${mess.name} (${mess.address || 'No Address'})`;
+                    window.open(`https://wa.me/919692819621?text=${encodeURIComponent(message)}`, '_blank');
+                }}
+                className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-110 animate-bounce-slow"
+                title="Chat with Support"
+            >
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" className="text-white">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                </svg>
+            </button>
+
+        </div >
     );
 };
 

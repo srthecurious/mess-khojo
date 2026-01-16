@@ -7,7 +7,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
     // Handle both old (imageUrl) and new (imageUrls) data structures
     const displayImage = (room.imageUrls && room.imageUrls.length > 0)
         ? room.imageUrls[0]
-        : (room.imageUrl || "https://via.placeholder.com/400x300?text=No+Image");
+        : (room.imageUrl || "/default-room.jpg");
 
     // Handle amenities (support both new nested object and old flat structure)
     const am = room.amenities || room;
@@ -17,7 +17,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
 
     const CardContent = () => (
         <>
-            <div className="h-44 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+            <div className="h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
                 <img src={displayImage} alt={title} className="w-full h-full object-cover" />
 
                 {/* Count Badge */}
@@ -46,7 +46,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
             </div>
 
             {/* Footer */}
-            <div className="mt-4 flex items-end justify-between">
+            <div className="mt-2 flex items-end justify-between">
                 <div>
                     <div className="uiverse-price">₹{price}</div>
                     <div className="uiverse-header-subtitle text-xs">per month</div>

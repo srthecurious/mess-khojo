@@ -69,6 +69,14 @@ service cloud.firestore {
       allow read, update, delete: if isOperator();
     }
 
+    // --- Room Inquiries (Book Room) ---
+    // Public create (anyone can request a room)
+    // Only Operators can read and manage
+    match /room_inquiries/{inquiryId} {
+        allow create: if true;
+        allow read, update, delete: if isOperator();
+    }
+
     // --- Mess Registrations ---
     // Public create (anyone can register a mess)
     // Only Operators can read and manage registrations
