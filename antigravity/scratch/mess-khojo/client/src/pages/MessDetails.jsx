@@ -159,7 +159,7 @@ const MessDetails = () => {
     }, {});
 
     // Sort room groups by predefined order
-    const occupancyOrder = ['Single', 'Double', 'Triple', 'Four', 'Five', 'Six', 'Other'];
+    const occupancyOrder = ['1', '2', '3', '4', '5', '6', '1 Seater', '2 Seater', '3 Seater', 'Single', 'Double', 'Triple', 'Other'];
     const sortedGroups = Object.entries(groupedRooms).sort((a, b) => {
         return occupancyOrder.indexOf(a[0]) - occupancyOrder.indexOf(b[0]);
     });
@@ -278,6 +278,77 @@ const MessDetails = () => {
                 </div>
             )}
 
+            {/* About & Facilities Section (New) */}
+            <div className="max-w-7xl mx-auto px-4 mt-8">
+                <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-purple-100 p-2.5 rounded-xl text-brand-primary">
+                            <Info size={24} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-brand-text-dark">About & Facilities</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Left Column: Description & Basic Info */}
+                        <div className="space-y-6">
+                            {mess.messType && (
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</h4>
+                                    <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${mess.messType === 'Boys' ? 'bg-blue-100 text-blue-700' : mess.messType === 'Girls' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
+                                        <Briefcase size={16} />
+                                        {mess.messType} Mess
+                                    </span>
+                                </div>
+                            )}
+
+                            {mess.advanceDeposit && (
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Financials</h4>
+                                    <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                        <div className="bg-green-100 text-green-700 p-2 rounded-lg">
+                                            <span className="font-bold text-lg">₹</span>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-800">Advance / Deposit Information</p>
+                                            <p className="text-sm text-gray-600 mt-1">{mess.advanceDeposit}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right Column: Facilities Grid */}
+                        <div className="space-y-6">
+                            {(mess.foodFacility || mess.security || mess.extraAppliances) && (
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities & Features</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {mess.foodFacility && (
+                                            <div className="bg-orange-50 p-3 rounded-xl border border-orange-100/50 flex items-center gap-3">
+                                                <Utensils size={18} className="text-orange-500 shrink-0" />
+                                                <p className="text-sm text-gray-700 font-medium">{mess.foodFacility}</p>
+                                            </div>
+                                        )}
+                                        {mess.security && (
+                                            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100/50 flex items-center gap-3">
+                                                <ShieldCheck size={18} className="text-indigo-500 shrink-0" />
+                                                <p className="text-sm text-gray-700 font-medium">{mess.security}</p>
+                                            </div>
+                                        )}
+                                        {mess.extraAppliances && (
+                                            <div className="bg-teal-50 p-3 rounded-xl border border-teal-100/50 flex items-center gap-3 sm:col-span-2">
+                                                <Zap size={18} className="text-teal-500 shrink-0" />
+                                                <p className="text-sm text-gray-700 font-medium">{mess.extraAppliances}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Rooms Grid */}
             <div className="max-w-7xl mx-auto px-4 py-12">
                 <div className="flex items-center mb-8">
@@ -371,9 +442,9 @@ const MessDetails = () => {
                                         onChange={(e) => setInquiryData({ ...inquiryData, seating: e.target.value })}
                                     >
                                         <option value="Any">Any Choice</option>
-                                        <option value="1 Seater">Single (1 Seater)</option>
-                                        <option value="2 Seater">Double (2 Seater)</option>
-                                        <option value="3 Seater">Triple (3 Seater)</option>
+                                        <option value="1 Seater">1 Seater</option>
+                                        <option value="2 Seater">2 Seater</option>
+                                        <option value="3 Seater">3 Seater</option>
                                     </select>
                                 </div>
 
@@ -422,7 +493,7 @@ const MessDetails = () => {
                     const message = `Hi MessKhojo, I want to know more about ${mess.name} (${mess.address || 'No Address'})`;
                     window.open(`https://wa.me/919692819621?text=${encodeURIComponent(message)}`, '_blank');
                 }}
-                className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-110 animate-bounce-slow"
+                className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.6)] hover:shadow-[0_8px_25px_rgba(37,211,102,0.5)] hover:-translate-y-1 transition-all duration-300 animate-bounce-slow"
                 title="Chat with Support"
             >
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" className="text-white">
@@ -446,6 +517,16 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
     // Calculate total available beds
     const totalAvailable = rooms.reduce((sum, r) => sum + (r.availableCount || 0), 0);
 
+    const occupancyMap = {
+        'Single': '1',
+        'Double': '2',
+        'Triple': '3',
+        'Four': '4',
+        'Five': '5',
+        'Six': '6'
+    };
+    const displayOccupancy = occupancyMap[occupancy] || occupancy;
+
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-brand-light-gray overflow-hidden transition-all hover:shadow-md">
             <div
@@ -454,7 +535,7 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
             >
                 <div>
                     <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-xl font-bold text-brand-text-dark">{occupancy} Seater Rooms</h3>
+                        <h3 className="text-xl font-bold text-brand-text-dark">{displayOccupancy} Seater Rooms</h3>
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-brand-light-gray text-brand-text-gray">{rooms.length} Variants</span>
                     </div>
                     <p className="text-brand-text-gray text-sm">Starting from <span className="font-semibold text-brand-primary">{priceDisplay}/mo</span></p>

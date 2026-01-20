@@ -417,7 +417,7 @@ const AdminDashboard = () => {
 
             // Reset form
             setFormData({
-                occupancy: 'Double',
+                occupancy: '2',
                 category: '',
                 totalInventory: 1,
                 price: '',
@@ -441,7 +441,7 @@ const AdminDashboard = () => {
     const handleEditRoomClick = (room) => {
         setEditingRoomId(room.id);
         setFormData({
-            occupancy: room.occupancy || 'Double',
+            occupancy: room.occupancy || '2',
             category: room.category || '',
             totalInventory: room.totalInventory || 1,
             price: room.price || room.rent || '', // Fallback for old data
@@ -458,7 +458,7 @@ const AdminDashboard = () => {
     const handleCancelEditRoom = () => {
         setEditingRoomId(null);
         setFormData({
-            occupancy: 'Double',
+            occupancy: '2',
             category: '',
             totalInventory: 1,
             price: '',
@@ -819,12 +819,12 @@ const AdminDashboard = () => {
                                             value={formData.occupancy}
                                             onChange={e => setFormData({ ...formData, occupancy: e.target.value })}
                                         >
-                                            <option value="Single">Single Seater</option>
-                                            <option value="Double">Double Seater</option>
-                                            <option value="Triple">Triple Seater</option>
-                                            <option value="Four">Four Seater</option>
-                                            <option value="Five">Five Seater</option>
-                                            <option value="Six">Six Seater</option>
+                                            <option value="1">1 Seater</option>
+                                            <option value="2">2 Seater</option>
+                                            <option value="3">3 Seater</option>
+                                            <option value="4">4 Seater</option>
+                                            <option value="5">5 Seater</option>
+                                            <option value="6">6 Seater</option>
                                         </select>
                                     </div>
                                     <div>
@@ -994,7 +994,14 @@ const AdminDashboard = () => {
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-2">📞 {booking.userPhone}</p>
                                                 <div className="flex items-center gap-4 text-sm text-gray-500">
-                                                    <span>🛏️ {booking.roomType} Room</span>
+                                                    <span>🛏️ {({
+                                                        'Single': '1',
+                                                        'Double': '2',
+                                                        'Triple': '3',
+                                                        'Four': '4',
+                                                        'Five': '5',
+                                                        'Six': '6'
+                                                    })[booking.roomType] || booking.roomType} Seater</span>
                                                     <span>💰 ₹{booking.price}/mo</span>
                                                     <span>📅 {booking.createdAt ? new Date(booking.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
                                                 </div>

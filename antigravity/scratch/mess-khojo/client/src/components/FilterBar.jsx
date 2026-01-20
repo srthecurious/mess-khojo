@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Filter, X, Check, Search } from 'lucide-react';
 import MultiSelectDropdown from './MultiSelectDropdown';
 
-const FilterBar = ({ onFilterChange }) => {
+const FilterBar = ({ onFilterChange, currentFilters }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [filters, setFilters] = useState({
         location: '',
@@ -18,6 +18,19 @@ const FilterBar = ({ onFilterChange }) => {
         messType: '',
         maxDistance: ''
     });
+
+    // Sync internal state when parent filters change (e.g. from Category Switcher)
+    useEffect(() => {
+        if (currentFilters) {
+            setFilters(prev => {
+                // Only update if there's a difference to avoid loops
+                if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
+                    return currentFilters;
+                }
+                return prev;
+            });
+        }
+    }, [currentFilters]);
 
     // Debounce filter changes to avoid excessive updates
     useEffect(() => {
@@ -110,19 +123,22 @@ const FilterBar = ({ onFilterChange }) => {
                 <div className={`${isOpen ? 'block' : 'hidden'} md:block p-6 md:p-8 relative z-10 rounded-b-3xl`}>
                     <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
 
-                        <div className="w-full md:w-1/4">
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Mess Type</label>
-                            <select
-                                className="w-full px-4 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
-                                value={filters.messType}
-                                onChange={(e) => setFilters({ ...filters, messType: e.target.value })}
-                            >
-                                <option value="">All</option>
-                                <option value="Boys">Boys</option>
-                                <option value="Girls">Girls</option>
-                                <option value="Coed">Coed</option>
-                            </select>
+                        {/* Search Bar - Desktop */}
+                        <div className="hidden md:block w-full md:w-1/3">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Search Mess</label>
+                            <div className="relative">
+                                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by mess name..."
+                                    className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
+                                    value={filters.location}
+                                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                                />
+                            </div>
                         </div>
+
+
 
                         {/* Distance Filter Removed */}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2 } from 'lucide-react';
+import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
@@ -8,7 +8,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
 
-const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLocationModalOpen }) => {
+const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLocationModalOpen, showSearch, searchTerm, onSearchChange }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { currentUser } = useAuth();
     const [notifications, setNotifications] = useState([]);
@@ -108,6 +108,30 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                     className="h-full w-auto object-contain scale-[1.9]"
                                 />
                             </div>
+                        </div>
+
+                        {/* Center Section: Sticky Search Bar */}
+                        <div className="flex-1 flex justify-center mx-4">
+                            <AnimatePresence>
+                                {showSearch && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="relative block w-full max-w-xs"
+                                    >
+                                        <input
+                                            type="text"
+                                            placeholder="Search..."
+                                            value={searchTerm}
+                                            onChange={(e) => onSearchChange(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
+                                        />
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90 pointer-events-none" size={16} />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Right Section: Menu/Notifications */}
@@ -244,7 +268,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                         <div className="absolute inset-0 bg-gradient-to-r from-brand-primary-hover to-transparent pointer-events-none"></div>
                                         <div className="flex justify-between items-center relative z-10">
                                             <div>
-                                                <h2 className="text-2xl font-bold text-white tracking-tight">MessKhojo</h2>
+                                                <h2 className="text-3xl font-bold text-white">MessKhojo</h2>
                                             </div>
                                             <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                                                 <X size={24} />
@@ -318,8 +342,8 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                             to="/book-room"
                                             onClick={() => setIsMenuOpen(false)}
                                             className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/book-room")
-                                                    ? "text-white bg-white/10 border-brand-accent-green"
-                                                    : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-accent-green"
+                                                ? "text-white bg-white/10 border-brand-accent-green"
+                                                : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-accent-green"
                                                 }`}
                                         >
                                             <BedDouble size={20} className={`relative z-10 transition-colors ${isActive("/book-room") ? "text-brand-accent-green" : "group-hover:text-brand-accent-green"}`} />
@@ -369,7 +393,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
                                                                 href="https://wa.me/919692819621?text=Hi%20MessKhojo,%20I%20need%20help..."
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="flex items-center gap-3 py-3 px-4 text-sm font-medium text-white/90 bg-green-600/20 border border-green-500/30 hover:bg-green-600 hover:text-white rounded-xl transition-all"
+                                                                className="flex items-center gap-3 py-3 px-4 text-sm font-medium text-white/90 bg-green-600/20 border border-green-500/30 hover:bg-green-600 hover:text-white rounded-xl transition-all shadow-[0_0_15px_rgba(37,211,102,0.2)] hover:shadow-[0_0_20px_rgba(37,211,102,0.4)]"
                                                                 onClick={() => setIsMenuOpen(false)}
                                                             >
                                                                 <MessageSquare size={18} />

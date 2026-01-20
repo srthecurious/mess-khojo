@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { MapPin, Phone, ArrowRight, BedDouble, Briefcase, Info } from 'lucide-react';
+import { MapPin, Phone, ArrowRight, BedDouble, Briefcase, Info, Send, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { storage, auth, db } from '../firebase';
@@ -52,13 +52,39 @@ const MessCard = memo(({ mess, index }) => {
 
             } catch (error) {
                 // If SDK fails (object not found), fallback gracefully without setting broken src
-                console.log("Could not resolve image:", error.code);
+
                 setImageUrl(null);
             }
         };
 
         resolveImageUrl();
     }, [mess.posterUrl]);
+
+    // Share Functionality
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleShare = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const shareData = {
+            title: mess.name,
+            text: `Check out ${mess.name} on Mess Khojo!`,
+            url: `${window.location.origin}/mess/${mess.id}`
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(shareData.url);
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
+            }
+        } catch (err) {
+            console.error('Error sharing:', err);
+        }
+    };
 
 
 
@@ -126,14 +152,38 @@ const MessCard = memo(({ mess, index }) => {
                     </div>
 
                     {/* Content (Contact) */}
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                        <Phone size={14} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{mess.hideContact ? "Not Available" : (mess.contact || "No information")}</span>
+                    {/* Price Range */}
+                    <div className="flex items-center gap-1.5 min-h-[24px]">
+                        {mess.minPrice && mess.maxPrice ? (
+                            <div className="flex items-baseline gap-1 text-brand-primary">
+                                <span className="text-base font-bold">
+                                    ₹{mess.minPrice}
+                                </span>
+                                {mess.minPrice !== mess.maxPrice && (
+                                    <>
+                                        <span className="text-xs text-gray-400">-</span>
+                                        <span className="text-base font-bold">
+                                            {mess.maxPrice}
+                                        </span>
+                                    </>
+                                )}
+                                <span className="text-[10px] text-gray-500 font-medium">/mo</span>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
                 {/* Footer / Bottom Actions */}
                 <div className="mt-2 flex items-end justify-between">
+                    {/* Share Button */}
+                    <button
+                        onClick={handleShare}
+                        className="w-10 h-10 rounded-full bg-gray-50 text-brand-primary hover:bg-brand-primary/10 hover:scale-110 flex items-center justify-center transition-all duration-300 active:scale-95 z-10"
+                        title="Share this mess"
+                    >
+                        {isCopied ? <Check size={18} /> : <Send size={18} className="-ml-0.5 mt-0.5" />}
+                    </button>
+
                     {/* View Details Button - Option 3: Sleek Circular Arrow */}
                     <div className="w-10 h-10 rounded-full bg-brand-light-gray flex items-center justify-center text-brand-primary transition-all duration-300 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-110 shadow-sm ml-auto">
                         <ArrowRight size={20} strokeWidth={2.5} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -45,10 +45,22 @@ const RoomDetails = () => {
         fetchDetails();
     }, [messId, roomId]);
 
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    useEffect(() => {
+        if (!loading && currentUser && searchParams.get('action') === 'book') {
+            handleBookClick();
+            // Clear the param to prevent re-triggering
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('action');
+            setSearchParams(newParams, { replace: true });
+        }
+    }, [currentUser, loading]);
+
     const handleBookClick = async () => {
         if (!currentUser) {
-            // Redirect to Login with return URL
-            const returnUrl = `/room/${messId}/${roomId}`;
+            // Redirect to Login with return URL ensuring action=book is preserved
+            const returnUrl = `/room/${messId}/${roomId}?action=book`;
             console.log('🔗 Redirecting to login with return URL:', returnUrl);
             navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
             return;
@@ -134,7 +146,14 @@ const RoomDetails = () => {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-2xl font-bold text-brand-text-dark">{room.occupancy} Room</h2>
+                            <h2 className="text-2xl font-bold text-brand-text-dark">{({
+                                'Single': '1',
+                                'Double': '2',
+                                'Triple': '3',
+                                'Four': '4',
+                                'Five': '5',
+                                'Six': '6'
+                            })[room.occupancy] || room.occupancy} Seater</h2>
                             <span className="bg-brand-accent-green/10 text-brand-accent-green text-xs font-bold px-2 py-0.5 rounded-full border border-brand-accent-green/20">
                                 {room.category || 'Standard'}
                             </span>
@@ -273,7 +292,14 @@ const RoomDetails = () => {
                             <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Room Type</span>
-                                    <span className="font-bold text-gray-900">{room.occupancy}</span>
+                                    <span className="font-bold text-gray-900">{({
+                                        'Single': '1',
+                                        'Double': '2',
+                                        'Triple': '3',
+                                        'Four': '4',
+                                        'Five': '5',
+                                        'Six': '6'
+                                    })[room.occupancy] || room.occupancy} Seater</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Price</span>

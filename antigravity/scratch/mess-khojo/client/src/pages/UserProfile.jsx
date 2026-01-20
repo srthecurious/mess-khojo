@@ -245,7 +245,14 @@ const UserProfile = () => {
                                             </div>
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <BedDouble size={16} />
-                                                <span>{booking.roomType} Room</span>
+                                                <span>{(({
+                                                    'Single': '1',
+                                                    'Double': '2',
+                                                    'Triple': '3',
+                                                    'Four': '4',
+                                                    'Five': '5',
+                                                    'Six': '6'
+                                                })[booking.roomType] || booking.roomType)} Seater</span>
                                                 <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                                 <span>₹{booking.price}/mo</span>
                                             </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers } from 'lucide-react';
+import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers, ArrowRight } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
 
@@ -12,7 +12,17 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
     // Handle amenities (support both new nested object and old flat structure)
     const am = room.amenities || room;
 
-    const title = room.occupancy ? `${room.occupancy} Seater` : `Room ${room.roomNumber}`;
+    // Map legacy text to numbers
+    const occupancyMap = {
+        'Single': '1',
+        'Double': '2',
+        'Triple': '3',
+        'Four': '4',
+        'Five': '5',
+        'Six': '6'
+    };
+    const displayOccupancy = occupancyMap[room.occupancy] || room.occupancy;
+    const title = displayOccupancy ? `${displayOccupancy} Seater` : `Room ${room.roomNumber}`;
     const price = room.price || room.rent;
 
     const CardContent = () => (
@@ -60,7 +70,11 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
                         Delete
                     </button>
                 )}
-                {!isAdmin && <div className="uiverse-badge">Book</div>}
+                {!isAdmin && (
+                    <div className="w-10 h-10 rounded-full bg-brand-light-gray flex items-center justify-center text-brand-primary transition-all duration-300 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-110 shadow-sm ml-auto">
+                        <ArrowRight size={20} strokeWidth={2.5} />
+                    </div>
+                )}
             </div>
         </>
     );

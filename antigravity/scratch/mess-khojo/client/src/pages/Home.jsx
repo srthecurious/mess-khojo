@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { collection, onSnapshot, getDocs, updateDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
@@ -8,7 +8,7 @@ import Header from '../components/Header'; // Import new Header
 import FeedbackForm from '../components/FeedbackForm';
 import MessExplorer from '../components/MessExplorer';
 import MapLocationModal from '../components/MapLocationModal';
-import { Search, MapPin, Home as HomeIcon, TrendingUp } from 'lucide-react';
+import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Home = () => {
@@ -36,6 +36,64 @@ const Home = () => {
     const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
 
     const [loadingLocation, setLoadingLocation] = useState(false);
+
+
+    const isScrolledRef = useRef(false);
+
+    // Scroll-Back Behavior Logic
+    useEffect(() => {
+        // Prevent browser from auto-restoring scroll on history navigation
+        // This stops the "jump" when we call history.back() during manual scrolling
+        if ('scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+        }
+
+        // Sync ref with initial history state on mount
+        isScrolledRef.current = !!window.history.state?.scrolled;
+
+        const handleScroll = () => {
+            // If user scrolls down > 300px and we haven't marked it yet, push state
+            if (window.scrollY > 300) {
+                if (!isScrolledRef.current) {
+                    window.history.pushState({ scrolled: true }, "");
+                    isScrolledRef.current = true;
+                }
+            }
+            // If user manually scrolls back to top (< 100px) and we have state, pop it
+            // This ensures "Back" at top exits app instead of doing nothing
+            else if (window.scrollY < 100) {
+                // Check ACTUAL history state, not just our ref logic, to be safe
+                if (window.history.state?.scrolled) {
+                    // isScrolledRef.current = false; // We don't need to lock this anymore with manual restoration
+                    window.history.back();
+                }
+            }
+        };
+
+        const handlePopState = () => {
+            // Sync our local ref with the actual history state
+            const isScrolled = !!window.history.state?.scrolled;
+            isScrolledRef.current = isScrolled;
+
+            // When back button is pressed (or we programmatically went back):
+            // If we are back to base state (no 'scrolled'), scroll to top
+            if (!isScrolled) {
+                // Only clean up scroll if we are actually scrolled down significantly.
+                // If user is already near top (started manual scroll up), don't force it.
+                if (window.scrollY > 100) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('popstate', handlePopState);
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, []);
 
     const CARDS_PER_PAGE = 12;
 
@@ -71,7 +129,7 @@ const Home = () => {
     const handleLocationSelect = (coords) => {
         if (coords) {
             // Coordinate object provided (from MapPicker)
-            console.log("Setting manual location from Map:", coords);
+
             setUserLocation({
                 lat: coords.lat,
                 lng: coords.lng,
@@ -82,17 +140,17 @@ const Home = () => {
         }
 
         // GPS Logic with Retry
-        console.log("🎯 Requesting GPS location...");
+
         setLoadingLocation(true); // Start Loading
         if (navigator.geolocation) {
             const successCallback = (position) => {
                 let { latitude, longitude } = position.coords;
-                console.log("✅ GPS Location detected:", latitude, longitude);
+
 
                 // AUTO-CORRECT: If GPS places user in Bhubaneswar/Cuttack region (Lat ~19.8 - 20.8), override to Baleshwar center
                 // This ensures testers in the capital see meaningful Baleshwar distances
                 if (latitude > 19.8 && latitude < 20.9) {
-                    console.log("Auto-correcting Bhubaneswar/Cuttack location to Baleshwar center (21.4934, 86.9294)");
+
                     latitude = 21.4934;
                     longitude = 86.9294;
                 }
@@ -103,7 +161,7 @@ const Home = () => {
                     address: "Your Location"
                 });
                 setFilters(prev => ({ ...prev, location: '' }));
-                console.log("✅ Location set successfully!");
+
                 setLoadingLocation(false); // Stop Loading
             };
 
@@ -112,7 +170,7 @@ const Home = () => {
 
                 // If High Accuracy failed, try Low Accuracy once
                 if (!isRetry) {
-                    console.log("🔄 Retrying with low accuracy...");
+
                     navigator.geolocation.getCurrentPosition(
                         successCallback,
                         (finalError) => errorCallback(finalError, true),
@@ -188,9 +246,9 @@ const Home = () => {
         };
     }, []);
 
-    const handleFilterChange = (newFilters) => {
+    const handleFilterChange = React.useCallback((newFilters) => {
         setFilters(newFilters);
-    };
+    }, []);
 
     // Filtering & Sorting Logic - Memoized for Performance
     const filteredMesses = React.useMemo(() => {
@@ -234,6 +292,11 @@ const Home = () => {
 
             // Get rooms for this mess
             const messRooms = rooms.filter(room => room.messId === mess.id);
+
+            // Calculate Price Range for display (Global for Mess)
+            const prices = messRooms.map(r => Number(r.price || r.rent)).filter(p => !isNaN(p) && p > 0);
+            const minPrice = prices.length ? Math.min(...prices) : null;
+            const maxPrice = prices.length ? Math.max(...prices) : null;
 
             // Helper to check amenity (Mess Level > Fallback to Room Level for legacy data)
             const checkAmenity = (key) => {
@@ -284,7 +347,9 @@ const Home = () => {
             return {
                 ...messWithDist,
                 matchingBeds,
-                isFiltered
+                isFiltered,
+                minPrice,
+                maxPrice
             };
         }).filter(Boolean); // Remove nulls
 
@@ -294,6 +359,26 @@ const Home = () => {
                 const distA = (typeof a.distance === 'number') ? a.distance : Infinity;
                 const distB = (typeof b.distance === 'number') ? b.distance : Infinity;
                 return distA - distB;
+            });
+        } else {
+            // Default Sort: Priority to visual content -> Alphabetical
+            result.sort((a, b) => {
+                // 1. Priority: Has Poster Image
+                const hasPosterA = !!a.posterUrl && a.posterUrl.length > 5;
+                const hasPosterB = !!b.posterUrl && b.posterUrl.length > 5;
+                if (hasPosterA !== hasPosterB) return hasPosterB ? 1 : -1;
+
+                // 2. Priority: Total Images Available (excluding placeholders)
+                const countImages = (item) => {
+                    if (!Array.isArray(item.images)) return 0;
+                    return item.images.filter(url => url && typeof url === 'string' && url.length > 10 && !url.includes('placeholder')).length;
+                };
+                const countA = countImages(a);
+                const countB = countImages(b);
+                if (countA !== countB) return countB - countA;
+
+                // 3. Priority: Alphabetical Order
+                return (a.name || '').localeCompare(b.name || '');
             });
         }
 
@@ -314,6 +399,33 @@ const Home = () => {
         setDisplayCount(CARDS_PER_PAGE);
     }, [filters, userLocation]);
 
+    const [isMainSearchVisible, setIsMainSearchVisible] = useState(true);
+    const filterBarRef = React.useRef(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                // If the filter bar is NOT intersecting (scrolled out of view), show the main header search
+                // Use a slight delay or debounce if flickering occurs, but direct state setting is usually fine here
+                setIsMainSearchVisible(entry.isIntersecting);
+            },
+            {
+                threshold: 0, // Trigger as soon as one pixel leaves (or enters)
+                rootMargin: "-80px 0px 0px 0px" // Offset by approx header height so it triggers when it goes under header
+            }
+        );
+
+        if (filterBarRef.current) {
+            observer.observe(filterBarRef.current);
+        }
+
+        return () => {
+            if (filterBarRef.current) {
+                observer.unobserve(filterBarRef.current);
+            }
+        };
+    }, []);
+
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
             {/* New Header */}
@@ -322,11 +434,14 @@ const Home = () => {
                 onLocationSelect={handleLocationSelect}
                 isLocationModalOpen={isLocationModalOpen}
                 setIsLocationModalOpen={setIsLocationModalOpen}
+                showSearch={!isMainSearchVisible}
+                searchTerm={filters.location}
+                onSearchChange={(val) => setFilters(prev => ({ ...prev, location: val }))}
             />
 
             {/* Filter Section - Moved to Top */}
-            <div className="pt-2 pb-6 relative z-40">
-                <FilterBar onFilterChange={handleFilterChange} />
+            <div ref={filterBarRef} className="pt-2 pb-6 relative z-40">
+                <FilterBar onFilterChange={handleFilterChange} currentFilters={filters} />
             </div>
 
             {/* Mess Explorer Map Banner */}
@@ -353,18 +468,18 @@ const Home = () => {
 
                             {!userLocation && (
                                 <div className="relative max-w-xs mx-auto">
-                                    <div className="flex gap-3">
+                                    <div className="grid grid-cols-2 gap-3 w-full">
                                         <button
                                             onClick={() => handleLocationSelect()}
                                             disabled={loadingLocation}
-                                            className="flex-1 py-1.5 px-3 bg-white/20 backdrop-blur-md text-white text-sm font-medium rounded-xl border border-white/30 hover:bg-white/30 transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full py-2.5 px-3 bg-white/20 backdrop-blur-md text-white text-sm font-medium rounded-xl border border-white/30 hover:bg-white/30 transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <MapPin size={16} className="fill-current" />
                                             <span>{loadingLocation ? 'Locating...' : 'Use GPS'}</span>
                                         </button>
                                         <button
                                             onClick={() => setShowMapModal(true)}
-                                            className="flex-1 py-1.5 px-3 bg-brand-primary text-white text-sm font-medium rounded-xl border border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                                            className="w-full py-2.5 px-3 bg-brand-primary text-white text-sm font-medium rounded-xl border border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98]"
                                         >
                                             <MapPin size={16} />
                                             <span>Map</span>
@@ -391,7 +506,7 @@ const Home = () => {
                             <div className="mt-5 flex items-center justify-center gap-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
                                 <div className="flex items-center gap-2 text-white/90">
                                     <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-green shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-                                    <span className="text-sm font-medium tracking-wide shadow-sm">{messes.length}+ Messes Listed</span>
+                                    <span className="text-sm font-medium tracking-wide shadow-sm">{messes.length >= 10 ? (Math.floor(messes.length / 10) * 10) + "+" : messes.length} Messes Listed</span>
                                 </div>
                                 <div className="w-px h-4 bg-white/20"></div>
                                 <div className="flex items-center gap-2 text-white/90">
@@ -405,7 +520,32 @@ const Home = () => {
 
             {/* Mess List */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
-                <div className="flex items-center justify-end mb-4 px-1">
+                <div className="flex items-center justify-between mb-4 px-1">
+                    {/* Category Switcher */}
+                    <div className="flex bg-white p-1 rounded-xl border border-gray-100 shadow-sm">
+                        {['All', 'Boys', 'Girls'].map((type) => {
+                            const isActive = (filters.messType || 'All') === type;
+                            return (
+                                <button
+                                    key={type}
+                                    onClick={() => handleFilterChange({ ...filters, messType: type === 'All' ? '' : type })}
+                                    className="relative px-4 py-1.5 text-sm font-medium rounded-lg transition-colors z-10"
+                                >
+                                    {isActive && (
+                                        <motion.div
+                                            layoutId={`activeTab-${!filters.location && !filters.messType && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) ? 'hero' : 'no-hero'}`}
+                                            className="absolute inset-0 bg-brand-primary rounded-lg -z-10"
+                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                        />
+                                    )}
+                                    <span className={isActive ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
+                                        {type}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     <div className="flex flex-col items-end">
                         <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-lg border border-gray-100">
                             {filteredMesses.length} results
@@ -477,11 +617,7 @@ const Home = () => {
                                 </li>
                                 <li className="flex items-start gap-2">
                                     <span className="text-purple-500 mt-0.5">•</span>
-                                    <span>Expand your price range</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-500 mt-0.5">•</span>
-                                    <span>Search in a different location</span>
+                                    <span>Search by other mess name</span>
                                 </li>
                             </ul>
                         </div>
@@ -489,16 +625,16 @@ const Home = () => {
                 )}
             </div>
 
-            {/* Load More Button */}
+            {/* View More Button */}
             {!loading && hasMore && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
                     <div className="flex justify-center my-8">
                         <button
                             onClick={loadMore}
-                            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                            className="group px-6 py-2.5 bg-brand-primary text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg hover:bg-brand-primary/90 hover:scale-105 active:scale-95 flex items-center gap-2"
                         >
-                            <TrendingUp size={20} />
-                            Load More ({filteredMesses.length - displayCount} remaining)
+                            View More
+                            <ChevronDown size={20} className="group-hover:translate-y-1 transition-transform duration-300" />
                         </button>
                     </div>
                 </div>

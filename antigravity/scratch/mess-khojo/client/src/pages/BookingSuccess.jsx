@@ -49,7 +49,7 @@ const BookingSuccess = () => {
                     href={whatsappLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-[#25D366]/20 mb-4 group"
+                    className="w-full flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-4 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(37,211,102,0.39)] hover:shadow-[0_6px_20px_rgba(37,211,102,0.23)] hover:-translate-y-1 mb-4 group"
                 >
                     <MessageCircle size={24} className="group-hover:rotate-12 transition-transform" />
                     Chat with us on WhatsApp

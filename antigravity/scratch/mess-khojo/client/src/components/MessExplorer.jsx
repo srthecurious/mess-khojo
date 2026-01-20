@@ -10,8 +10,9 @@ const MessExplorer = ({ messes, userLocation }) => {
     const navigate = useNavigate();
     const [isMapOpen, setIsMapOpen] = useState(false);
     const [mapCenter, setMapCenter] = useState({ lat: 21.4934, lng: 86.9294 }); // Default: Baleshwar
-    const [showFullMap, setShowFullMap] = useState(false); // Toggle for minimalist/full map view
+    const [showFullMap, setShowFullMap] = useState(true); // Toggle for minimalist/full map view
     const [selectedMess, setSelectedMess] = useState(null); // Track selected marker
+    const [currentZoom, setCurrentZoom] = useState(15);
 
     useEffect(() => {
         if (userLocation?.lat && userLocation?.lng) {
@@ -108,7 +109,7 @@ const MessExplorer = ({ messes, userLocation }) => {
                                     onClick={() => setShowFullMap(!showFullMap)}
                                     className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg transition-colors text-white text-sm font-semibold"
                                 >
-                                    {showFullMap ? 'Clean View' : 'Full Map'}
+                                    {showFullMap ? 'Mess View' : 'Full Map'}
                                 </button>
                                 {/* Close Button */}
                                 <button
@@ -120,15 +121,20 @@ const MessExplorer = ({ messes, userLocation }) => {
                             </div>
                         </div>
 
+
+
+
+
                         {/* Map */}
                         <div className="flex-1 relative">
                             <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
                                 <Map
                                     defaultCenter={mapCenter}
-                                    defaultZoom={13}
+                                    defaultZoom={15}
                                     gestureHandling="greedy"
                                     styles={showFullMap ? [] : minimalistMapStyles}
                                     style={{ width: '100%', height: '100%' }}
+                                    onZoomChanged={(ev) => setCurrentZoom(ev.detail.zoom)}
                                 >
                                     {/* User Location Marker */}
                                     {userLocation?.lat && userLocation?.lng && (
@@ -146,6 +152,13 @@ const MessExplorer = ({ messes, userLocation }) => {
                                             position={{ lat: mess.latitude, lng: mess.longitude }}
                                             onClick={() => handleMarkerClick(mess)}
                                             icon="http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                                            label={!showFullMap && currentZoom >= 16 ? {
+                                                text: mess.name,
+                                                color: '#1F2937', // brand-text-dark
+                                                fontWeight: '600',
+                                                fontSize: '11px',
+                                                className: 'map-label bg-white px-1 rounded shadow-sm border border-gray-200'
+                                            } : null}
                                         />
                                     ))}
                                     {/* InfoWindow Popup */}
