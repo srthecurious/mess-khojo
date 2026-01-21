@@ -16,6 +16,7 @@ const MessExplorer = ({ messes, userLocation }) => {
 
     useEffect(() => {
         if (userLocation?.lat && userLocation?.lng) {
+            // eslint-disable-next-line
             setMapCenter({ lat: userLocation.lat, lng: userLocation.lng });
         }
     }, [userLocation]);
@@ -57,15 +58,45 @@ const MessExplorer = ({ messes, userLocation }) => {
     // Handle view details
     const handleViewDetails = (messId) => {
         navigate(`/mess/${messId}`);
+        // No need to manually setIsMapOpen(false) here if we navigate away, 
+        // effectively unmounting or changing history anyway.
+        // But to be clean, if we are in a 'pushed' state for the map, we might want to replace it?
+        // Actually, normal navigation pushes a new entry. navigating back will return to map?
+        // Let's keep it simple. If we navigate away, we leave the map state behind.
         setIsMapOpen(false);
     };
+
+    // Open Map with History Push
+    const handleOpenMap = () => {
+        // Push state so back button works
+        window.history.pushState({ ...window.history.state, messExplorerOpen: true }, "");
+        setIsMapOpen(true);
+    };
+
+    // Close Map with History Back
+    const handleCloseMap = () => {
+        // If we are open, going back will trigger popstate which sets isMapOpen(false)
+        window.history.back();
+    };
+
+    useEffect(() => {
+        const handlePopState = (event) => {
+            // If the new state (after popping) does NOT have messExplorerOpen, close map
+            if (!event.state?.messExplorerOpen) {
+                setIsMapOpen(false);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     return (
         <>
             {/* Explorer Banner */}
             <div className="px-4 sm:px-6 lg:px-8 mb-4 max-w-7xl mx-auto">
                 <button
-                    onClick={() => setIsMapOpen(true)}
+                    onClick={handleOpenMap}
                     className="w-full bg-gradient-to-r from-purple-600 via-purple-500 to-blue-500 hover:from-purple-700 hover:via-purple-600 hover:to-blue-600 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] group"
                 >
                     <div className="flex items-center justify-between">
@@ -113,7 +144,7 @@ const MessExplorer = ({ messes, userLocation }) => {
                                 </button>
                                 {/* Close Button */}
                                 <button
-                                    onClick={() => setIsMapOpen(false)}
+                                    onClick={handleCloseMap}
                                     className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
                                 >
                                     <X className="text-white" size={20} />

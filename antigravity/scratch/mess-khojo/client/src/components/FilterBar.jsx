@@ -22,6 +22,7 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
     // Sync internal state when parent filters change (e.g. from Category Switcher)
     useEffect(() => {
         if (currentFilters) {
+            // eslint-disable-next-line
             setFilters(prev => {
                 // Only update if there's a difference to avoid loops
                 if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
@@ -40,15 +41,7 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
         return () => clearTimeout(timeoutId);
     }, [filters, onFilterChange]);
 
-    const handleAmenityChange = (key) => {
-        setFilters(prev => ({
-            ...prev,
-            amenities: {
-                ...prev.amenities,
-                [key]: !prev.amenities[key]
-            }
-        }));
-    };
+
 
     const clearFilters = () => {
         setFilters({

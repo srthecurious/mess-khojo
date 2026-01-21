@@ -1,0 +1,187 @@
+﻿
+> client@0.0.0 lint
+> eslint .
+
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\FilterBar.jsx
+  25:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  23 |     useEffect(() => {
+  24 |         if (currentFilters) {
+> 25 |             setFilters(prev => {
+     |             ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  26 |                 // Only update if there's a difference to avoid loops
+  27 |                 if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
+  28 |                     return currentFilters;  react-hooks/set-state-in-effect
+  43:11  error  'handleAmenityChange' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\Header.jsx
+   5:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  11:19  error  'userLocation' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  11:51  error  'isLocationModalOpen' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+  22:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  20 |     useEffect(() => {
+  21 |         if (!currentUser) {
+> 22 |             setNotifications([]);
+     |             ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  23 |             return;
+  24 |         }
+  25 |  react-hooks/set-state-in-effect
+  85:11  error  'handleUseCurrentLocation' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\MapLocationModal.jsx
+  1:27  error  'useEffect' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  4:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u     no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\MapPicker.jsx
+  11:12  error  'searchBox' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\MessCard.jsx
+   4:10  error    'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                 no-unused-vars
+   5:19  error    'auth' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                   no-unused-vars
+   5:25  error    'db' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                     no-unused-vars
+   7:10  error    'collection' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                             no-unused-vars
+   7:22  error    'addDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                 no-unused-vars
+   7:30  error    'query' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                  no-unused-vars
+   7:37  error    'getDocs' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                no-unused-vars
+   7:46  error    'where' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                  no-unused-vars
+   9:32  error    'index' is defined but never used                                                                             no-unused-vars
+  32:26  error    'e' is defined but never used                                                                                 no-unused-vars
+  53:22  error    'error' is defined but never used                                                                             no-unused-vars
+  61:8   warning  React Hook useEffect has a missing dependency: 'mess.name'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\MessExplorer.jsx
+  19:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  17 |     useEffect(() => {
+  18 |         if (userLocation?.lat && userLocation?.lng) {
+> 19 |             setMapCenter({ lat: userLocation.lat, lng: userLocation.lng });
+     |             ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  20 |         }
+  21 |     }, [userLocation]);
+  22 |  react-hooks/set-state-in-effect
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\components\RoomCard.jsx
+  86:22  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  84 |             {isAdmin ? (
+  85 |                 <div className="cursor-pointer h-full relative flex flex-col">
+> 86 |                     <CardContent />
+     |                      ^^^^^^^^^^^ This component is created during render
+  87 |                 </div>
+  88 |             ) : (
+  89 |                 <Link to={`/room/${room.messId}/${room.id}`} className="block h-full relative flex flex-col">
+
+  26 |     const price = room.price || room.rent;
+  27 |
+> 28 |     const CardContent = () => (
+     |                         ^^^^^^^
+> 29 |         <>
+     | ^^^^^^^^^^
+> 30 |             <div className="h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
+     ΓÇª
+     | ^^^^^^^^^^
+> 79 |         </>
+     | ^^^^^^^^^^
+> 80 |     );
+     | ^^^^^^ The component is created during render here
+  81 |
+  82 |     return (
+  83 |         <div className="uiverse-card flex flex-col h-full">  react-hooks/static-components
+  90:22  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  88 |             ) : (
+  89 |                 <Link to={`/room/${room.messId}/${room.id}`} className="block h-full relative flex flex-col">
+> 90 |                     <CardContent />
+     |                      ^^^^^^^^^^^ This component is created during render
+  91 |                 </Link>
+  92 |             )}
+  93 |         </div>
+
+  26 |     const price = room.price || room.rent;
+  27 |
+> 28 |     const CardContent = () => (
+     |                         ^^^^^^^
+> 29 |         <>
+     | ^^^^^^^^^^
+> 30 |             <div className="h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
+     ΓÇª
+     | ^^^^^^^^^^
+> 79 |         </>
+     | ^^^^^^^^^^
+> 80 |     );
+     | ^^^^^^ The component is created during render here
+  81 |
+  82 |     return (
+  83 |         <div className="uiverse-card flex flex-col h-full">                                                                           react-hooks/static-components
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\context\AuthContext.jsx
+  8:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\BookRoomComingSoon.jsx
+  2:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\BookingSuccess.jsx
+  3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\Home.jsx
+    2:34  error    'getDocs' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                           no-unused-vars
+    2:43  error    'updateDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                         no-unused-vars
+    2:54  error    'doc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                               no-unused-vars
+    2:59  error    'writeBatch' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                        no-unused-vars
+   12:10  error    'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                            no-unused-vars
+  408:8   warning  React Hook React.useMemo has a missing dependency: 'calculateDistance'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  445:49  warning  The ref value 'filterBarRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'filterBarRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\MessRegistration.jsx
+   2:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u             no-unused-vars
+  67:11  error  'variants' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\OperationalDashboard.jsx
+   509:70  error  'e' is defined but never used  no-unused-vars
+   606:66  error  'e' is defined but never used  no-unused-vars
+   717:74  error  'e' is defined but never used  no-unused-vars
+   733:82  error  'e' is defined but never used  no-unused-vars
+   784:66  error  'e' is defined but never used  no-unused-vars
+   917:70  error  'e' is defined but never used  no-unused-vars
+   933:78  error  'e' is defined but never used  no-unused-vars
+  1001:74  error  'e' is defined but never used  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\OperationalLogin.jsx
+  2:38  error  'createUserWithEmailAndPassword' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\RoomDetails.jsx
+   7:10  error    'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                no-unused-vars
+  58:8   warning  React Hook useEffect has missing dependencies: 'handleBookClick', 'searchParams', and 'setSearchParams'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\UserLogin.jsx
+  195:35  error  'phone' is defined but never used  no-unused-vars
+
+C:\Users\barma\.gemini\antigravity\scratch\mess-khojo\client\src\pages\UserSignup.jsx
+  259:35  error  'phone' is defined but never used  no-unused-vars
+
+Γ£û 50 problems (46 errors, 4 warnings)
+

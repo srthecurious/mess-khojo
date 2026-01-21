@@ -1,12 +1,11 @@
 import React, { useState, useEffect, memo } from 'react';
 import { MapPin, Phone, ArrowRight, BedDouble, Briefcase, Info, Send, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { storage, auth, db } from '../firebase';
+import { motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { storage } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, query, getDocs, where } from 'firebase/firestore';
 
-const MessCard = memo(({ mess, index }) => {
+const MessCard = memo(({ mess }) => {
     const [imageUrl, setImageUrl] = useState(null);
 
     useEffect(() => {
@@ -29,7 +28,7 @@ const MessCard = memo(({ mess, index }) => {
                         const pathSection = url.split('/o/')[1].split('?')[0];
                         return decodeURIComponent(pathSection);
                     }
-                } catch (e) { return null; }
+                } catch { return null; }
                 return null;
             };
 
@@ -50,7 +49,7 @@ const MessCard = memo(({ mess, index }) => {
                 // If we got here, we have a potentially valid URL
                 setImageUrl(finalUrl);
 
-            } catch (error) {
+            } catch (error) { // eslint-disable-line no-unused-vars
                 // If SDK fails (object not found), fallback gracefully without setting broken src
 
                 setImageUrl(null);
@@ -58,6 +57,7 @@ const MessCard = memo(({ mess, index }) => {
         };
 
         resolveImageUrl();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mess.posterUrl]);
 
     // Share Functionality

@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
 
-const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLocationModalOpen, showSearch, searchTerm, onSearchChange }) => {
+const Header = ({ showSearch, searchTerm, onSearchChange }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { currentUser } = useAuth();
     const [notifications, setNotifications] = useState([]);
@@ -19,6 +19,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
     // Fetch Notifications
     useEffect(() => {
         if (!currentUser) {
+            // eslint-disable-next-line
             setNotifications([]);
             return;
         }
@@ -82,10 +83,7 @@ const Header = ({ userLocation, onLocationSelect, isLocationModalOpen, setIsLoca
 
 
 
-    const handleUseCurrentLocation = () => {
-        onLocationSelect();
-        setIsLocationModalOpen(false);
-    };
+
 
     const location = useLocation();
 

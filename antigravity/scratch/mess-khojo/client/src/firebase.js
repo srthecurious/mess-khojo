@@ -19,7 +19,14 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {});
 export const storage = getStorage(app);
-export const analytics = getAnalytics(app);
+
+let analytics;
+try {
+    analytics = getAnalytics(app);
+} catch (error) {
+    console.warn("Analytics initialization failed (likely permission 403):", error);
+}
+export { analytics };
 
 // Initialize Secondary App for Admin Creation (so we don't logout the current user)
 const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");

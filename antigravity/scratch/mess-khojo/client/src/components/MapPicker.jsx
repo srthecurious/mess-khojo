@@ -8,7 +8,6 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const MapSearch = ({ onPlaceSelect }) => {
     const map = useMap();
     const placesLibrary = useMapsLibrary('places');
-    const [searchBox, setSearchBox] = useState(null);
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -36,8 +35,6 @@ const MapSearch = ({ onPlaceSelect }) => {
                 }
             }
         });
-
-        setSearchBox(autocomplete);
 
         // Cleanup
         return () => {

@@ -25,7 +25,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
     const title = displayOccupancy ? `${displayOccupancy} Seater` : `Room ${room.roomNumber}`;
     const price = room.price || room.rent;
 
-    const CardContent = () => (
+    const cardContent = (
         <>
             <div className="h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
                 <img src={displayImage} alt={title} className="w-full h-full object-cover" />
@@ -83,11 +83,11 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
         <div className="uiverse-card flex flex-col h-full">
             {isAdmin ? (
                 <div className="cursor-pointer h-full relative flex flex-col">
-                    <CardContent />
+                    {cardContent}
                 </div>
             ) : (
                 <Link to={`/room/${room.messId}/${room.id}`} className="block h-full relative flex flex-col">
-                    <CardContent />
+                    {cardContent}
                 </Link>
             )}
         </div>

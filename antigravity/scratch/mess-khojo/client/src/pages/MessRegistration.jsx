@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Check, Building2, Users, BedDouble, MapPin, Wifi, Phone, Send } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const MessRegistration = () => {
     const navigate = useNavigate();
@@ -64,20 +64,7 @@ const MessRegistration = () => {
         }
     };
 
-    const variants = {
-        enter: (direction) => ({
-            x: direction > 0 ? 100 : -100,
-            opacity: 0
-        }),
-        center: {
-            x: 0,
-            opacity: 1
-        },
-        exit: (direction) => ({
-            x: direction < 0 ? 100 : -100,
-            opacity: 0
-        })
-    };
+
 
     const renderStep = () => {
         switch (step) {

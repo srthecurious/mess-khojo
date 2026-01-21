@@ -506,7 +506,7 @@ const OperationalDashboard = () => {
                                                         if (window.confirm("Delete this completed booking record?")) {
                                                             try {
                                                                 await deleteDoc(doc(db, "bookings", booking.id));
-                                                            } catch (e) { alert("Delete failed"); }
+                                                            } catch { alert("Delete failed"); }
                                                         }
                                                     }}
                                                     className="self-end md:self-center flex items-center gap-1 px-4 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"
@@ -603,7 +603,7 @@ const OperationalDashboard = () => {
                                                     if (window.confirm("Delete this inquiry?")) {
                                                         try {
                                                             await deleteDoc(doc(db, "room_inquiries", inquiry.id));
-                                                        } catch (e) { alert("Delete failed"); }
+                                                        } catch { alert("Delete failed"); }
                                                     }
                                                 }}
                                                 className="absolute top-4 right-4 p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
@@ -714,7 +714,7 @@ const OperationalDashboard = () => {
                                                             onClick={async () => {
                                                                 try {
                                                                     await updateDoc(doc(db, "claims", claim.id), { status: 'resolved' });
-                                                                } catch (e) { alert("Update failed"); }
+                                                                } catch { alert("Update failed"); }
                                                             }}
                                                             className="flex items-center gap-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-emerald-900/20"
                                                         >
@@ -730,7 +730,7 @@ const OperationalDashboard = () => {
                                                                     if (window.confirm("Delete this resolved claim record?")) {
                                                                         try {
                                                                             await deleteDoc(doc(db, "claims", claim.id));
-                                                                        } catch (e) { alert("Delete failed"); }
+                                                                        } catch { alert("Delete failed"); }
                                                                     }
                                                                 }}
                                                                 className="flex items-center gap-1 px-4 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"
@@ -781,7 +781,7 @@ const OperationalDashboard = () => {
                                                     if (window.confirm("Delete this registration?")) {
                                                         try {
                                                             await deleteDoc(doc(db, "mess_registrations", reg.id));
-                                                        } catch (e) { alert("Delete failed"); }
+                                                        } catch { alert("Delete failed"); }
                                                     }
                                                 }}
                                                 className="p-2 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
@@ -914,7 +914,7 @@ const OperationalDashboard = () => {
                                                         onClick={async () => {
                                                             try {
                                                                 await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'resolved' });
-                                                            } catch (e) { alert("Failed to resolve"); }
+                                                            } catch { alert("Failed to resolve"); }
                                                         }}
                                                         className="col-span-2 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-900/20"
                                                     >
@@ -930,7 +930,7 @@ const OperationalDashboard = () => {
                                                                 if (window.confirm("Delete this solved query?")) {
                                                                     try {
                                                                         await deleteDoc(doc(db, "inquiries", inquiry.id));
-                                                                    } catch (e) { alert("Delete failed"); }
+                                                                    } catch { alert("Delete failed"); }
                                                                 }
                                                             }}
                                                             className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 py-2.5 rounded-xl text-xs font-bold transition-all border border-slate-600"
@@ -998,7 +998,7 @@ const OperationalDashboard = () => {
                                                             if (window.confirm("Delete this feedback?")) {
                                                                 try {
                                                                     await deleteDoc(doc(db, "feedbacks", feedback.id));
-                                                                } catch (e) { alert("Delete failed"); }
+                                                                } catch { alert("Delete failed"); }
                                                             }
                                                         }}
                                                         className="flex items-center gap-1 px-3 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"

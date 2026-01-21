@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { collection, onSnapshot, getDocs, updateDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
 import SkeletonCard from '../components/SkeletonCard';
@@ -10,6 +10,34 @@ import MessExplorer from '../components/MessExplorer';
 import MapLocationModal from '../components/MapLocationModal';
 import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+// Helper functions moved outside component
+const deg2rad = (deg) => {
+    return deg * (Math.PI / 180);
+};
+
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const x1 = Number(lat1);
+    const y1 = Number(lon1);
+    const x2 = Number(lat2);
+    const y2 = Number(lon2);
+
+    if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return null;
+
+    const R = 6371; // Radius of earth in km
+    const dLat = deg2rad(x2 - x1);
+    const dLon = deg2rad(y2 - y1);
+
+    // Haversine formula
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(x1)) * Math.cos(deg2rad(x2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    // Clamp a between 0 and 1 to prevent precision issues causing NaN in sqrt
+    const c = 2 * Math.atan2(Math.sqrt(Math.max(0, Math.min(1, a))), Math.sqrt(Math.max(0, Math.min(1, 1 - a))));
+    return R * c; // Distance in km
+};
 
 const Home = () => {
     const [messes, setMesses] = useState([]);
@@ -40,6 +68,15 @@ const Home = () => {
 
     const isScrolledRef = useRef(false);
 
+    const handleOpenMap = () => {
+        window.history.pushState({ ...window.history.state, mapModalOpen: true }, "");
+        setShowMapModal(true);
+    };
+
+    const handleCloseMap = () => {
+        window.history.back();
+    };
+
     // Scroll-Back Behavior Logic
     useEffect(() => {
         // Prevent browser from auto-restoring scroll on history navigation
@@ -53,9 +90,11 @@ const Home = () => {
 
         const handleScroll = () => {
             // If user scrolls down > 300px and we haven't marked it yet, push state
+            // Don't push scroll state if a modal is open (it might clutter history or be confusing)
+            // Actually, we want to know if WE are scrolled underlying the modal.
             if (window.scrollY > 300) {
                 if (!isScrolledRef.current) {
-                    window.history.pushState({ scrolled: true }, "");
+                    window.history.pushState({ ...window.history.state, scrolled: true }, "");
                     isScrolledRef.current = true;
                 }
             }
@@ -70,16 +109,26 @@ const Home = () => {
             }
         };
 
-        const handlePopState = () => {
+        const handlePopState = (event) => {
             // Sync our local ref with the actual history state
-            const isScrolled = !!window.history.state?.scrolled;
+            const state = event.state || {}; // Ensure state is object
+            const isScrolled = !!state.scrolled;
             isScrolledRef.current = isScrolled;
+
+            // Map Modal Close Logic (Home Hero)
+            if (!state.mapModalOpen && showMapModal) {
+                setShowMapModal(false);
+            }
 
             // When back button is pressed (or we programmatically went back):
             // If we are back to base state (no 'scrolled'), scroll to top
             if (!isScrolled) {
                 // Only clean up scroll if we are actually scrolled down significantly.
                 // If user is already near top (started manual scroll up), don't force it.
+                // Also, DON'T scroll top if we just closed a modal (which might still be 'scrolled')
+                // Wait, if we closed a modal, we might have popped 'mapModalOpen' but KEPT 'scrolled' if we pushed correct state.
+                // If we preserved 'scrolled' in handleOpenMap, then 'isScrolled' will be true here, so we won't scroll top. Correct.
+
                 if (window.scrollY > 100) {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
@@ -93,38 +142,12 @@ const Home = () => {
             window.removeEventListener('scroll', handleScroll);
             window.removeEventListener('popstate', handlePopState);
         };
-    }, []);
+    }, [showMapModal]); // Added dependency on showMapModal to access current state in listener
 
     const CARDS_PER_PAGE = 12;
 
 
-    // Location & Distance Logic
-    const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const x1 = Number(lat1);
-        const y1 = Number(lon1);
-        const x2 = Number(lat2);
-        const y2 = Number(lon2);
 
-        if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return null;
-
-        const R = 6371; // Radius of earth in km
-        const dLat = deg2rad(x2 - x1);
-        const dLon = deg2rad(y2 - y1);
-
-        // Haversine formula
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(deg2rad(x1)) * Math.cos(deg2rad(x2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-        // Clamp a between 0 and 1 to prevent precision issues causing NaN in sqrt
-        const c = 2 * Math.atan2(Math.sqrt(Math.max(0, Math.min(1, a))), Math.sqrt(Math.max(0, Math.min(1, 1 - a))));
-        return R * c; // Distance in km
-    };
-
-    const deg2rad = (deg) => {
-        return deg * (Math.PI / 180);
-    };
 
     const handleLocationSelect = (coords) => {
         if (coords) {
@@ -228,6 +251,9 @@ const Home = () => {
                 ...doc.data()
             }));
             setMesses(messesData);
+        }, (error) => {
+            console.error("Error fetching messes:", error);
+            setLoading(false);
         });
 
         // Fetch Rooms
@@ -237,6 +263,9 @@ const Home = () => {
                 ...doc.data()
             }));
             setRooms(roomsData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching rooms:", error);
             setLoading(false);
         });
 
@@ -415,13 +444,14 @@ const Home = () => {
             }
         );
 
-        if (filterBarRef.current) {
-            observer.observe(filterBarRef.current);
+        const currentRef = filterBarRef.current;
+        if (currentRef) {
+            observer.observe(currentRef);
         }
 
         return () => {
-            if (filterBarRef.current) {
-                observer.unobserve(filterBarRef.current);
+            if (currentRef) {
+                observer.unobserve(currentRef);
             }
         };
     }, []);
@@ -478,7 +508,7 @@ const Home = () => {
                                             <span>{loadingLocation ? 'Locating...' : 'Use GPS'}</span>
                                         </button>
                                         <button
-                                            onClick={() => setShowMapModal(true)}
+                                            onClick={handleOpenMap}
                                             className="w-full py-2.5 px-3 bg-brand-primary text-white text-sm font-medium rounded-xl border border-transparent hover:bg-brand-primary-hover transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98]"
                                         >
                                             <MapPin size={16} />
@@ -652,9 +682,12 @@ const Home = () => {
                     initialLocation={userLocation}
                     onLocationSelect={(location) => {
                         setUserLocation(location);
-                        setShowMapModal(false);
+                        // We must close carefully. If we push state to open, we must pop to close.
+                        // But setting state directly to false leaves history dirty.
+                        handleCloseMap();
+                        // Note: handleCloseMap triggers popstate -> sets showMapModal(false)
                     }}
-                    onClose={() => setShowMapModal(false)}
+                    onClose={handleCloseMap}
                 />
             )}
 

@@ -192,7 +192,7 @@ const UserLogin = () => {
                 {showPhoneModal && currentUser && (
                     <PhoneCollectionModal
                         user={currentUser}
-                        onClose={(phone) => {
+                        onClose={() => {
                             setShowPhoneModal(false);
                             navigate(redirectUrl);
                         }}

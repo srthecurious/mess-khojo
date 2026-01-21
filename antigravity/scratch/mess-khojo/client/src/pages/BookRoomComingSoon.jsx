@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 
 const BookRoomComingSoon = () => {
     const [formData, setFormData] = useState({
