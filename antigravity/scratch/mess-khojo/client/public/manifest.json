@@ -1,0 +1,20 @@
+{
+    "short_name": "Mess Khojo",
+    "name": "Mess Khojo - Find Student Messes",
+    "icons": [
+        {
+            "src": "favicon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#4B2E83",
+    "background_color": "#F8F7F3"
+}
