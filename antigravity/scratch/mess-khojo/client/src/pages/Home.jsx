@@ -477,8 +477,8 @@ const Home = () => {
             {/* Mess Explorer Map Banner */}
             <MessExplorer messes={messes} userLocation={userLocation} />
 
-            {/* Spotlight Hero Section - Only show when no filters are active */}
-            {!filters.location && !filters.messType && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
+            {/* Spotlight Hero Section - Only show when no filters are active (except messType) */}
+            {!filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
                 <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
                     <div
                         className="w-full h-[38vh] flex items-center justify-center overflow-hidden relative rounded-3xl shadow-lg"

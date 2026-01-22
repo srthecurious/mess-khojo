@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { MapPin, Phone, ArrowRight, BedDouble, Briefcase, Info, Send, Check } from 'lucide-react';
+import { MapPin, ArrowRight, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { storage } from '../firebase';
@@ -60,35 +60,6 @@ const MessCard = memo(({ mess }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mess.posterUrl]);
 
-    // Share Functionality
-    const [isCopied, setIsCopied] = useState(false);
-
-    const handleShare = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const shareData = {
-            title: mess.name,
-            text: `Check out ${mess.name} on Mess Khojo!`,
-            url: `${window.location.origin}/mess/${mess.id}`
-        };
-
-        try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-            } else {
-                await navigator.clipboard.writeText(shareData.url);
-                setIsCopied(true);
-                setTimeout(() => setIsCopied(false), 2000);
-            }
-        } catch (err) {
-            console.error('Error sharing:', err);
-        }
-    };
-
-
-
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -133,12 +104,7 @@ const MessCard = memo(({ mess }) => {
                         </div>
                     )}
 
-                    {/* User Sourced Badge */}
-                    {mess.isUserSourced && (
-                        <div className="absolute top-2 right-2 bg-brand-amber px-1.5 py-0.5 rounded-md text-[9px] font-bold text-brand-text-dark shadow-md flex items-center gap-0.5">
-                            <Info size={9} /> USER SOURCED
-                        </div>
-                    )}
+
                 </div>
 
                 <div className="flex flex-col gap-1.5 flex-grow">
@@ -174,15 +140,15 @@ const MessCard = memo(({ mess }) => {
                 </div>
 
                 {/* Footer / Bottom Actions */}
-                <div className="mt-2 flex items-end justify-between">
-                    {/* Share Button */}
-                    <button
-                        onClick={handleShare}
-                        className="w-10 h-10 rounded-full bg-gray-50 text-brand-primary hover:bg-brand-primary/10 hover:scale-110 flex items-center justify-center transition-all duration-300 active:scale-95 z-10"
-                        title="Share this mess"
-                    >
-                        {isCopied ? <Check size={18} /> : <Send size={18} className="-ml-0.5 mt-0.5" />}
-                    </button>
+                <div className="mt-2 flex items-center justify-between">
+                    {/* User Sourced Badge */}
+                    {mess.isUserSourced ? (
+                        <div className="bg-brand-amber text-white px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm">
+                            <Info size={12} /> USER SOURCED
+                        </div>
+                    ) : (
+                        <div></div>
+                    )}
 
                     {/* View Details Button - Option 3: Sleek Circular Arrow */}
                     <div className="w-10 h-10 rounded-full bg-brand-light-gray flex items-center justify-center text-brand-primary transition-all duration-300 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-110 shadow-sm ml-auto">

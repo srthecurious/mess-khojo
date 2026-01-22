@@ -200,15 +200,24 @@ const MessExplorer = ({ messes, userLocation }) => {
                                         >
                                             <div className="min-w-[280px] max-w-[320px]">
                                                 {/* Mess Photo */}
-                                                {selectedMess.posterUrl && (
-                                                    <div className="w-full h-32 mb-3 rounded-lg overflow-hidden">
+                                                <div className="w-full h-32 mb-3 rounded-lg overflow-hidden bg-gray-100 relative">
+                                                    {selectedMess.posterUrl ? (
                                                         <img
                                                             src={selectedMess.posterUrl}
                                                             alt={selectedMess.name}
                                                             className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                                e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
+                                                                e.target.parentElement.innerHTML = '<span class="text-2xl">🏡</span>';
+                                                            }}
                                                         />
-                                                    </div>
-                                                )}
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-brand-primary">
+                                                            <span className="text-3xl">🏡</span>
+                                                        </div>
+                                                    )}
+                                                </div>
 
                                                 {/* Mess Info */}
                                                 <div className="space-y-2">

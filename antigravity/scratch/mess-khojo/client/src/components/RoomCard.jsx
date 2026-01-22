@@ -27,7 +27,7 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
 
     const cardContent = (
         <>
-            <div className="h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
+            <div className="h-36 md:h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
                 <img src={displayImage} alt={title} className="w-full h-full object-cover" />
 
                 {/* Count Badge */}

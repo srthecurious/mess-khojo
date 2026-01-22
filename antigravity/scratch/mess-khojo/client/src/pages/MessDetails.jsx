@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
@@ -15,6 +15,28 @@ const MessDetails = () => {
     const [showInquiryModal, setShowInquiryModal] = useState(false);
     const [inquiryData, setInquiryData] = useState({ name: '', phone: '', seating: 'Any' });
     const [submittingInquiry, setSubmittingInquiry] = useState(false);
+    const [showUserSourcedListing, setShowUserSourcedListing] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleShare = async () => {
+        const shareData = {
+            title: mess.name,
+            text: `Check out ${mess.name} on Mess Khojo!`,
+            url: window.location.href
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(shareData.url);
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
+            }
+        } catch (err) {
+            console.error('Error sharing:', err);
+        }
+    };
 
     const handleClaimListing = async () => {
         if (!auth.currentUser) {
@@ -186,9 +208,18 @@ const MessDetails = () => {
                 <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-purple-200/40 rounded-full blur-3xl pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
-                    <Link to="/" className="inline-flex items-center text-sm font-medium text-brand-text-gray hover:text-brand-primary mb-6 transition-colors bg-white/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-brand-light-gray hover:border-brand-primary/30 shadow-sm">
-                        <ArrowLeft size={16} className="mr-1.5" /> Back to Explore
-                    </Link>
+                    <div className="flex items-center justify-between mb-6">
+                        <Link to="/" className="inline-flex items-center text-sm font-medium text-brand-text-gray hover:text-brand-primary transition-colors bg-white/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-brand-light-gray hover:border-brand-primary/30 shadow-sm">
+                            <ArrowLeft size={16} className="mr-1.5" /> Back to Explore
+                        </Link>
+                        <button
+                            onClick={handleShare}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/60 border border-brand-light-gray text-brand-primary shadow-sm hover:bg-brand-primary hover:text-white transition-all active:scale-95 backdrop-blur-sm"
+                            title="Share"
+                        >
+                            {isCopied ? <Check size={18} /> : <Send size={18} />}
+                        </button>
+                    </div>
 
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
                         <div>
@@ -243,111 +274,55 @@ const MessDetails = () => {
                                     <span className="font-semibold">{mess.contact || "No Contact"}</span>
                                 </div>
                             )}
+
+
                         </div>
                     </div>
                 </div>
             </div>
 
             {mess.isUserSourced && (
-                <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-brand-amber/10 border border-brand-amber/20 rounded-2xl p-5 flex items-start gap-4">
-                        <div className="bg-brand-amber/20 p-2 rounded-lg text-brand-amber mt-1">
-                            <Info size={24} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-brand-text-dark mb-1">User Sourced Listing</h3>
-                            <p className="text-sm text-brand-text-gray mb-2">This information was provided by our community and has not been verified by the owner yet.</p>
-                            <div className="flex items-center gap-2 text-xs font-semibold text-brand-amber uppercase tracking-wider">
-                                <AlertCircle size={14} /> Last updated: {mess.lastUpdatedDate ? new Date(mess.lastUpdatedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                <div className="max-w-7xl mx-auto px-4 mt-6">
+                    <div className={`grid grid-cols-1 ${showUserSourcedListing ? 'md:grid-cols-2' : ''} gap-4`}>
+                        <div className="bg-brand-accent-blue/10 border border-brand-accent-blue/20 rounded-2xl p-3 flex flex-col justify-between">
+                            <div className="flex items-start gap-3">
+                                <div className="bg-brand-accent-blue/20 p-1.5 rounded-lg text-brand-accent-blue mt-1 shrink-0">
+                                    <ShieldCheck size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-brand-text-dark mb-0.5 text-sm">Our Policy</h3>
+                                    <p className="text-xs text-brand-text-gray leading-relaxed">
+                                        We strive for accuracy, but we recommend visiting the premises before making any payments.
+                                        <strong> Mess Khojo is not responsible for any discrepancies.</strong>
+                                    </p>
+                                </div>
                             </div>
+                            <button
+                                onClick={() => setShowUserSourcedListing(!showUserSourcedListing)}
+                                className="self-end mt-2 text-xs font-bold text-brand-primary hover:text-brand-primary-hover flex items-center gap-1 transition-colors"
+                            >
+                                {showUserSourcedListing ? 'Show Less' : 'Read More'}
+                                {showUserSourcedListing ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
                         </div>
-                    </div>
 
-                    <div className="bg-brand-accent-blue/10 border border-brand-accent-blue/20 rounded-2xl p-5 flex items-start gap-4">
-                        <div className="bg-brand-accent-blue/20 p-2 rounded-lg text-brand-accent-blue mt-1">
-                            <ShieldCheck size={24} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-brand-text-dark mb-1">Our Policy</h3>
-                            <p className="text-sm text-brand-text-gray leading-relaxed">
-                                We strive for accuracy, but we recommend visiting the premises before making any payments.
-                                <strong> Mess Khojo is not responsible for any discrepancies in user-sourced details.</strong>
-                            </p>
-                        </div>
+                        {showUserSourcedListing && (
+                            <div className="bg-brand-amber/10 border border-brand-amber/20 rounded-2xl p-3 flex items-start gap-3 animate-fadeIn">
+                                <div className="bg-brand-amber/20 p-1.5 rounded-lg text-brand-amber mt-1 shrink-0">
+                                    <Info size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-brand-text-dark mb-0.5 text-sm">User Sourced Listing</h3>
+                                    <p className="text-xs text-brand-text-gray mb-1.5">This information was provided by our community and has not been verified by the owner yet.</p>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-brand-amber uppercase tracking-wider">
+                                        <AlertCircle size={12} /> Last updated: {mess.lastUpdatedDate ? new Date(mess.lastUpdatedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
-
-            {/* About & Facilities Section (New) */}
-            <div className="max-w-7xl mx-auto px-4 mt-8">
-                <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-purple-100 p-2.5 rounded-xl text-brand-primary">
-                            <Info size={24} />
-                        </div>
-                        <h2 className="text-2xl font-bold text-brand-text-dark">About & Facilities</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Left Column: Description & Basic Info */}
-                        <div className="space-y-6">
-                            {mess.messType && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</h4>
-                                    <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${mess.messType === 'Boys' ? 'bg-blue-100 text-blue-700' : mess.messType === 'Girls' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
-                                        <Briefcase size={16} />
-                                        {mess.messType} Mess
-                                    </span>
-                                </div>
-                            )}
-
-                            {mess.advanceDeposit && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Financials</h4>
-                                    <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                        <div className="bg-green-100 text-green-700 p-2 rounded-lg">
-                                            <span className="font-bold text-lg">₹</span>
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-800">Advance / Deposit Information</p>
-                                            <p className="text-sm text-gray-600 mt-1">{mess.advanceDeposit}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Right Column: Facilities Grid */}
-                        <div className="space-y-6">
-                            {(mess.foodFacility || mess.security || mess.extraAppliances) && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities & Features</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {mess.foodFacility && (
-                                            <div className="bg-orange-50 p-3 rounded-xl border border-orange-100/50 flex items-center gap-3">
-                                                <Utensils size={18} className="text-orange-500 shrink-0" />
-                                                <p className="text-sm text-gray-700 font-medium">{mess.foodFacility}</p>
-                                            </div>
-                                        )}
-                                        {mess.security && (
-                                            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100/50 flex items-center gap-3">
-                                                <ShieldCheck size={18} className="text-indigo-500 shrink-0" />
-                                                <p className="text-sm text-gray-700 font-medium">{mess.security}</p>
-                                            </div>
-                                        )}
-                                        {mess.extraAppliances && (
-                                            <div className="bg-teal-50 p-3 rounded-xl border border-teal-100/50 flex items-center gap-3 sm:col-span-2">
-                                                <Zap size={18} className="text-teal-500 shrink-0" />
-                                                <p className="text-sm text-gray-700 font-medium">{mess.extraAppliances}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Rooms Grid */}
             <div className="max-w-7xl mx-auto px-4 py-12">
@@ -376,6 +351,77 @@ const MessDetails = () => {
                     )
                 }
 
+                {/* About & Facilities Section (Moved) */}
+                <div className="mt-12">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="bg-purple-100 p-2.5 rounded-xl text-brand-primary">
+                                <Info size={24} />
+                            </div>
+                            <h2 className="text-2xl font-bold text-brand-text-dark">About & Facilities</h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Left Column: Description & Basic Info */}
+                            <div className="space-y-6">
+                                {mess.messType && (
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</h4>
+                                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${mess.messType === 'Boys' ? 'bg-blue-100 text-blue-700' : mess.messType === 'Girls' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
+                                            <Briefcase size={16} />
+                                            {mess.messType} Mess
+                                        </span>
+                                    </div>
+                                )}
+
+                                {mess.advanceDeposit && (
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Financials</h4>
+                                        <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                            <div className="bg-green-100 text-green-700 p-2 rounded-lg">
+                                                <span className="font-bold text-lg">₹</span>
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-800">Advance / Deposit Information</p>
+                                                <p className="text-sm text-gray-600 mt-1">{mess.advanceDeposit}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right Column: Facilities Grid */}
+                            <div className="space-y-6">
+                                {(mess.foodFacility || mess.security || mess.extraAppliances) && (
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities & Features</h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {mess.foodFacility && (
+                                                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100/50 flex items-center gap-3">
+                                                    <Utensils size={18} className="text-orange-500 shrink-0" />
+                                                    <p className="text-sm text-gray-700 font-medium">{mess.foodFacility}</p>
+                                                </div>
+                                            )}
+                                            {mess.security && (
+                                                <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100/50 flex items-center gap-3">
+                                                    <ShieldCheck size={18} className="text-indigo-500 shrink-0" />
+                                                    <p className="text-sm text-gray-700 font-medium">{mess.security}</p>
+                                                </div>
+                                            )}
+                                            {mess.extraAppliances && (
+                                                <div className="bg-teal-50 p-3 rounded-xl border border-teal-100/50 flex items-center gap-3 sm:col-span-2">
+                                                    <Zap size={18} className="text-teal-500 shrink-0" />
+                                                    <p className="text-sm text-gray-700 font-medium">{mess.extraAppliances}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Global Actions for User Sourced */}
                 {
                     mess.isUserSourced && (
@@ -401,6 +447,8 @@ const MessDetails = () => {
                     )
                 }
             </div >
+
+
 
             {/* Inquiry Modal */}
             {
@@ -553,7 +601,7 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
                     )}
 
                     <button className="flex items-center gap-1 text-brand-primary font-medium hover:text-brand-primary-hover transition-colors">
-                        {isOpen ? 'Hide Options' : 'View Options'}
+                        {isOpen ? 'Hide Rooms' : 'View Rooms'}
                         {isOpen ? <ChevronDown size={20} className="rotate-180 transition-transform" /> : <ChevronDown size={20} className="transition-transform" />}
                     </button>
                 </div>
@@ -562,9 +610,11 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
             {/* Dropdown Content - Subcategories */}
             {isOpen && (
                 <div className="p-6 bg-brand-secondary/30 border-t border-brand-light-gray">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
                         {rooms.map(room => (
-                            <RoomCard key={room.id} room={room} />
+                            <div key={room.id} className="min-w-[260px] md:min-w-[340px] snap-center">
+                                <RoomCard room={room} />
+                            </div>
                         ))}
                     </div>
                 </div>
