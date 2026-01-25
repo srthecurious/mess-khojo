@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, Check, Building2, Users, BedDouble, MapPin, Wifi, Phone, Send } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { trackMessRegistration } from '../analytics';
 
 const MessRegistration = () => {
     const navigate = useNavigate();
@@ -19,6 +20,11 @@ const MessRegistration = () => {
     });
 
     const totalSteps = 6;
+
+    // Track when user starts registration
+    useEffect(() => {
+        trackMessRegistration(true);
+    }, []);
 
     const handleNext = () => {
         if (step < totalSteps) setStep(step + 1);
@@ -50,11 +56,15 @@ const MessRegistration = () => {
 
         setLoading(true);
         try {
-            await addDoc(collection(db, 'mess_registrations'), {
+            const docRef = await addDoc(collection(db, 'mess_registrations'), {
                 ...formData,
                 createdAt: serverTimestamp(),
                 status: 'pending' // pending operator review
             });
+
+            // Track successful registration
+            trackMessRegistration(false, docRef.id);
+
             setStep(7); // Success step
         } catch (error) {
             console.error("Error submitting registration:", error);

@@ -4,6 +4,7 @@ import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, 
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
+import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent } from '../analytics';
 
 const MessDetails = () => {
     const { id: messId } = useParams();
@@ -28,10 +29,12 @@ const MessDetails = () => {
         try {
             if (navigator.share) {
                 await navigator.share(shareData);
+                trackEvent('Share', 'share_clicked', 'native', messId);
             } else {
                 await navigator.clipboard.writeText(shareData.url);
                 setIsCopied(true);
                 setTimeout(() => setIsCopied(false), 2000);
+                trackEvent('Share', 'link_copied', 'clipboard', messId);
             }
         } catch (err) {
             console.error('Error sharing:', err);
@@ -148,6 +151,13 @@ const MessDetails = () => {
         fetchMessAndRooms();
     }, [messId]);
 
+    // Track mess view when component mounts
+    useEffect(() => {
+        if (mess) {
+            trackMessView(messId, mess.name);
+        }
+    }, [mess, messId]);
+
     if (loading) return <div className="p-10 text-center">Loading...</div>;
     if (!mess) return <div className="p-10 text-center text-red-500 font-bold">Mess not found</div>;
 
@@ -255,6 +265,7 @@ const MessDetails = () => {
                                     href={mess.locationUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => trackContactClick('location', messId)}
                                     className="flex items-center bg-brand-primary text-white border border-brand-primary hover:bg-brand-primary-hover px-5 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
                                 >
                                     <MapPin size={18} className="mr-2" />
@@ -436,7 +447,10 @@ const MessDetails = () => {
                                     If you're interested, you can inquire directly about seat availability.
                                 </p>
                                 <button
-                                    onClick={() => setShowInquiryModal(true)}
+                                    onClick={() => {
+                                        setShowInquiryModal(true);
+                                        trackAvailabilityCheck(messId);
+                                    }}
                                     className="w-full md:w-auto flex items-center justify-center gap-3 bg-brand-primary text-white px-10 py-4 rounded-2xl font-bold hover:bg-brand-primary/90 transition-all shadow-xl active:scale-95"
                                 >
                                     <BedDouble size={24} />

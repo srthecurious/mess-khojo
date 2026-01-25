@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
+import { trackRoomView, trackBookingInitiated } from '../analytics';
 
 const RoomDetails = () => {
     const { messId, roomId } = useParams();
@@ -45,6 +46,13 @@ const RoomDetails = () => {
         fetchDetails();
     }, [messId, roomId]);
 
+    // Track room view when component mounts
+    useEffect(() => {
+        if (mess && room) {
+            trackRoomView(roomId, messId, room.price);
+        }
+    }, [mess, room, messId, roomId]);
+
     const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
@@ -74,6 +82,9 @@ const RoomDetails = () => {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
         const phone = userData.phone || '';
+
+        // Track booking initiation
+        trackBookingInitiated(roomId, messId, room.price);
 
         if (!phone || phone === 'N/A') {
             // No phone - show phone collection modal

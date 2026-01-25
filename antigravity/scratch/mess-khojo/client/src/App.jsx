@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -16,12 +16,25 @@ import OperationalDashboard from './pages/OperationalDashboard';
 import BookingSuccess from './pages/BookingSuccess';
 import MessRegistration from './pages/MessRegistration';
 import BookRoomComingSoon from './pages/BookRoomComingSoon';
+import { trackPageView } from './analytics';
 
+// Analytics wrapper component to track route changes
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Track page view on route change
+    trackPageView(location.pathname + location.search, document.title);
+  }, [location]);
+
+  return null;
+}
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <AnalyticsTracker />
         <div className="min-h-screen bg-brand-secondary text-brand-text-dark font-sans flex flex-col">
           <Routes>
             <Route path="/" element={<Home />} />

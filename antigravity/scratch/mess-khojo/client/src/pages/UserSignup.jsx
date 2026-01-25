@@ -5,6 +5,7 @@ import { setDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { User, Mail, Lock, Phone, ArrowLeft } from 'lucide-react';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
+import { trackSignupAttempt } from '../analytics';
 
 const UserSignup = () => {
     const [formData, setFormData] = useState({
@@ -65,12 +66,18 @@ const UserSignup = () => {
             } else {
                 navigate(redirectUrl);
             }
+
+            // Track successful signup
+            trackSignupAttempt(true);
         } catch (err) {
             console.error("Google Sign-In Error:", err);
             let msg = "Failed to sign in with Google.";
             if (err.code === 'auth/popup-closed-by-user') msg = "Sign-in cancelled.";
             if (err.code === 'auth/popup-blocked') msg = "Popup blocked. Please allow popups.";
             setError(msg);
+
+            // Track failed signup
+            trackSignupAttempt(false);
         } finally {
             setLoading(false);
         }
@@ -100,12 +107,18 @@ const UserSignup = () => {
             console.log('✅ Signup successful! Redirecting to:', redirectUrl);
             navigate(redirectUrl);
 
+            // Track successful signup
+            trackSignupAttempt(true);
+
         } catch (err) {
             console.error("Signup Error:", err);
             let msg = "Failed to sign up.";
             if (err.code === 'auth/email-already-in-use') msg = "Email is already in use.";
             if (err.code === 'auth/weak-password') msg = "Password should be at least 6 characters.";
             setError(msg);
+
+            // Track failed signup
+            trackSignupAttempt(false);
         } finally {
             setLoading(false);
         }

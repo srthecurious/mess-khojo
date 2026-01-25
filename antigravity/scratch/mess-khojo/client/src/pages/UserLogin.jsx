@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
+import { trackLoginAttempt } from '../analytics';
 
 const UserLogin = () => {
     const [email, setEmail] = useState('');
@@ -55,12 +56,18 @@ const UserLogin = () => {
             } else {
                 navigate(redirectUrl);
             }
+
+            // Track successful login
+            trackLoginAttempt(true);
         } catch (err) {
             console.error("Google Sign-In Error:", err);
             let msg = "Failed to sign in with Google.";
             if (err.code === 'auth/popup-closed-by-user') msg = "Sign-in cancelled.";
             if (err.code === 'auth/popup-blocked') msg = "Popup blocked. Please allow popups.";
             setError(msg);
+
+            // Track failed login
+            trackLoginAttempt(false);
         } finally {
             setLoading(false);
         }
@@ -74,11 +81,17 @@ const UserLogin = () => {
         try {
             await signInWithEmailAndPassword(auth, email, password);
             navigate(redirectUrl);
+
+            // Track successful login
+            trackLoginAttempt(true);
         } catch (err) {
             console.error("Login Error:", err);
             let msg = "Failed to login.";
             if (err.code === 'auth/invalid-credential') msg = "Invalid email or password.";
             setError(msg);
+
+            // Track failed login
+            trackLoginAttempt(false);
         } finally {
             setLoading(false);
         }

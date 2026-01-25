@@ -10,6 +10,7 @@ import MessExplorer from '../components/MessExplorer';
 import MapLocationModal from '../components/MapLocationModal';
 import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { trackLocationUsage, trackSearch, trackViewMore } from '../analytics';
 
 // Helper functions moved outside component
 const deg2rad = (deg) => {
@@ -152,6 +153,7 @@ const Home = () => {
     const handleLocationSelect = (coords) => {
         if (coords) {
             // Coordinate object provided (from MapPicker)
+            trackLocationUsage('map');
 
             setUserLocation({
                 lat: coords.lat,
@@ -184,6 +186,9 @@ const Home = () => {
                     address: "Your Location"
                 });
                 setFilters(prev => ({ ...prev, location: '' }));
+
+                // Track GPS location usage
+                trackLocationUsage('gps');
 
                 setLoadingLocation(false); // Stop Loading
             };
@@ -277,7 +282,12 @@ const Home = () => {
 
     const handleFilterChange = React.useCallback((newFilters) => {
         setFilters(newFilters);
-    }, []);
+
+        // Track search if location filter (mess name) changed
+        if (newFilters.location !== filters.location && newFilters.location) {
+            trackSearch(newFilters.location);
+        }
+    }, [filters.location]);
 
     // Filtering & Sorting Logic - Memoized for Performance
     const filteredMesses = React.useMemo(() => {
@@ -420,7 +430,9 @@ const Home = () => {
     const hasMore = displayCount < filteredMesses.length;
 
     const loadMore = () => {
-        setDisplayCount(prev => prev + CARDS_PER_PAGE);
+        const newCount = displayCount + CARDS_PER_PAGE;
+        setDisplayCount(newCount);
+        trackViewMore(newCount);
     };
 
     // Reset pagination when filters change
