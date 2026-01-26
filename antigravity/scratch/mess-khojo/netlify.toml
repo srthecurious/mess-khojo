@@ -2,7 +2,7 @@
 
 # Build settings
 [build]
-  base = "antigravity/scratch/mess-khojo/client"
+  base = "client"
   command = "npm run build"
   publish = "dist"
 
