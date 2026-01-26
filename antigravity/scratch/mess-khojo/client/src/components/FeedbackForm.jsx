@@ -28,7 +28,7 @@ const FeedbackForm = () => {
         setLoading(true);
 
         try {
-            await addDoc(collection(db, 'feedbacks'), {
+            const feedbackData = {
                 userId: currentUser?.uid || null,
                 userName: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Anonymous',
                 userEmail: currentUser?.email || email || null,
@@ -38,6 +38,13 @@ const FeedbackForm = () => {
                 operatorReply: null,
                 repliedAt: null,
                 repliedBy: null
+            };
+
+            await addDoc(collection(db, 'feedbacks'), feedbackData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newFeedback(feedbackData));
             });
 
             setSuccess(true);

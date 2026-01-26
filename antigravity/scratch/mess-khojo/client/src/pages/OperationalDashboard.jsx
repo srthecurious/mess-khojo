@@ -6,6 +6,7 @@ import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteD
 import { useNavigate } from 'react-router-dom';
 import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import { sendTelegramNotification, telegramTemplates } from '../utils/telegramNotifier';
 
 const OperationalDashboard = () => {
     const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
@@ -54,11 +55,30 @@ const OperationalDashboard = () => {
     // Fetch ALL Bookings
     useEffect(() => {
         const q = query(collection(db, "bookings"));
+        let isFirstLoad = true; // Prevent notifications on initial page load
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             // Sort by newest
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+            // Send notification for new pending bookings (skip first load)
+            // Send notification logic moved to RoomDetails.jsx (Trigger on Action)
+            /*
+            if (!isFirstLoad) {
+                const newPendingBookings = data.filter(booking =>
+                    booking.status === 'pending' &&
+                    !bookings.some(old => old.id === booking.id)
+                );
+
+                newPendingBookings.forEach(booking => {
+                    sendTelegramNotification(telegramTemplates.newBooking(booking));
+                });
+            }
+            */
+
             setBookings(data);
+            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -66,10 +86,29 @@ const OperationalDashboard = () => {
     // Fetch ALL Claims
     useEffect(() => {
         const q = query(collection(db, "claims"));
+        let isFirstLoad = true;
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+            // Send notification for new pending claims
+            // Send notification logic moved to MessDetails.jsx (Trigger on Action)
+            /*
+            if (!isFirstLoad) {
+                const newPendingClaims = data.filter(claim =>
+                    claim.status === 'pending' &&
+                    !claims.some(old => old.id === claim.id)
+                );
+
+                newPendingClaims.forEach(claim => {
+                    sendTelegramNotification(telegramTemplates.newClaim(claim));
+                });
+            }
+            */
+
             setClaims(data);
+            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -77,10 +116,28 @@ const OperationalDashboard = () => {
     // Fetch ALL Inquiries
     useEffect(() => {
         const q = query(collection(db, "inquiries"));
+        let isFirstLoad = true;
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+            // Send notification for new pending inquiries
+            /*
+            if (!isFirstLoad) {
+                const newPendingInquiries = data.filter(inquiry =>
+                    inquiry.status === 'pending' &&
+                    !inquiries.some(old => old.id === inquiry.id)
+                );
+
+                newPendingInquiries.forEach(inquiry => {
+                    sendTelegramNotification(telegramTemplates.newInquiry(inquiry));
+                });
+            }
+            */
+
             setInquiries(data);
+            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -88,10 +145,27 @@ const OperationalDashboard = () => {
     // Fetch ALL Room Inquiries (For "Book Room" Coming Soon)
     useEffect(() => {
         const q = query(collection(db, "room_inquiries"));
+        let isFirstLoad = true;
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+            // Send notification for new room inquiries
+            /*
+            if (!isFirstLoad) {
+                const newInquiries = data.filter(inquiry =>
+                    !roomInquiries.some(old => old.id === inquiry.id)
+                );
+
+                newInquiries.forEach(inquiry => {
+                    sendTelegramNotification(telegramTemplates.newRoomInquiry(inquiry));
+                });
+            }
+            */
+
             setRoomInquiries(data);
+            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -99,10 +173,28 @@ const OperationalDashboard = () => {
     // Fetch ALL Feedbacks
     useEffect(() => {
         const q = query(collection(db, "feedbacks"));
+        let isFirstLoad = true;
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+            // Send notification for new pending feedbacks
+            /*
+            if (!isFirstLoad) {
+                const newPendingFeedbacks = data.filter(feedback =>
+                    feedback.status === 'pending' &&
+                    !feedbacks.some(old => old.id === feedback.id)
+                );
+
+                newPendingFeedbacks.forEach(feedback => {
+                    sendTelegramNotification(telegramTemplates.newFeedback(feedback));
+                });
+            }
+            */
+
             setFeedbacks(data);
+            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -110,10 +202,26 @@ const OperationalDashboard = () => {
     // Fetch ALL Mess Registrations
     useEffect(() => {
         const q = query(collection(db, "mess_registrations"));
+        let isFirstLoad = true;
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+            // Send notification for new pending registrations
+            if (!isFirstLoad) {
+                const newPendingRegistrations = data.filter(registration =>
+                    registration.status === 'pending' &&
+                    !registrations.some(old => old.id === registration.id)
+                );
+
+                newPendingRegistrations.forEach(registration => {
+                    sendTelegramNotification(telegramTemplates.newRegistration(registration));
+                });
+            }
+
             setRegistrations(data);
+            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);

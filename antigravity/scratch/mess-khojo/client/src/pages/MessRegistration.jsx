@@ -56,10 +56,17 @@ const MessRegistration = () => {
 
         setLoading(true);
         try {
-            const docRef = await addDoc(collection(db, 'mess_registrations'), {
+            const registrationData = {
                 ...formData,
                 createdAt: serverTimestamp(),
                 status: 'pending' // pending operator review
+            };
+
+            const docRef = await addDoc(collection(db, 'mess_registrations'), registrationData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newRegistration(registrationData));
             });
 
             // Track successful registration

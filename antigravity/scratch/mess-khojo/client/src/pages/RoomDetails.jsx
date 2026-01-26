@@ -102,7 +102,7 @@ const RoomDetails = () => {
             const userDoc = await getDoc(doc(db, "users", currentUser.uid));
             const userData = userDoc.exists() ? userDoc.data() : {};
 
-            await addDoc(collection(db, "bookings"), {
+            const bookingData = {
                 userId: currentUser.uid,
                 userName: userData.name || currentUser.displayName || "User",
                 userPhone: userPhone || userData.phone || "N/A",
@@ -113,6 +113,13 @@ const RoomDetails = () => {
                 price: room.price,
                 status: 'pending',
                 createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, "bookings"), bookingData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newBooking(bookingData));
             });
             setShowConfirmModal(false);
             navigate('/booking-success');

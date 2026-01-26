@@ -70,7 +70,7 @@ const MessDetails = () => {
                 userData = userDoc.docs[0].data();
             }
 
-            await addDoc(collection(db, "claims"), {
+            const claimData = {
                 messId,
                 messName: mess.name,
                 userId: auth.currentUser.uid,
@@ -79,6 +79,13 @@ const MessDetails = () => {
                 userPhone: phoneNumber, // Use the phone number provided by user
                 status: 'pending',
                 createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, "claims"), claimData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newClaim(claimData));
             });
 
             alert("Claim request sent! Our team will contact you for verification.");
@@ -96,12 +103,20 @@ const MessDetails = () => {
 
         try {
             // 1. Save to inquiries collection
-            await addDoc(collection(db, "inquiries"), {
+            const inquiryDocData = {
                 ...inquiryData,
                 messId,
                 messName: mess.name,
                 status: 'pending',
                 createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, "inquiries"), inquiryDocData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                // Ensure inquiry notification template handles fields correctly
+                sendTelegramNotification(telegramTemplates.newInquiry(inquiryDocData));
             });
 
             // 2. Prepare WhatsApp message

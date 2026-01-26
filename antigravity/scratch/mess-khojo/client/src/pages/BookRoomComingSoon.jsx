@@ -33,10 +33,17 @@ const BookRoomComingSoon = () => {
         setError('');
 
         try {
-            await addDoc(collection(db, "room_inquiries"), {
+            const inquiryData = {
                 ...formData,
                 createdAt: serverTimestamp(),
                 status: 'new'
+            };
+
+            await addDoc(collection(db, "room_inquiries"), inquiryData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newRoomInquiry(inquiryData));
             });
             setIsSuccess(true);
             setFormData({
