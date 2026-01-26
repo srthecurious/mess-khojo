@@ -5,6 +5,7 @@ import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
 import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent } from '../analytics';
+import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
 
 const MessDetails = () => {
     const { id: messId } = useParams();
@@ -171,6 +172,38 @@ const MessDetails = () => {
         if (mess) {
             trackMessView(messId, mess.name);
         }
+    }, [mess, messId]);
+
+    // Dynamic SEO for mess detail pages
+    usePageSEO({
+        title: mess ? `${mess.name} - ${mess.messType || ''} Mess in ${mess.address || 'Balasore'} | MessKhojo` : 'Loading... | MessKhojo',
+        description: mess ? `${mess.name} offers ${mess.messType || ''} accommodation in ${mess.address || 'Balasore'}. ${mess.amenities?.food ? 'Food available. ' : ''}${mess.amenities?.wifi ? 'WiFi included. ' : ''}Book your stay on MessKhojo.` : 'Find mess accommodation on MessKhojo',
+        canonicalUrl: mess ? `https://messkhojo.com/mess/${messId}` : undefined,
+        ogImage: mess?.posterUrl || mess?.images?.[0] || 'https://messkhojo.com/logo.png',
+        ogType: 'business.business'
+    });
+
+    // Inject structured data for this mess
+    useEffect(() => {
+        if (!mess) return;
+
+        const schema = generateMessSchema({ ...mess, id: messId });
+        if (!schema) return;
+
+        // Create or update script tag
+        let scriptTag = document.getElementById('mess-schema');
+        if (!scriptTag) {
+            scriptTag = document.createElement('script');
+            scriptTag.id = 'mess-schema';
+            scriptTag.type = 'application/ld+json';
+            document.head.appendChild(scriptTag);
+        }
+        scriptTag.textContent = JSON.stringify(schema);
+
+        return () => {
+            const tag = document.getElementById('mess-schema');
+            if (tag) tag.remove();
+        };
     }, [mess, messId]);
 
     if (loading) return <div className="p-10 text-center">Loading...</div>;

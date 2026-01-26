@@ -10,6 +10,12 @@
 [functions]
   directory = "netlify/functions"
 
+# Dynamic Sitemap (served by Netlify Function)
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+
 # Redirects for Single Page Application
 [[redirects]]
   from = "/*"
