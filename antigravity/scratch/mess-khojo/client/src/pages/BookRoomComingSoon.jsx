@@ -13,7 +13,8 @@ const BookRoomComingSoon = () => {
         budget: '',
         location: '',
         occupancy: 'single',
-        requirements: ''
+        requirements: '',
+        consent: false
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -265,10 +266,24 @@ const BookRoomComingSoon = () => {
                                     </div>
                                 )}
 
+                                { /* Consent Checkbox */}
+                                <div className="flex items-start gap-2 mb-2">
+                                    <input
+                                        type="checkbox"
+                                        id="book-consent"
+                                        checked={formData.consent}
+                                        onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
+                                        className="w-4 h-4 accent-brand-primary mt-1 cursor-pointer"
+                                    />
+                                    <label htmlFor="book-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
+                                        I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                                    </label>
+                                </div>
+
                                 {/* Submit Button */}
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !formData.consent}
                                     className="w-full py-4 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover shadow-lg shadow-brand-primary/30 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (

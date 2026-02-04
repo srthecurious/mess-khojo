@@ -115,6 +115,7 @@ const AdminDashboard = () => {
     }, [navigate]);
 
     // Security Check: Ensure user is NOT a student
+    /*
     useEffect(() => {
         const checkRole = async () => {
             if (user) {
@@ -128,6 +129,7 @@ const AdminDashboard = () => {
         };
         checkRole();
     }, [user, navigate]);
+    */
 
     // Listen for rooms ONLY if mess profile exists
     useEffect(() => {

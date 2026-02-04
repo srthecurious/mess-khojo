@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import { Lock, Eye, EyeOff } from 'lucide-react';
 
 const AdminLogin = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [consent, setConsent] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
@@ -61,17 +63,40 @@ const AdminLogin = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-brand-text-dark mb-1">Password</label>
-                        <input
-                            type="password"
-                            required
-                            className="w-full px-4 py-2 border border-brand-light-gray rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                required
+                                className="w-full px-4 py-2 pr-12 border border-brand-light-gray rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                     </div>
+                    <div className="flex items-start gap-2 mb-4">
+                        <input
+                            type="checkbox"
+                            id="partner-consent"
+                            checked={consent}
+                            onChange={(e) => setConsent(e.target.checked)}
+                            className="w-4 h-4 accent-brand-primary mt-1 cursor-pointer"
+                        />
+                        <label htmlFor="partner-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
+                            I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                        </label>
+                    </div>
+
                     <button
                         type="submit"
-                        className="w-full bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold py-3 rounded-lg transition-colors shadow-md hover:shadow-lg"
+                        disabled={!consent}
+                        className="w-full bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold py-3 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         Sign In
                     </button>

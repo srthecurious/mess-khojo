@@ -3,7 +3,7 @@ import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } f
 import { auth, db } from '../firebase';
 import { setDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { User, Mail, Lock, Phone, ArrowLeft } from 'lucide-react';
+import { User, Mail, Lock, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackSignupAttempt } from '../analytics';
 
@@ -17,6 +17,7 @@ const UserSignup = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -137,7 +138,7 @@ const UserSignup = () => {
 
                 <div className="text-center mb-8 mt-4">
                     <h2 className="text-3xl font-bold text-brand-text-dark mb-2">Create Account</h2>
-                    <p className="text-brand-text-gray">Join Mess Khojo to book your stay</p>
+                    <p className="text-brand-text-gray">Join MessKhojo to book your stay</p>
                 </div>
 
                 {error && (
@@ -239,14 +240,25 @@ const UserSignup = () => {
                             </div>
                             <input
                                 name="password"
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 required
-                                className="w-full pl-10 pr-4 py-2 border border-brand-light-gray rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all"
+                                className="w-full pl-10 pr-12 py-2 border border-brand-light-gray rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all"
                                 placeholder="••••••••"
                                 value={formData.password}
                                 onChange={handleChange}
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                         </div>
+                    </div>
+
+                    <div className="text-xs text-gray-500 text-center px-4 mb-4 leading-relaxed">
+                        By creating an account, you agree to our <a href="/terms-and-conditions" target="_blank" className="text-brand-primary hover:underline">Terms of Service</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary hover:underline">Privacy Policy</a>.
                     </div>
 
                     <button

@@ -16,7 +16,8 @@ const MessRegistration = () => {
         roomTypes: [],
         landmark: '',
         facilities: [],
-        phoneNumber: ''
+        phoneNumber: '',
+        consent: false
     });
 
     const totalSteps = 6;
@@ -230,6 +231,19 @@ const MessRegistration = () => {
                         <p className="text-center text-xs text-gray-400">
                             We will verify this number before listing.
                         </p>
+
+                        <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100 mt-2">
+                            <input
+                                type="checkbox"
+                                id="consent"
+                                checked={formData.consent}
+                                onChange={(e) => handleChange('consent', e.target.checked)}
+                                className="w-5 h-5 accent-brand-primary mt-0.5 cursor-pointer"
+                            />
+                            <label htmlFor="consent" className="text-sm text-gray-600 cursor-pointer text-left leading-tight">
+                                I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                            </label>
+                        </div>
                     </div>
                 );
             case 7:
@@ -262,7 +276,7 @@ const MessRegistration = () => {
             case 3: return formData.roomTypes.length > 0;
             case 4: return formData.landmark.trim().length > 0;
             case 5: return formData.facilities.length > 0;
-            case 6: return formData.phoneNumber.length === 10;
+            case 6: return formData.phoneNumber.length === 10 && formData.consent;
             default: return true;
         }
     };

@@ -1094,6 +1094,17 @@ const OperationalDashboard = () => {
                                                             {feedback.userEmail && (
                                                                 <p className="text-slate-400 text-sm">{feedback.userEmail}</p>
                                                             )}
+                                                            {/* Star Rating Display */}
+                                                            {feedback.rating > 0 && (
+                                                                <div className="flex items-center gap-1 mt-1">
+                                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                                        <span key={star} className={`text-sm ${star <= feedback.rating ? 'text-yellow-400' : 'text-slate-600'}`}>
+                                                                            ★
+                                                                        </span>
+                                                                    ))}
+                                                                    <span className="text-xs text-slate-500 ml-1">({feedback.rating}/5)</span>
+                                                                </div>
+                                                            )}
                                                             <p className="text-slate-500 text-xs mt-1">
                                                                 {feedback.createdAt?.seconds ? new Date(feedback.createdAt.seconds * 1000).toLocaleString() : 'Recently'}
                                                             </p>

@@ -15,6 +15,11 @@ const Footer = () => {
                         <p className="text-xs text-white/40 mt-1 uppercase tracking-widest">
                             Trade Mark Registered
                         </p>
+                        <div className="flex gap-4 mt-4 text-xs font-medium text-white/60">
+                            <a href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a>
+                            <span>•</span>
+                            <a href="/terms-and-conditions" className="hover:text-white transition-colors">Terms & Conditions</a>
+                        </div>
                     </div>
 
                     {/* Contact Us */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Map as MapIcon, Navigation, X, ExternalLink } from 'lucide-react';
+import { MapPin, Navigation, X, ExternalLink } from 'lucide-react';
 import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { useNavigate } from 'react-router-dom';
 
@@ -102,7 +102,7 @@ const MessExplorer = ({ messes, userLocation }) => {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="bg-white/20 backdrop-blur-sm p-2.5 rounded-xl group-hover:bg-white/30 transition-colors">
-                                <MapIcon className="text-white" size={22} />
+                                <MapPin className="text-white" size={22} />
                             </div>
                             <div className="text-left">
                                 <h3 className="text-white font-bold text-base sm:text-lg">
@@ -128,7 +128,7 @@ const MessExplorer = ({ messes, userLocation }) => {
                         <div className="bg-gradient-to-r from-purple-600 to-blue-500 p-4 flex items-center justify-between shadow-lg">
                             <div className="flex items-center gap-3">
                                 <div className="bg-white/20 p-2 rounded-lg">
-                                    <MapIcon className="text-white" size={20} />
+                                    <MapPin className="text-white" size={20} />
                                 </div>
                                 <h2 className="text-white font-bold text-lg">
                                     Mess Explorer

@@ -127,7 +127,7 @@ const MessCard = memo(({ mess }) => {
                                 </span>
                                 {mess.minPrice !== mess.maxPrice && (
                                     <>
-                                        <span className="text-xs text-gray-400">-</span>
+                                        <span className="text-sm text-gray-600 font-bold px-1 self-center">–</span>
                                         <span className="text-base font-bold">
                                             {mess.maxPrice}
                                         </span>

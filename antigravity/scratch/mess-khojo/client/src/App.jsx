@@ -16,6 +16,8 @@ import OperationalDashboard from './pages/OperationalDashboard';
 import BookingSuccess from './pages/BookingSuccess';
 import MessRegistration from './pages/MessRegistration';
 import BookRoomComingSoon from './pages/BookRoomComingSoon';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsAndConditions from './pages/TermsAndConditions';
 import NotFound from './pages/NotFound';
 import { trackPageView } from './analytics';
 
@@ -58,6 +60,10 @@ function App() {
             <Route path="/booking-success" element={<BookingSuccess />} />
             <Route path="/register-mess" element={<MessRegistration />} />
             <Route path="/book-room" element={<BookRoomComingSoon />} />
+
+            {/* Legal Pages */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
 
             {/* 404 Catch-all */}
             <Route path="*" element={<NotFound />} />

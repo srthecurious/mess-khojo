@@ -198,9 +198,15 @@ export const telegramTemplates = {
             ? feedback.message.substring(0, 150) + (feedback.message.length > 150 ? '...' : '')
             : 'No message';
 
+        // Create star rating display
+        const ratingStars = feedback.rating
+            ? '⭐'.repeat(feedback.rating) + '☆'.repeat(5 - feedback.rating) + ` (${feedback.rating}/5)`
+            : 'Not rated';
+
         return `💬 <b>NEW USER FEEDBACK!</b>\n\n` +
             `👤 <b>User:</b> ${feedback.userName || 'Anonymous'}\n` +
             `📧 <b>Email:</b> ${feedback.userEmail || 'Not provided'}\n` +
+            `⭐ <b>Rating:</b> ${ratingStars}\n` +
             `📝 <b>Type:</b> ${feedback.type || 'General'}\n` +
             `💬 <b>Feedback:</b>\n${messagePreview}\n\n` +
             `⏰ <i>${time}</i>\n\n` +

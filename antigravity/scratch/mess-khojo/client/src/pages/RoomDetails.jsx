@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock } from 'lucide-react';
+import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackRoomView, trackBookingInitiated } from '../analytics';
@@ -20,6 +20,13 @@ const RoomDetails = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showPhoneModal, setShowPhoneModal] = useState(false);
     const [userPhone, setUserPhone] = useState('');
+
+    // Notification / Inquiry State
+    const [showNotifyModal, setShowNotifyModal] = useState(false);
+    const [notifyLoading, setNotifyLoading] = useState(false);
+    const [notifyMessage, setNotifyMessage] = useState(""); // User's custom message
+    const [notifyPhone, setNotifyPhone] = useState(""); // Phone number for availability inquiry
+    const [notifyConsent, setNotifyConsent] = useState(false);
 
 
     useEffect(() => {
@@ -52,6 +59,19 @@ const RoomDetails = () => {
             trackRoomView(roomId, messId, room.price);
         }
     }, [mess, room, messId, roomId]);
+
+    // Disable body scroll when modals are open
+    useEffect(() => {
+        if (showNotifyModal || showConfirmModal || showPhoneModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
+    }, [showNotifyModal, showConfirmModal, showPhoneModal]);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -128,6 +148,57 @@ const RoomDetails = () => {
             alert("Booking failed. Please try again.");
         } finally {
             setBookingProcessing(false);
+        }
+    };
+
+    const handleNotifySubmit = async (e) => {
+        e.preventDefault();
+
+        // Validate phone number
+        if (!notifyPhone.trim() || notifyPhone.length < 10) {
+            alert("Please enter a valid phone number.");
+            return;
+        }
+
+        setNotifyLoading(true);
+
+        try {
+            let userData = {};
+            if (currentUser?.uid) {
+                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                userData = userDoc.exists() ? userDoc.data() : {};
+            }
+
+            const inquiryData = {
+                messId: mess.id,
+                messName: mess.name,
+                roomId: room.id,
+                roomType: room.occupancy,
+                name: userData.name || currentUser?.displayName || "Interested User",
+                email: currentUser?.email || null,
+                phone: notifyPhone,
+                message: `I am interested in knowing the seat availability for the sold-out ${room.occupancy} Seater room. ${notifyMessage}`,
+                createdAt: serverTimestamp(),
+                status: 'pending',
+                type: 'availability_request'
+            };
+
+            await addDoc(collection(db, "inquiries"), inquiryData);
+
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newInquiry(inquiryData));
+            });
+
+            alert("Request sent! The owner will contact you if seats become available.");
+            setShowNotifyModal(false);
+            setNotifyMessage("");
+            setNotifyPhone("");
+        } catch (error) {
+            console.error("Error sending inquiry:", error);
+            alert("Failed to send request. Please try again.");
+        } finally {
+            setNotifyLoading(false);
         }
     };
 
@@ -254,20 +325,24 @@ const RoomDetails = () => {
                     <p className="text-2xl font-black text-brand-text-dark">₹{room.price}</p>
                 </div>
                 <button
-                    onClick={handleBookClick}
-                    disabled={room.availableCount <= 0}
-                    className="bg-brand-primary text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-brand-primary-hover active:scale-95 transition-all disabled:bg-gray-300 disabled:shadow-none"
+                    onClick={() => room.availableCount > 0 ? handleBookClick() : setShowNotifyModal(true)}
+                    className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-all text-white ${room.availableCount > 0
+                        ? 'bg-brand-primary hover:bg-brand-primary-hover'
+                        : 'bg-indigo-500 hover:bg-indigo-600'
+                        }`}
                 >
-                    {room.availableCount > 0 ? 'Request Booking' : 'Sold Out'}
+                    {room.availableCount > 0 ? 'Request Booking' : 'Check Availability'}
                 </button>
             </div>
 
             {/* Desktop Action Button (Floating) */}
             <div className="hidden md:block fixed bottom-8 right-8 z-30">
                 <button
-                    onClick={handleBookClick}
-                    disabled={room.availableCount <= 0}
-                    className="bg-brand-primary text-white px-10 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:bg-brand-primary-hover hover:scale-105 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-3"
+                    onClick={() => room.availableCount > 0 ? handleBookClick() : setShowNotifyModal(true)}
+                    className={`px-10 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-3 text-white ${room.availableCount > 0
+                        ? 'bg-brand-primary hover:bg-brand-primary-hover'
+                        : 'bg-indigo-500 hover:bg-indigo-600'
+                        }`}
                 >
                     {room.availableCount > 0 ? (
                         <>
@@ -275,7 +350,12 @@ const RoomDetails = () => {
                             <div className="w-px h-6 bg-white/20"></div>
                             <span className="font-normal text-white/80">₹{room.price}</span>
                         </>
-                    ) : 'Sold Out'}
+                    ) : (
+                        <>
+                            <span>Check Availability</span>
+                            <Bell size={20} />
+                        </>
+                    )}
                 </button>
             </div>
 
@@ -349,22 +429,109 @@ const RoomDetails = () => {
                 )}
             </AnimatePresence>
 
+            {/* Availability Inquiry Modal */}
+            <AnimatePresence>
+                {showNotifyModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                            onClick={() => setShowNotifyModal(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl"
+                        >
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-500">
+                                    <Bell size={32} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-brand-text-dark">Unavailable?</h3>
+                                <p className="text-gray-500 mt-2 text-sm leading-relaxed">
+                                    This room is currently sold out. Send a request to know when seats become available.
+                                </p>
+                            </div>
+
+                            <form onSubmit={handleNotifySubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="tel"
+                                        value={notifyPhone}
+                                        onChange={(e) => setNotifyPhone(e.target.value)}
+                                        placeholder="Enter your phone number"
+                                        required
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Custom Message (Optional)</label>
+                                    <textarea
+                                        value={notifyMessage}
+                                        onChange={(e) => setNotifyMessage(e.target.value)}
+                                        placeholder="Any specific requirements?"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-24"
+                                    />
+                                </div>
+
+                                <div className="flex items-start gap-3 my-2">
+                                    <input
+                                        type="checkbox"
+                                        id="notify-consent"
+                                        checked={notifyConsent}
+                                        onChange={(e) => setNotifyConsent(e.target.checked)}
+                                        className="w-5 h-5 accent-indigo-500 mt-0.5 cursor-pointer shrink-0"
+                                    />
+                                    <label htmlFor="notify-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
+                                        I agree to the <a href="/terms-and-conditions" target="_blank" className="text-indigo-500 font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-indigo-500 font-bold hover:underline">Privacy Policy</a>.
+                                    </label>
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNotifyModal(false)}
+                                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={notifyLoading || !notifyConsent}
+                                        className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {notifyLoading ? 'Sending...' : 'Notify Owner'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )
+                }
+            </AnimatePresence >
+
             {/* Phone Collection Modal */}
-            {showPhoneModal && currentUser && (
-                <PhoneCollectionModal
-                    user={currentUser}
-                    onClose={(phone) => {
-                        setUserPhone(phone);
-                        setShowPhoneModal(false);
-                        setShowConfirmModal(true); // Proceed to booking confirmation
-                    }}
-                    onSkip={() => {
-                        setShowPhoneModal(false);
-                        // Don't proceed to booking without phone
-                    }}
-                />
-            )}
-        </div>
+            {
+                showPhoneModal && currentUser && (
+                    <PhoneCollectionModal
+                        user={currentUser}
+                        onClose={(phone) => {
+                            setUserPhone(phone);
+                            setShowPhoneModal(false);
+                            setShowConfirmModal(true); // Proceed to booking confirmation
+                        }}
+                        onSkip={() => {
+                            setShowPhoneModal(false);
+                            // Don't proceed to booking without phone
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 

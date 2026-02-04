@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessKhojo - System Architecture</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    <style>
+        body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        @media (max-width: 767px) {
+            .markdown-body {
+                padding: 15px;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</head>
+<body class="markdown-body">
+    <h1>MessKhojo - System Architecture</h1>
+    <p>MessKhojo is a modern, full-stack web application designed to help students and professionals find and book mess (hostel/boarding) facilities. This document provides a detailed overview of the system's architecture, data models, and technical design.</p>
+
+    <h2>🛠️ Technology Stack</h2>
+    <h3>Core Frontend</h3>
+    <ul>
+        <li><strong>React 19</strong>: Leveraging concurrent rendering and improved performance.</li>
+        <li><strong>Vite</strong>: High-speed build tool and dev server.</li>
+        <li><strong>React Router Dom (v7)</strong>: Handles unified routing across web and potentially mobile.</li>
+        <li><strong>Framer Motion</strong>: Powering smooth UI transitions and micro-animations.</li>
+        <li><strong>Tailwind CSS</strong>: Utility-first CSS framework for responsive and themed styling.</li>
+    </ul>
+
+    <h3>Backend & Infrastructure</h3>
+    <ul>
+        <li><strong>Firebase Ecosystem</strong>:
+            <ul>
+                <li><strong>Firestore</strong>: NoSQL real-time document database.</li>
+                <li><strong>Cloud Storage</strong>: Used for hosting mess images and user profiles.</li>
+                <li><strong>Firebase Authentication</strong>: Supporting Email/Password and Google OAuth.</li>
+                <li><strong>Secondary Firebase Auth</strong>: Specialized implementation for secure admin/operator management without disrupting user sessions.</li>
+            </ul>
+        </li>
+        <li><strong>Netlify</strong>: CI/CD and production hosting environment.</li>
+        <li><strong>Lucide React</strong>: Icon library for a clean, consistent UI.</li>
+    </ul>
+
+    <h2>📂 Directory Structure</h2>
+    <pre><code>mess-khojo/
+├── client/                     # Primary Frontend Application
+│   ├── src/
+│   │   ├── components/         # Atomic UI components
+│   │   ├── pages/              # Route-level view components
+│   │   ├── context/            # React Context Providers
+│   │   ├── hooks/              # Custom reusable logic
+│   │   ├── utils/              # Helper functions
+│   │   ├── firebase.js         # Firebase SDK initialization
+│   │   └── App.jsx             # Application shell and route definitions
+│   └── public/                 # Static assets and manifest files
+├── firestore.rules             # Security definitions for data access
+├── storage.rules               # Security definitions for media access
+└── netlify.toml                # Deployment configuration</code></pre>
+
+    <h2>📊 Data Models (Firestore)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Collection</th>
+                <th>Description</th>
+                <th>Access Control</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>users</code></td>
+                <td>User profiles and preferences</td>
+                <td>Owner (UID match)</td>
+            </tr>
+            <tr>
+                <td><code>messes</code></td>
+                <td>Property listings, amenities</td>
+                <td>Public Read, Admin/Operator Write</td>
+            </tr>
+            <tr>
+                <td><code>rooms</code></td>
+                <td>Room types and availability</td>
+                <td>Public Read, Admin Write</td>
+            </tr>
+            <tr>
+                <td><code>bookings</code></td>
+                <td>Records of room bookings</td>
+                <td>User (Owner) & Operator</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>🔄 Core Flows</h2>
+    <h3>1. Unified Authentication Flow</h3>
+    <div class="mermaid">
+        sequenceDiagram
+            participant U as User
+            participant A as AuthContext
+            participant F as Firebase Auth
+            participant D as Firestore (users)
+
+            U->>A: Click Login (Google/Email)
+            A->>F: Request Sign-In
+            F-->>A: Return Auth Object
+            A->>D: Check/Update User Profile
+            D-->>A: User Data
+            A-->>U: Updated UI State (Logged In)
+    </div>
+
+    <h3>2. Search & Discovery Engine</h3>
+    <div class="mermaid">
+        graph TD
+            UserInput[User types in FilterBar] -->|Debounce 500ms| QueryEngine[MessExplorer]
+            QueryEngine -->|Filter State| Firestore[Firestore Database]
+            Firestore -->|Result Set| UI[Render MessCards]
+            GPS[GPS Location] -->|Optional| QueryEngine
+    </div>
+
+    <h2>🛡️ Security & Role-Based Access (RBAC)</h2>
+    <p>We implement a three-tier access system:</p>
+    <ol>
+        <li><strong>Public</strong>: Read-only access to messes and rooms.</li>
+        <li><strong>User</strong>: access to personal profile and bookings.</li>
+        <li><strong>Operator</strong>: Privileged access handle platform registrations.</li>
+    </ol>
+
+    <h2>🚀 Performance Optimizations</h2>
+    <ul>
+        <li><strong>Windowing</strong>: Using <code>react-window</code> for large lists.</li>
+        <li><strong>Image Compression</strong>: <code>browser-image-compression</code>.</li>
+        <li><strong>Lazy Loading</strong>: Automatic route-based code splitting.</li>
+    </ul>
+
+    <hr>
+    <p><em>Last Updated: January 2026</em></p>
+</body>
+</html>

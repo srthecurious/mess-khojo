@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Mail, User } from 'lucide-react';
+import { MessageSquare, Send, Mail, User, Star } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,8 @@ const FeedbackForm = () => {
     const { currentUser } = useAuth();
     const [message, setMessage] = useState('');
     const [email, setEmail] = useState('');
+    const [rating, setRating] = useState(0);
+    const [hoverRating, setHoverRating] = useState(0);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
@@ -16,6 +18,11 @@ const FeedbackForm = () => {
 
         if (!message.trim()) {
             alert('Please enter your feedback message.');
+            return;
+        }
+
+        if (rating === 0) {
+            alert('Please provide a star rating.');
             return;
         }
 
@@ -33,6 +40,7 @@ const FeedbackForm = () => {
                 userName: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Anonymous',
                 userEmail: currentUser?.email || email || null,
                 message: message.trim(),
+                rating: rating,
                 createdAt: serverTimestamp(),
                 status: 'pending',
                 operatorReply: null,
@@ -50,6 +58,7 @@ const FeedbackForm = () => {
             setSuccess(true);
             setMessage('');
             setEmail('');
+            setRating(0);
 
             setTimeout(() => setSuccess(false), 5000);
         } catch (error) {
@@ -112,6 +121,36 @@ const FeedbackForm = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Star Rating */}
+                    <div>
+                        <label className="block text-xs font-bold text-brand-text-dark mb-1.5">
+                            Rate Your Experience <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setRating(star)}
+                                    onMouseEnter={() => setHoverRating(star)}
+                                    onMouseLeave={() => setHoverRating(0)}
+                                    className="p-1 transition-transform hover:scale-110 focus:outline-none"
+                                >
+                                    <Star
+                                        size={24}
+                                        className={`transition-colors ${(hoverRating || rating) >= star
+                                            ? 'fill-yellow-400 text-yellow-400'
+                                            : 'text-gray-300'
+                                            }`}
+                                    />
+                                </button>
+                            ))}
+                            <span className="ml-2 text-xs text-brand-text-gray">
+                                {rating > 0 ? `${rating} / 5` : 'Click to rate'}
+                            </span>
+                        </div>
+                    </div>
 
                     {/* Message Textarea */}
                     <div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
@@ -15,7 +15,7 @@ const MessDetails = () => {
     const [loading, setLoading] = useState(true);
     const [claiming, setClaiming] = useState(false);
     const [showInquiryModal, setShowInquiryModal] = useState(false);
-    const [inquiryData, setInquiryData] = useState({ name: '', phone: '', seating: 'Any' });
+    const [inquiryData, setInquiryData] = useState({ name: '', phone: '', seating: 'Any', consent: false });
     const [submittingInquiry, setSubmittingInquiry] = useState(false);
     const [showUserSourcedListing, setShowUserSourcedListing] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -182,6 +182,19 @@ const MessDetails = () => {
         ogImage: mess?.posterUrl || mess?.images?.[0] || 'https://messkhojo.com/logo.png',
         ogType: 'business.business'
     });
+
+    useEffect(() => {
+        if (showInquiryModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto'; // Re-enable scrolling
+        }
+
+        // Cleanup on unmount
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
+    }, [showInquiryModal]);
 
     // Inject structured data for this mess
     useEffect(() => {
@@ -516,65 +529,129 @@ const MessDetails = () => {
             {
                 showInquiryModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-brand-text-dark/60 backdrop-blur-sm" onClick={() => setShowInquiryModal(false)}></div>
-                        <div className="uiverse-card w-full max-w-md relative z-10 bg-white p-8 overflow-y-auto max-h-[90vh]">
-                            <h2 className="text-2xl font-bold text-brand-text-dark mb-2">Seat Availability Inquiry</h2>
-                            <p className="text-brand-text-gray text-sm mb-6">Fill in your details and we'll help you connect with the owner on WhatsApp.</p>
+                        <div
+                            className="absolute inset-0 bg-brand-text-dark/70 backdrop-blur-sm transition-opacity"
+                            onClick={() => setShowInquiryModal(false)}
+                        ></div>
+                        <div className="w-full max-w-md relative z-10 bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all animate-fadeIn scale-100">
 
-                            <form onSubmit={handleInquirySubmit} className="space-y-5">
+                            {/* Modal Header */}
+                            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                                 <div>
-                                    <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Your Name</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="uiverse-input w-full"
-                                        value={inquiryData.name}
-                                        onChange={(e) => setInquiryData({ ...inquiryData, name: e.target.value })}
-                                        placeholder="Enter your full name"
-                                    />
+                                    <h2 className="text-xl font-bold text-brand-text-dark">Check Availability</h2>
+                                    <p className="text-xs text-brand-text-gray mt-0.5">Connect directly with the owner</p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        required
-                                        className="uiverse-input w-full"
-                                        value={inquiryData.phone}
-                                        onChange={(e) => setInquiryData({ ...inquiryData, phone: e.target.value })}
-                                        placeholder="10 digit mobile number"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-brand-text-dark mb-1 ml-1">Looking for (Seater)</label>
-                                    <select
-                                        className="uiverse-input w-full"
-                                        value={inquiryData.seating}
-                                        onChange={(e) => setInquiryData({ ...inquiryData, seating: e.target.value })}
-                                    >
-                                        <option value="Any">Any Choice</option>
-                                        <option value="1 Seater">1 Seater</option>
-                                        <option value="2 Seater">2 Seater</option>
-                                        <option value="3 Seater">3 Seater</option>
-                                    </select>
-                                </div>
+                                <button
+                                    onClick={() => setShowInquiryModal(false)}
+                                    className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
 
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowInquiryModal(false)}
-                                        className="flex-1 py-4 px-6 border border-brand-light-gray text-brand-text-gray font-bold rounded-2xl hover:bg-gray-50 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={submittingInquiry}
-                                        className="flex-[2] py-4 px-6 bg-brand-primary text-white font-bold rounded-2xl shadow-lg hover:bg-brand-primary/90 transition-all active:scale-95 disabled:opacity-50"
-                                    >
-                                        {submittingInquiry ? 'Please wait...' : 'Submit Inquiry'}
-                                    </button>
-                                </div>
-                            </form>
+                            <div className="p-6">
+                                <form onSubmit={handleInquirySubmit} className="space-y-5">
+
+                                    {/* Name Input */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-brand-text-dark uppercase tracking-wide ml-1">Your Name</label>
+                                        <div className="relative group">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-primary transition-colors">
+                                                <User size={18} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-brand-text-dark text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all placeholder:text-gray-400"
+                                                value={inquiryData.name}
+                                                onChange={(e) => setInquiryData({ ...inquiryData, name: e.target.value })}
+                                                placeholder="Enter your full name"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Phone Input */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-brand-text-dark uppercase tracking-wide ml-1">Phone Number</label>
+                                        <div className="relative group">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-primary transition-colors">
+                                                <Phone size={18} />
+                                            </div>
+                                            <input
+                                                type="tel"
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-brand-text-dark text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all placeholder:text-gray-400"
+                                                value={inquiryData.phone}
+                                                onChange={(e) => setInquiryData({ ...inquiryData, phone: e.target.value })}
+                                                placeholder="10 digit mobile number"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Seater Selection */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-brand-text-dark uppercase tracking-wide ml-1">Looking for</label>
+                                        <div className="relative group">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-primary transition-colors">
+                                                <BedDouble size={18} />
+                                            </div>
+                                            <select
+                                                className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 text-brand-text-dark text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all appearance-none cursor-pointer"
+                                                value={inquiryData.seating}
+                                                onChange={(e) => setInquiryData({ ...inquiryData, seating: e.target.value })}
+                                            >
+                                                <option value="Any">Any Room Type</option>
+                                                <option value="1 Seater">1 Seater (Single)</option>
+                                                <option value="2 Seater">2 Seater (Double)</option>
+                                                <option value="3 Seater">3 Seater (Triple)</option>
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                                <ChevronDown size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2 flex flex-col gap-3">
+                                        <div className="flex items-start gap-2 px-1">
+                                            <input
+                                                type="checkbox"
+                                                id="inquiry-consent"
+                                                checked={inquiryData.consent}
+                                                onChange={(e) => setInquiryData({ ...inquiryData, consent: e.target.checked })}
+                                                className="w-4 h-4 accent-brand-primary mt-1 cursor-pointer"
+                                            />
+                                            <label htmlFor="inquiry-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
+                                                I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                                            </label>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            disabled={submittingInquiry || !inquiryData.consent}
+                                            className="w-full py-3.5 px-6 bg-brand-primary text-white font-bold rounded-xl shadow-lg shadow-brand-primary/30 hover:bg-brand-primary-hover transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                        >
+                                            {submittingInquiry ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span>Submit Inquiry</span>
+                                                    <Send size={16} />
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowInquiryModal(false)}
+                                            className="w-full py-3 px-6 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:text-gray-700 transition-colors text-xs"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 )
