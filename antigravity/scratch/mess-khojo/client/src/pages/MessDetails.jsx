@@ -241,9 +241,33 @@ const MessDetails = () => {
         );
     }
 
+    // Helper to normalize occupancy for consistent grouping
+    const normalizeOccupancy = (val) => {
+        if (!val) return 'Other';
+        const s = String(val).toLowerCase().trim();
+        // Check for 1/Single
+        if (s === '1' || s === 'single' || s === '1 seater' || s.includes('single')) return '1';
+        // Check for 2/Double
+        if (s === '2' || s === 'double' || s === '2 seater' || s.includes('double')) return '2';
+        // Check for 3/Triple
+        if (s === '3' || s === 'triple' || s === '3 seater' || s.includes('triple')) return '3';
+        // Check for 4
+        if (s === '4' || s === 'four' || s === '4 seater') return '4';
+        // Check for 5
+        if (s === '5' || s === 'five' || s === '5 seater') return '5';
+        // Check for 6
+        if (s === '6' || s === 'six' || s === '6 seater') return '6';
+        // Check for 8
+        if (s === '8' || s === 'eight' || s === '8 seater') return '8';
+
+        return val; // Fallback for custom types
+    };
+
     // Group rooms by Occupancy
     const groupedRooms = rooms.reduce((acc, room) => {
-        const occupancy = room.occupancy || 'Other';
+        const rawOccupancy = room.occupancy || 'Other';
+        const occupancy = normalizeOccupancy(rawOccupancy);
+
         if (!acc[occupancy]) {
             acc[occupancy] = [];
         }
@@ -251,10 +275,23 @@ const MessDetails = () => {
         return acc;
     }, {});
 
-    // Sort room groups by predefined order
-    const occupancyOrder = ['1', '2', '3', '4', '5', '6', '1 Seater', '2 Seater', '3 Seater', 'Single', 'Double', 'Triple', 'Other'];
+    // Sort room groups: 1, 2, 3, ... others
+    const occupancyOrder = ['1', '2', '3', '4', '5', '6', '8'];
     const sortedGroups = Object.entries(groupedRooms).sort((a, b) => {
-        return occupancyOrder.indexOf(a[0]) - occupancyOrder.indexOf(b[0]);
+        const indexA = occupancyOrder.indexOf(a[0]);
+        const indexB = occupancyOrder.indexOf(b[0]);
+
+        // If both are in the known order list
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+
+        // If only A is known, it comes first
+        if (indexA !== -1) return -1;
+
+        // If only B is known, it comes first
+        if (indexB !== -1) return 1;
+
+        // If neither is known, sort alphabetically/numerically
+        return a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' });
     });
 
     // Helper to check amenity for display (Mess Level > Fallback to Room Level)
@@ -748,7 +785,7 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
 
             {/* Dropdown Content - Subcategories */}
             {isOpen && (
-                <div className="p-6 bg-brand-secondary/30 border-t border-brand-light-gray">
+                <div className="p-6 border-t border-brand-light-gray">
                     <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
                         {rooms.map(room => (
                             <div key={room.id} className="min-w-[260px] md:min-w-[340px] snap-center">
