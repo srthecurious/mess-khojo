@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Custom Ignores - Mess Khojo
+help_output.txt
+firebase-debug.log
+
+# Client specific ignores (best practice to ignore here too)
+client/lint_output.txt
+client/lint.json
+client/final_lint.txt
+client/full_lint.txt
+client/lint_current.txt
+client/lint_final.json
+client/lint_final_v2.json
+client/video/out/
+client/video/public/preview_desktop.png
+client/video/public/screenshots-instagram/
