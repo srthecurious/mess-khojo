@@ -1,0 +1,21 @@
+# Remotion Instagram Video Walkthrough
+
+## Overview
+Created a 9:16 promotional video for Instagram using Remotion.
+The video demonstrates the user flow:
+1. Home Page
+2. Scrolling to Mess Card
+3. Viewing Mess Details
+4. Viewing Room Details
+5. Requesting a Call
+6. Confirmation
+
+## Validation
+- **Screenshots**: [scripts/capture_instagram.js](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/scripts/capture_instagram.js) successfully captured the flow including dynamic room selection.
+- **Composition**: [src/InstagramVideo.tsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/src/InstagramVideo.tsx) orchestrates the screenshots with touch animations and smooth transitions.
+- **Render**: Successfully rendered `out/instagram.mp4` (2.1 MB).
+
+## Artifacts
+- **Source Code**: [InstagramVideo.tsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/src/InstagramVideo.tsx)
+- **Capture Script**: [capture_instagram.js](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/scripts/capture_instagram.js)
+- **Output Video**: [instagram.mp4](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/out/instagram.mp4)

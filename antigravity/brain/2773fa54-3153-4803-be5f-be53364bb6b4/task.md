@@ -1,0 +1,10 @@
+- [ ] Create Instagram Reel Video <!-- id: 0 -->
+    - [x] Create `scripts/capture_instagram.js` <!-- id: 1 -->
+    - [x] Run capture script to generate screenshots <!-- id: 2 -->
+    - [x] Create `InstagramVideo.tsx` component <!-- id: 3 -->
+    - [x] Register `InstagramVideo` in `Root.tsx` <!-- id: 4 -->
+    - [x] Verify video preview <!-- id: 5 -->
+    - [x] Render final video `out/instagram.mp4` <!-- id: 6 -->
+- [x] Fix Mess Details Scroll Position <!-- id: 7 -->
+- [x] Add Clear Button to Search Input <!-- id: 8 -->
+- [x] Repository Cleanup (Added .gitignore, removed unnecessary files) <!-- id: 9 -->

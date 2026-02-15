@@ -1,0 +1,43 @@
+# Remotion Instagram Video Plan
+
+The goal is to create a 9:16 (1080x1920) video for Instagram demonstrating a specific user flow on the Mess Khojo website.
+
+## User Review Required
+
+> [!IMPORTANT]
+> This plan relies on running a Puppeteer script (`scripts/capture_instagram.js`) on your local machine to capture fresh screenshots of your running application.
+> Ensure your app is running at `http://localhost:5173` (or the address used in the script) before generating the video.
+
+## Proposed Changes
+
+### Client Video Project
+
+#### [NEW] [capture_instagram.js](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/scripts/capture_instagram.js)
+- A new Puppeteer script to capture the specific sequence of screenshots:
+    1.  `home.png`: Initial Home Page.
+    2.  `home_scrolled.png`: Scrolled to the 6th mess card.
+    3.  `details.png`: Mess Details page.
+    4.  `room_modal.png`: Room card opened/Request Call modal.
+    5.  `confirm.png`: After clicking confirm (if applicable) or the state just before.
+- Will set viewport to mobile size (1080x1920 or equivalent aspect ratio).
+
+#### [NEW] [InstagramVideo.tsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/src/InstagramVideo.tsx)
+- A new Remotion component for the Instagram video.
+- **Composition Settings**: 1080x1920, 30fps.
+- **Content**:
+    -   Sequentially shows the captured screenshots.
+    -   Adds a "Cursor" or "Touch" animation overlay to indicate clicks at the specified moments.
+    -   Smooth transitions (scrolling simulation).
+
+#### [MODIFY] [Root.tsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/video/src/Root.tsx)
+- Register the new `InstagramVideo` composition.
+
+## Verification Plan
+
+### Automated Tests
+- Run `node scripts/capture_instagram.js` to verify screenshots are generated correctly in `public/screenshots`.
+- Run `npm start` (Remotion Preview) and check the "InstagramVideo" composition.
+
+### Manual Verification
+- Inspect the generated screenshots to ensure they match the requested flow.
+- Watch the Remotion preview to verify timing and click animations.

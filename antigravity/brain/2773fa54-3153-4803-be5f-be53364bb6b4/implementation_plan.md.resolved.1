@@ -1,0 +1,23 @@
+# Fix Mess Details Scroll Position
+
+## Problem
+The Mess Details page sometimes opens at a lower scroll position (likely retaining the scroll position from the previous page or not resetting correctly).
+
+## Solution
+Explicity scroll to the top of the window when the [MessDetails](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/MessDetails.jsx#10-738) component mounts or when the `messId` changes.
+
+## Proposed Changes
+
+### [MODIFY] [MessDetails.jsx](file:///c:/Users/barma/.gemini/antigravity/scratch/mess-khojo/client/src/pages/MessDetails.jsx)
+- Add a `useEffect` hook that triggers on `messId` change.
+- Inside the hook, call `window.scrollTo(0, 0)`.
+
+```javascript
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [messId]);
+```
+
+## Verification
+- Navigate to the Mess Details page from a scrolled-down position on the Home page.
+- Verify that the new page opens at the very top.

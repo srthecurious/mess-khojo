@@ -1,0 +1,5 @@
+- [ ] Start Remotion Preview <!-- id: 0 -->
+    - [x] Identify project directory and start script <!-- id: 1 -->
+    - [ ] Run `npm start` and capture URL <!-- id: 2 -->
+    - [ ] Take screenshot of preview <!-- id: 3 -->
+    - [ ] Notify user with link and screenshot <!-- id: 4 -->
