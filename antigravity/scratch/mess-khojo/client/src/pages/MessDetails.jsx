@@ -167,6 +167,12 @@ const MessDetails = () => {
         fetchMessAndRooms();
     }, [messId]);
 
+    // Scroll to top on mount/change
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [messId]);
+
+
     // Track mess view when component mounts
     useEffect(() => {
         if (mess) {
@@ -176,11 +182,13 @@ const MessDetails = () => {
 
     // Dynamic SEO for mess detail pages
     usePageSEO({
-        title: mess ? `${mess.name} - ${mess.messType || ''} Mess in ${mess.address || 'Balasore'} | MessKhojo` : 'Loading... | MessKhojo',
-        description: mess ? `${mess.name} offers ${mess.messType || ''} accommodation in ${mess.address || 'Balasore'}. ${mess.amenities?.food ? 'Food available. ' : ''}${mess.amenities?.wifi ? 'WiFi included. ' : ''}Book your stay on MessKhojo.` : 'Find mess accommodation on MessKhojo',
+        title: mess ? `${mess.name} - ${mess.messType || 'Mess'} in Balasore${!mess.hideContact && mess.contact ? ` | Contact ${mess.contact}` : ''} | MessKhojo` : 'Loading... | MessKhojo',
+        description: mess ? `${mess.name} offers ${mess.messType || 'quality'} accommodation in ${mess.address || 'Balasore'}. ${mess.description ? mess.description.substring(0, 120) + '...' : `Check amenities, pricing & availability. ${mess.amenities?.food ? 'Food available. ' : ''}${mess.amenities?.wifi ? 'WiFi included. ' : ''}`}` : 'Find mess accommodation on MessKhojo',
+        keywords: mess ? `${mess.name}, ${mess.name} balasore, ${!mess.hideContact ? `${mess.name} contact number, ${mess.name} phone number, ` : ''}${mess.name} ${mess.address || ''}, ${mess.messType} mess balasore, mess near ${mess.address || 'fm college'}, ${mess.name} hostel, student accommodation balasore` : undefined,
         canonicalUrl: mess ? `https://messkhojo.com/mess/${messId}` : undefined,
         ogImage: mess?.posterUrl || mess?.images?.[0] || 'https://messkhojo.com/logo.png',
-        ogType: 'business.business'
+        ogType: 'business.business',
+        structuredData: mess ? generateMessSchema(mess) : null
     });
 
     useEffect(() => {
@@ -473,6 +481,11 @@ const MessDetails = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Left Column: Description & Basic Info */}
                             <div className="space-y-6">
+                                {mess.description && (
+                                    <div className="prose prose-sm max-w-none text-gray-600 whitespace-pre-wrap">
+                                        {mess.description}
+                                    </div>
+                                )}
                                 {mess.messType && (
                                     <div>
                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</h4>

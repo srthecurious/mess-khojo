@@ -10,7 +10,9 @@ export function usePageSEO({
     canonicalUrl,
     ogImage,
     ogType = 'website',
-    noindex = false
+    noindex = false,
+    keywords,
+    structuredData
 }) {
     useEffect(() => {
         // Update document title
@@ -68,11 +70,38 @@ export function usePageSEO({
             updateMetaTag('meta[name="robots"]', 'content', 'index, follow');
         }
 
+        // Update keywords if provided
+        if (keywords) {
+            updateMetaTag('meta[name="keywords"]', 'content', keywords);
+        }
+
+        // Inject structured data (JSON-LD) if provided
+        let structuredDataScript = null;
+        if (structuredData) {
+            // Remove existing structured data script if any
+            const existingScript = document.querySelector('script[data-schema="mess"]');
+            if (existingScript) {
+                existingScript.remove();
+            }
+
+            // Create new script tag
+            structuredDataScript = document.createElement('script');
+            structuredDataScript.setAttribute('type', 'application/ld+json');
+            structuredDataScript.setAttribute('data-schema', 'mess');
+            structuredDataScript.textContent = JSON.stringify(structuredData);
+            document.head.appendChild(structuredDataScript);
+        }
+
         // Cleanup - restore defaults on unmount
         return () => {
             document.title = 'MessKhojo - Find Best Mess, PG & Hostel in Balasore | Affordable Student Stays';
+            // Remove structured data script
+            const script = document.querySelector('script[data-schema="mess"]');
+            if (script) {
+                script.remove();
+            }
         };
-    }, [title, description, canonicalUrl, ogImage, ogType, noindex]);
+    }, [title, description, canonicalUrl, ogImage, ogType, noindex, keywords, structuredData]);
 }
 
 /**
@@ -81,11 +110,11 @@ export function usePageSEO({
 export function generateMessSchema(mess) {
     if (!mess) return null;
 
-    return {
+    const schema = {
         "@context": "https://schema.org",
         "@type": "LodgingBusiness",
         "name": mess.name,
-        "description": mess.description || `${mess.name} - ${mess.type} accommodation in ${mess.address || 'Balasore'}`,
+        "description": mess.description || `${mess.name} - ${mess.messType || 'Accommodation'} in ${mess.address || 'Balasore'}. Contact for availability and pricing.`,
         "url": `https://messkhojo.com/mess/${mess.id}`,
         "image": mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/logo.png",
         "address": {
@@ -95,25 +124,65 @@ export function generateMessSchema(mess) {
             "addressRegion": "Odisha",
             "addressCountry": "IN"
         },
-        "priceRange": mess.minRent && mess.maxRent
-            ? `₹${mess.minRent} - ₹${mess.maxRent}`
+        "priceRange": mess.minPrice && mess.maxPrice
+            ? `₹${mess.minPrice} - ₹${mess.maxPrice}`
             : mess.rent ? `₹${mess.rent}` : "Contact for price",
         "amenityFeature": mess.amenities
             ? Object.entries(mess.amenities)
                 .filter(([_, value]) => value === true)
                 .map(([key]) => ({
                     "@type": "LocationFeatureSpecification",
-                    "name": key.charAt(0).toUpperCase() + key.slice(1) // Capitalize first letter
+                    "name": key.charAt(0).toUpperCase() + key.slice(1)
                 }))
-            : [],
-        ...(mess.rating && {
-            "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": mess.rating,
-                "bestRating": "5"
-            }
-        })
+            : []
     };
+
+    // Add telephone if available AND not hidden
+    if (mess.contact && !mess.hideContact) {
+        schema.telephone = mess.contact;
+    }
+
+    // Add geo coordinates if available
+    if (mess.latitude && mess.longitude) {
+        schema.geo = {
+            "@type": "GeoCoordinates",
+            "latitude": mess.latitude.toString(),
+            "longitude": mess.longitude.toString()
+        };
+    }
+
+    // Add pricing offers if available
+    if (mess.minPrice) {
+        schema.offers = {
+            "@type": "Offer",
+            "priceCurrency": "INR",
+            "price": mess.minPrice,
+            "availability": "https://schema.org/InStock",
+            "validFrom": new Date().toISOString().split('T')[0]
+        };
+    }
+
+    // Add keywords for better discovery
+    const keywords = [
+        mess.name,
+        `${mess.name} balasore`,
+        `${mess.name} contact`,
+        mess.messType,
+        mess.address
+    ].filter(Boolean);
+
+    schema.keywords = keywords.join(', ');
+
+    // Add rating if available
+    if (mess.rating) {
+        schema.aggregateRating = {
+            "@type": "AggregateRating",
+            "ratingValue": mess.rating,
+            "bestRating": "5"
+        };
+    }
+
+    return schema;
 }
 
 export default usePageSEO;

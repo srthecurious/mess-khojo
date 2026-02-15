@@ -1,0 +1,32 @@
+{
+    "name": "video",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Mess Khojo Promotional Video",
+    "scripts": {
+        "start": "remotion preview src/index.ts",
+        "build": "remotion render src/index.ts MessKhojoPromo out/video.mp4",
+        "upgrade": "remotion upgrade",
+        "test": "eslint src --ext ts,tsx && tsc"
+    },
+    "dependencies": {
+        "lucide-react": "^0.300.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "remotion": "^4.0.120",
+        "zod": "3.22.3"
+    },
+    "devDependencies": {
+        "@remotion/cli": "^4.0.120",
+        "@remotion/eslint-config": "^4.0.120",
+        "@remotion/tailwind": "^4.0.120",
+        "@types/react": "^18.2.0",
+        "@types/web": "^0.0.126",
+        "autoprefixer": "^10.4.17",
+        "eslint": "^8.56.0",
+        "postcss": "^8.4.35",
+        "puppeteer": "^24.37.2",
+        "tailwindcss": "^3.4.1",
+        "typescript": "^5.3.0"
+    }
+}

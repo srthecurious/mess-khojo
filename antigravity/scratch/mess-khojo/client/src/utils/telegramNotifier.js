@@ -90,7 +90,7 @@ export const telegramTemplates = {
             timeStyle: 'short'
         });
 
-        return `🆕 <b>NEW BOOKING ALERT!</b>\n\n` +
+        return `📞 <b>NEW CALL REQUEST!</b>\n\n` +
             `🏢 <b>Mess:</b> ${booking.messName}\n` +
             `🛏️ <b>Room:</b> ${booking.roomType}\n` +
             `👤 <b>User:</b> ${booking.userName}\n` +

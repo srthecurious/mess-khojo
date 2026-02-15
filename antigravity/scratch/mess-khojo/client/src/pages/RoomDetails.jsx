@@ -331,7 +331,7 @@ const RoomDetails = () => {
                         : 'bg-indigo-500 hover:bg-indigo-600'
                         }`}
                 >
-                    {room.availableCount > 0 ? 'Request Booking' : 'Check Availability'}
+                    {room.availableCount > 0 ? 'Request Call' : 'Check Availability'}
                 </button>
             </div>
 
@@ -346,7 +346,7 @@ const RoomDetails = () => {
                 >
                     {room.availableCount > 0 ? (
                         <>
-                            <span>Request Booking</span>
+                            <span>Request Call</span>
                             <div className="w-px h-6 bg-white/20"></div>
                             <span className="font-normal text-white/80">₹{room.price}</span>
                         </>
@@ -381,9 +381,9 @@ const RoomDetails = () => {
                                 <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-primary">
                                     <CheckCircle size={32} />
                                 </div>
-                                <h3 className="text-2xl font-bold text-brand-text-dark">Confirm Booking?</h3>
+                                <h3 className="text-2xl font-bold text-brand-text-dark">Request Callback?</h3>
                                 <p className="text-gray-500 mt-2 text-sm">
-                                    You are sending a booking request for <strong>{mess.name}</strong>.
+                                    You are asking the owner of <strong>{mess.name}</strong> to call you back.
                                 </p>
                             </div>
 
@@ -404,8 +404,8 @@ const RoomDetails = () => {
                                     <span className="font-bold text-gray-900">₹{room.price}/mo</span>
                                 </div>
                                 <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm">
-                                    <span className="text-gray-500">Your Contact</span>
-                                    <span className="font-bold text-gray-900">{currentUser.email}</span>
+                                    <span className="text-gray-500">Your Phone</span>
+                                    <span className="font-bold text-gray-900">{userPhone || currentUser.phoneNumber || 'Provided'}</span>
                                 </div>
                             </div>
 
@@ -421,7 +421,7 @@ const RoomDetails = () => {
                                     disabled={bookingProcessing}
                                     className="flex-1 py-3 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-xl transition-colors shadow-lg disabled:opacity-70"
                                 >
-                                    {bookingProcessing ? 'Sending...' : 'Confirm'}
+                                    {bookingProcessing ? 'Sending...' : 'Request Call'}
                                 </button>
                             </div>
                         </motion.div>

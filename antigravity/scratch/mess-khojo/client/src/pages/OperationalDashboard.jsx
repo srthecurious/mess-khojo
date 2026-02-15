@@ -296,7 +296,8 @@ const OperationalDashboard = () => {
                 hidden: item.hidden || false,
                 hideContact: item.hideContact || false,
                 posterUrl: item.posterUrl || '',
-                amenities: item.amenities || { food: false, wifi: false, inverter: false }
+                amenities: item.amenities || { food: false, wifi: false, inverter: false },
+                description: item.description || ''
             });
         } else {
             setEditForm({
@@ -406,7 +407,7 @@ const OperationalDashboard = () => {
                             }`}
                     >
                         <Calendar size={20} />
-                        Global Bookings
+                        Call Requests
                     </button>
                     <button
                         onClick={() => setActiveTab('partners')}
@@ -538,12 +539,12 @@ const OperationalDashboard = () => {
                         <div className="max-w-5xl mx-auto">
                             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                                 <Calendar className="text-emerald-500" />
-                                All System Bookings
+                                All Call Requests
                             </h2>
                             <div className="space-y-4">
                                 {bookings.length === 0 ? (
                                     <div className="text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                                        No bookings found in the system.
+                                        No call requests found in the system.
                                     </div>
                                 ) : (
                                     bookings.map(booking => (
@@ -1397,6 +1398,16 @@ const OperationalDashboard = () => {
                                             value={editForm.address}
                                             onChange={e => setEditForm({ ...editForm, address: e.target.value })}
                                             required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Description / About Mess</label>
+                                        <textarea
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 h-32 resize-none"
+                                            value={editForm.description || ''}
+                                            onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                                            placeholder=" detailed description about the mess, facilities, rules etc."
                                         />
                                     </div>
 

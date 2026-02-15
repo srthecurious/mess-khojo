@@ -217,15 +217,15 @@ const UserProfile = () => {
 
                 {/* Bookings Section */}
                 <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-brand-text-dark mb-4 pl-1">My Bookings</h2>
+                    <h2 className="text-xl font-bold text-brand-text-dark mb-4 pl-1">My Call Requests</h2>
 
                     {bookings.length === 0 ? (
                         <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
                             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                                 <Calendar size={32} />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">No bookings yet</h3>
-                            <p className="text-gray-500 mb-6">Explore messes and book your first stay!</p>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">No call requests yet</h3>
+                            <p className="text-gray-500 mb-6">Explore messes and request your first callback!</p>
                             <button
                                 onClick={() => navigate('/')}
                                 className="px-6 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
@@ -257,7 +257,7 @@ const UserProfile = () => {
                                                 <span>₹{booking.price}/mo</span>
                                             </div>
                                             <p className="text-xs text-gray-400">
-                                                Booking ID: #{booking.id.slice(0, 6).toUpperCase()} •
+                                                Request ID: #{booking.id.slice(0, 6).toUpperCase()} •
                                                 Placed on {booking.createdAt ? new Date(booking.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
                                             </p>
                                         </div>

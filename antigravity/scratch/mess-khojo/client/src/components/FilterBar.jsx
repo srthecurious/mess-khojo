@@ -97,6 +97,14 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
                                 value={filters.location}
                                 onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                             />
+                            {filters.location && (
+                                <button
+                                    onClick={() => setFilters({ ...filters, location: '' })}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
                         </div>
 
                         <button
@@ -124,10 +132,18 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
                                 <input
                                     type="text"
                                     placeholder="Search by mess name..."
-                                    className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
+                                    className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
                                     value={filters.location}
                                     onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                                 />
+                                {filters.location && (
+                                    <button
+                                        onClick={() => setFilters({ ...filters, location: '' })}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
                             </div>
                         </div>
 

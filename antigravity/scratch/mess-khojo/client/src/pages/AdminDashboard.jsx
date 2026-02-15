@@ -51,7 +51,8 @@ const AdminDashboard = () => {
             food: false,
             wifi: false,
             inverter: false
-        }
+        },
+        description: ''
     });
     const [posterFile, setPosterFile] = useState(null);
     const [isEditingMess, setIsEditingMess] = useState(false);
@@ -335,7 +336,8 @@ const AdminDashboard = () => {
                 food: false,
                 wifi: false,
                 inverter: false
-            }
+            },
+            description: messProfile.description || ''
         });
         setIsEditingMess(true);
     };
@@ -346,7 +348,8 @@ const AdminDashboard = () => {
             name: '', address: '', contact: '', locationUrl: '', messType: 'Boys',
             extraAppliances: '', foodFacility: '', security: '', advanceDeposit: '',
             isUserSourced: false, lastUpdatedDate: '',
-            amenities: { food: false, wifi: false, inverter: false }
+            amenities: { food: false, wifi: false, inverter: false },
+            description: ''
         });
         setPosterFile(null);
     };
@@ -592,6 +595,15 @@ const AdminDashboard = () => {
                                     value={messForm.address}
                                     onChange={(e) => setMessForm({ ...messForm, address: e.target.value })}
                                     required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Description / About Mess</label>
+                                <textarea
+                                    className="w-full p-2 border rounded h-32 resize-none"
+                                    value={messForm.description || ''}
+                                    onChange={(e) => setMessForm({ ...messForm, description: e.target.value })}
+                                    placeholder="Enter a detailed description about your mess..."
                                 />
                             </div>
                             <div>

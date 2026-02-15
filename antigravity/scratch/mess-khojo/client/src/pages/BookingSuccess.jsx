@@ -68,7 +68,7 @@ const BookingSuccess = () => {
                         className="flex items-center justify-center gap-2 py-3 px-4 bg-brand-primary/5 hover:bg-brand-primary/10 text-brand-primary font-bold rounded-xl transition-colors text-sm"
                     >
                         <Calendar size={18} />
-                        My Bookings
+                        My Requests
                     </button>
                 </div>
 
