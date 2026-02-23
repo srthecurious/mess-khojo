@@ -110,11 +110,8 @@ const MessCard = memo(({ mess }) => {
                 <div className="flex flex-col gap-1.5 flex-grow">
                     {/* Header */}
                     <div>
-                        <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="mb-1">
                             <h3 className="text-lg font-bold text-brand-text-dark line-clamp-1 leading-tight">{mess.name}</h3>
-                            <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 shadow-sm mt-0.5 whitespace-nowrap">
-                                No Broker
-                            </span>
                         </div>
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <MapPin size={14} className="text-gray-400 flex-shrink-0" />

@@ -34,6 +34,7 @@ const AboutUs = () => {
                             <li>View room details, pricing, and amenities</li>
                             <li>Compare options based on budget and preference</li>
                             <li>Get direct contact details of owners for easy communication</li>
+                            <li>Enjoy a 100% free platform with <span className="font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px] ml-1">No Broker</span> fees</li>
                         </ul>
 
                         <p className="leading-relaxed mt-6">
