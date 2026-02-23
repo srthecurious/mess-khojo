@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
@@ -97,6 +97,39 @@ const RoomDetails = () => {
             alert("Partners cannot book rooms. Please login as a User.");
             return;
         }
+
+        // --- ENFORCE DAILY LIMIT ---
+        try {
+            const bookingsRef = collection(db, "bookings");
+            const q = query(
+                bookingsRef,
+                where("userId", "==", currentUser.uid)
+            );
+
+            const querySnapshot = await getDocs(q);
+            let todayCount = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.createdAt && data.createdAt.toDate) {
+                    const createdAtDate = data.createdAt.toDate();
+                    if (createdAtDate >= today) {
+                        todayCount++;
+                    }
+                }
+            });
+
+            if (todayCount >= 5) {
+                alert("You have reached the maximum limit of 5 call requests per day. Please try again tomorrow.");
+                return;
+            }
+        } catch (error) {
+            console.error("Error checking booking limit:", error);
+            // Non-blocking fallback if query fails
+        }
+        // ---------------------------
 
         // Check if user has a phone number
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -221,13 +254,29 @@ const RoomDetails = () => {
                 <div className="bg-white rounded-2xl p-2 shadow-sm border border-brand-light-gray overflow-hidden">
                     {room.imageUrls && room.imageUrls.length > 0 ? (
                         <div className="grid grid-cols-2 gap-2">
-                            <img src={room.imageUrls[0]} alt="Room Main" className="w-full h-64 object-cover rounded-xl col-span-2" />
+                            <img
+                                src={room.imageUrls[0]}
+                                alt="Room Main"
+                                className="w-full h-64 object-cover rounded-xl col-span-2 cursor-pointer hover:opacity-95 transition-opacity"
+                                onClick={() => window.open(room.imageUrls[0], '_blank')}
+                            />
                             {room.imageUrls.slice(1, 3).map((url, idx) => (
-                                <img key={idx} src={url} alt={`Room ${idx + 1}`} className="w-full h-32 object-cover rounded-xl" />
+                                <img
+                                    key={idx}
+                                    src={url}
+                                    alt={`Room ${idx + 1}`}
+                                    className="w-full h-32 object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
+                                    onClick={() => window.open(url, '_blank')}
+                                />
                             ))}
                         </div>
                     ) : (
-                        <img src={room.imageUrl || "/default-room.jpg"} alt="Room" className="w-full h-64 object-cover rounded-xl" />
+                        <img
+                            src={room.imageUrl || "/default-room.jpg"}
+                            alt="Room"
+                            className="w-full h-64 object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
+                            onClick={() => window.open(room.imageUrl || "/default-room.jpg", '_blank')}
+                        />
                     )}
                 </div>
 

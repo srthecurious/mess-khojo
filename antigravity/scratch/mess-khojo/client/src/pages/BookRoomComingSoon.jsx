@@ -72,7 +72,7 @@ const BookRoomComingSoon = () => {
                     <Link to="/" className="text-white/80 hover:text-white transition-colors">
                         <ArrowLeft size={24} />
                     </Link>
-                    <h1 className="text-xl font-bold text-white">Book a Room</h1>
+                    <h1 className="text-xl font-bold text-white">Find Your Room</h1>
                 </div>
             </div>
 
@@ -87,9 +87,9 @@ const BookRoomComingSoon = () => {
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-accent-green/10 rounded-full mb-4">
                         <BedDouble size={40} className="text-brand-accent-green" />
                     </div>
-                    <h2 className="text-3xl font-bold text-brand-text-dark mb-3">Room Booking is Coming Soon!</h2>
+                    <h2 className="text-3xl font-bold text-brand-text-dark mb-3">Find Your Room Tool is Coming Soon!</h2>
                     <p className="text-brand-text-gray text-lg max-w-lg mx-auto leading-relaxed">
-                        We are building the best room booking experience for you.
+                        We are building the best room finding experience for you.
                         <br className="hidden sm:block" />
                         Tell us what you need, and we'll manually find the perfect room for you.
                     </p>

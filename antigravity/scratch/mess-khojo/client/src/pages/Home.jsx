@@ -491,6 +491,11 @@ const Home = () => {
     // Reset pagination when filters change
     useEffect(() => {
         setDisplayCount(CARDS_PER_PAGE);
+        // Force scroll to top using a slight delay to bypass mobile keyboard auto-scroll overrides
+        // and safely wait for React DOM paints to shrink the page height.
+        setTimeout(() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }, 10);
     }, [filters, userLocation]);
 
     const [isMainSearchVisible, setIsMainSearchVisible] = useState(true);
@@ -554,7 +559,7 @@ const Home = () => {
                         {/* Content positioned below spotlights */}
                         <div className="relative z-10 text-center px-6 max-w-2xl">
                             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
-                                Find your comfortable <span className="text-brand-accent-green">stay</span>
+                                Find Your Comfortable <span className="text-brand-accent-green">Stay</span>
                             </h1>
                             <p className="text-white/90 font-medium mb-6 text-base">
                                 Mess Dhundo, Ghar Baithe

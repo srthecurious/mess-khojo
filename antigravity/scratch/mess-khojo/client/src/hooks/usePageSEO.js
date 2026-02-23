@@ -110,11 +110,39 @@ export function usePageSEO({
 export function generateMessSchema(mess) {
     if (!mess) return null;
 
+    const amenityFeatures = [];
+
+    // 1. Boolean Amenities (WiFi, Food, Inverter)
+    if (mess.amenities) {
+        Object.entries(mess.amenities).forEach(([key, value]) => {
+            if (value === true) {
+                amenityFeatures.push({
+                    "@type": "LocationFeatureSpecification",
+                    "name": key.charAt(0).toUpperCase() + key.slice(1)
+                });
+            }
+        });
+    }
+
+    // 2. Custom Text Facilities (Security, Appliances)
+    if (mess.security) {
+        amenityFeatures.push({
+            "@type": "LocationFeatureSpecification",
+            "name": `Security: ${mess.security}`
+        });
+    }
+    if (mess.extraAppliances) {
+        amenityFeatures.push({
+            "@type": "LocationFeatureSpecification",
+            "name": `Appliances: ${mess.extraAppliances}`
+        });
+    }
+
     const schema = {
         "@context": "https://schema.org",
-        "@type": "LodgingBusiness",
+        "@type": "Hostel",
         "name": mess.name,
-        "description": mess.description || `${mess.name} - ${mess.messType || 'Accommodation'} in ${mess.address || 'Balasore'}. Contact for availability and pricing.`,
+        "description": mess.description || `${mess.name} is a ${mess.messType || 'premium'} accommodation in ${mess.address || 'Balasore'}. Hygienic food, safe environment, no broker.`,
         "url": `https://messkhojo.com/mess/${mess.id}`,
         "image": mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/logo.png",
         "address": {
@@ -127,14 +155,7 @@ export function generateMessSchema(mess) {
         "priceRange": mess.minPrice && mess.maxPrice
             ? `₹${mess.minPrice} - ₹${mess.maxPrice}`
             : mess.rent ? `₹${mess.rent}` : "Contact for price",
-        "amenityFeature": mess.amenities
-            ? Object.entries(mess.amenities)
-                .filter(([_, value]) => value === true)
-                .map(([key]) => ({
-                    "@type": "LocationFeatureSpecification",
-                    "name": key.charAt(0).toUpperCase() + key.slice(1)
-                }))
-            : []
+        "amenityFeature": amenityFeatures
     };
 
     // Add telephone if available AND not hidden

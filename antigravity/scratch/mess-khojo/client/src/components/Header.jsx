@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search } from 'lucide-react';
+import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search, Info } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { db } from '../firebase';
@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Header = ({ showSearch, searchTerm, onSearchChange }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const { currentUser } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -111,7 +112,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                         {/* Center Section: Sticky Search Bar */}
                         <div className="flex-1 flex justify-center mx-4">
                             <AnimatePresence>
-                                {showSearch && (
+                                {(showSearch || isSearchFocused) && (
                                     <motion.div
                                         initial={{ opacity: 0, y: -20 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -123,10 +124,26 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             type="text"
                                             placeholder="Search..."
                                             value={searchTerm}
+                                            onFocus={() => setIsSearchFocused(true)}
+                                            onBlur={() => setIsSearchFocused(false)}
                                             onChange={(e) => onSearchChange(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
+                                            className="w-full pl-10 pr-10 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
                                         />
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90 pointer-events-none" size={16} />
+                                        {searchTerm && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    onSearchChange('');
+                                                }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                                                title="Clear search"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -337,15 +354,15 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                         </Link>
 
                                         <Link
-                                            to="/book-room"
+                                            to="/find-your-room"
                                             onClick={() => setIsMenuOpen(false)}
-                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/book-room")
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/find-your-room")
                                                 ? "text-white bg-white/10 border-brand-accent-green"
                                                 : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-accent-green"
                                                 }`}
                                         >
-                                            <BedDouble size={20} className={`relative z-10 transition-colors ${isActive("/book-room") ? "text-brand-accent-green" : "group-hover:text-brand-accent-green"}`} />
-                                            <span className="relative z-10">Book Room</span>
+                                            <BedDouble size={20} className={`relative z-10 transition-colors ${isActive("/find-your-room") ? "text-brand-accent-green" : "group-hover:text-brand-accent-green"}`} />
+                                            <span className="relative z-10">Find Your Room</span>
                                             <span className="ml-auto px-2 py-0.5 text-[10px] font-bold text-brand-accent-green bg-brand-accent-green/10 rounded-full border border-brand-accent-green/20 relative z-10">NEW</span>
                                         </Link>
 
@@ -400,6 +417,19 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             </a>
                                         </div>
 
+
+                                        <Link
+                                            to="/about-us"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium transition-all relative overflow-hidden text-left ${isActive("/about-us")
+                                                ? "text-white bg-white/10"
+                                                : "text-white/70 hover:text-white hover:bg-white/5"
+                                                }`}
+                                        >
+                                            <Info size={20} className={`relative z-10 transition-colors ${isActive("/about-us") ? "text-brand-white" : "group-hover:text-brand-white"}`} />
+                                            <span className="relative z-10">About Us</span>
+                                            <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive("/about-us") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+                                        </Link>
 
                                         {/* Contact Us - Expandable Section */}
                                         <div className="pt-2 px-2 pb-6">

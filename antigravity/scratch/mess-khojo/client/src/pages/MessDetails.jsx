@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
@@ -543,6 +543,34 @@ const MessDetails = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Photo Gallery Section */}
+                {mess.galleryUrls && mess.galleryUrls.length > 0 && (
+                    <div className="mt-12">
+                        <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="bg-brand-accent-blue/10 p-2.5 rounded-xl text-brand-accent-blue">
+                                    <ImageIcon size={24} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-brand-text-dark">Photo Gallery</h2>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {mess.galleryUrls.map((url, idx) => (
+                                    <div key={idx} className="relative shadow-sm aspect-square group rounded-2xl overflow-hidden border border-brand-light-gray cursor-pointer" onClick={() => window.open(url, '_blank')}>
+                                        <img
+                                            src={url}
+                                            alt={`${mess.name} Gallery ${idx + 1}`}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            loading="lazy"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none rounded-2xl"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Global Actions for User Sourced */}
                 {

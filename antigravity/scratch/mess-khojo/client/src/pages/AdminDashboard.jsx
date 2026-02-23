@@ -55,7 +55,22 @@ const AdminDashboard = () => {
         description: ''
     });
     const [posterFile, setPosterFile] = useState(null);
+    const [galleryFiles, setGalleryFiles] = useState([]);
     const [isEditingMess, setIsEditingMess] = useState(false);
+
+    const removeGalleryImage = async (imageUrlToRemove) => {
+        if (!messProfile) return;
+        try {
+            const updatedUrls = (messProfile.galleryUrls || []).filter(url => url !== imageUrlToRemove);
+            await updateDoc(doc(db, "messes", messProfile.id), {
+                galleryUrls: updatedUrls
+            });
+            setMessProfile(prev => ({ ...prev, galleryUrls: updatedUrls }));
+        } catch (error) {
+            console.error("Error removing gallery image:", error);
+            alert("Failed to remove gallery image");
+        }
+    };
     const [geocoding, setGeocoding] = useState(false);
     const [showMapPicker, setShowMapPicker] = useState(false);
 
@@ -279,6 +294,24 @@ const AdminDashboard = () => {
                 posterUrl = await getDownloadURL(snapshot.ref);
             }
 
+            let downloadURLs = messProfile?.galleryUrls ? [...messProfile.galleryUrls] : [];
+            if (galleryFiles.length > 0) {
+                const uploadPromises = Array.from(galleryFiles).map(async (file) => {
+                    const compressedFile = await compressImage(file);
+                    const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+                    const snapshot = await uploadBytes(storageRef, compressedFile);
+                    return getDownloadURL(snapshot.ref);
+                });
+                const newUrls = await Promise.all(uploadPromises);
+                downloadURLs = [...downloadURLs, ...newUrls];
+            }
+
+            if (downloadURLs.length > 15) {
+                alert(`You have ${downloadURLs.length} gallery images. Maximum allowed is 15. Please remove some.`);
+                setUploading(false);
+                return;
+            }
+
             if (isEditingMess && messProfile) {
                 // Update existing profile
                 const messRef = doc(db, "messes", messProfile.id);
@@ -287,10 +320,11 @@ const AdminDashboard = () => {
                     latitude: messForm.latitude ? Number(messForm.latitude) : null,
                     longitude: messForm.longitude ? Number(messForm.longitude) : null,
                     posterUrl,
+                    galleryUrls: downloadURLs,
                     isUserSourced: messForm.isUserSourced || false,
                     lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null
                 });
-                setMessProfile({ ...messProfile, ...messForm, posterUrl });
+                setMessProfile({ ...messProfile, ...messForm, posterUrl, galleryUrls: downloadURLs });
                 setIsEditingMess(false);
                 alert("Mess Profile updated successfully!");
             } else {
@@ -300,12 +334,13 @@ const AdminDashboard = () => {
                     latitude: messForm.latitude ? Number(messForm.latitude) : null,
                     longitude: messForm.longitude ? Number(messForm.longitude) : null,
                     posterUrl,
+                    galleryUrls: downloadURLs,
                     isUserSourced: messForm.isUserSourced || false,
                     lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null,
                     adminId: user.uid,
                     createdAt: new Date()
                 });
-                setMessProfile({ id: docRef.id, ...messForm, posterUrl, adminId: user.uid });
+                setMessProfile({ id: docRef.id, ...messForm, posterUrl, galleryUrls: downloadURLs, adminId: user.uid });
                 alert("Mess Profile created successfully!");
             }
         } catch (error) {
@@ -314,6 +349,7 @@ const AdminDashboard = () => {
         } finally {
             setUploading(false);
             setPosterFile(null);
+            setGalleryFiles([]);
         }
     };
 
@@ -352,6 +388,7 @@ const AdminDashboard = () => {
             description: ''
         });
         setPosterFile(null);
+        setGalleryFiles([]);
     };
 
     const handleRoomSubmit = async (e) => {
@@ -784,12 +821,49 @@ const AdminDashboard = () => {
                                     accept="image/*"
                                 />
                                 {isEditingMess && messProfile?.posterUrl && (
-                                    <div className="mt-2">
+                                    <div className="mt-2 text-center md:text-left">
                                         <p className="text-xs text-gray-500 mb-1">Current Poster:</p>
                                         <img src={messProfile.posterUrl} alt="Current Poster" className="h-20 w-auto rounded border" />
                                     </div>
                                 )}
                             </div>
+
+                            <div className="pt-2 border-t border-gray-100">
+                                <label className="block text-sm font-medium mb-1 text-brand-primary flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
+                                    Mess Photo Gallery (Max 15 Images)
+                                </label>
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={(e) => setGalleryFiles(e.target.files)}
+                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-accent-blue/10 file:text-brand-accent-blue hover:file:bg-brand-accent-blue/20"
+                                />
+                                <p className="text-xs text-gray-400 mt-1 italic">Select multiple stunning photos showcasing your mess (dining area, building exterior, sitting area, etc.)</p>
+
+                                {isEditingMess && messProfile?.galleryUrls?.length > 0 && (
+                                    <div className="mt-4">
+                                        <p className="text-xs text-gray-500 mb-2 font-medium">Current Gallery ({messProfile.galleryUrls.length}/15):</p>
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                                            {messProfile.galleryUrls.map((url, idx) => (
+                                                <div key={idx} className="relative group rounded-md overflow-hidden border shadow-sm aspect-square bg-gray-50">
+                                                    <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.preventDefault(); removeGalleryImage(url); }}
+                                                        className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Remove Image"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <button type="submit" disabled={uploading} className="w-full bg-brand-primary text-white py-2 rounded hover:bg-brand-primary-hover shadow-md transition-all">
                                 {uploading ? 'Saving...' : (isEditingMess ? 'Update Profile' : 'Create Profile')}
                             </button>

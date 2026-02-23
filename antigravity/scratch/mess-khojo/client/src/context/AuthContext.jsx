@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
+import { onAuthStateChanged, signOut as firebaseSignOut, deleteUser } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 const AuthContext = createContext();
@@ -67,10 +67,18 @@ export function AuthProvider({ children }) {
         return firebaseSignOut(auth);
     };
 
+    const deleteAccount = async () => {
+        if (currentUser) {
+            return deleteUser(currentUser);
+        }
+        throw new Error("No user is currently logged in.");
+    };
+
     const value = {
         currentUser,
         userRole, // Expose role so components know who is logged in
         logout,
+        deleteAccount,
     };
 
     return (

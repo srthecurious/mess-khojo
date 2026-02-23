@@ -7,6 +7,22 @@ import { useNavigate } from 'react-router-dom';
 import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification, telegramTemplates } from '../utils/telegramNotifier';
+import imageCompression from 'browser-image-compression';
+
+const compressImage = async (file) => {
+    const options = {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: 'image/jpeg'
+    };
+    try {
+        return await imageCompression(file, options);
+    } catch (error) {
+        console.error('Compression error:', error);
+        return file;
+    }
+};
 
 const OperationalDashboard = () => {
     const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
@@ -26,6 +42,7 @@ const OperationalDashboard = () => {
     const [editingItem, setEditingItem] = useState(null); // For mess/room edit modal
     const [editForm, setEditForm] = useState(null);
     const [editImageFiles, setEditImageFiles] = useState([]);
+    const [editGalleryFiles, setEditGalleryFiles] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const [revealedIds, setRevealedIds] = useState({}); // { bookingId: true/false } to toggle phone visibility
 
@@ -142,7 +159,7 @@ const OperationalDashboard = () => {
         return () => unsubscribe();
     }, []);
 
-    // Fetch ALL Room Inquiries (For "Book Room" Coming Soon)
+    // Fetch ALL Room Inquiries (For "Find Your Room" Coming Soon)
     useEffect(() => {
         const q = query(collection(db, "room_inquiries"));
         let isFirstLoad = true;
@@ -296,6 +313,7 @@ const OperationalDashboard = () => {
                 hidden: item.hidden || false,
                 hideContact: item.hideContact || false,
                 posterUrl: item.posterUrl || '',
+                galleryUrls: item.galleryUrls || [],
                 amenities: item.amenities || { food: false, wifi: false, inverter: false },
                 description: item.description || ''
             });
@@ -312,6 +330,20 @@ const OperationalDashboard = () => {
         }
     };
 
+    const removeGalleryImage = async (imageUrlToRemove) => {
+        if (!editingItem || editingItem.type !== 'mess') return;
+        try {
+            const updatedUrls = (editForm.galleryUrls || []).filter(url => url !== imageUrlToRemove);
+            await updateDoc(doc(db, "messes", editingItem.id), {
+                galleryUrls: updatedUrls
+            });
+            setEditForm(prev => ({ ...prev, galleryUrls: updatedUrls }));
+        } catch (error) {
+            console.error("Error removing image:", error);
+            alert("Failed to remove gallery image");
+        }
+    };
+
     const handleEditSubmit = async (e) => {
         e.preventDefault();
         setIsSaving(true);
@@ -320,13 +352,34 @@ const OperationalDashboard = () => {
                 let posterUrl = editForm.posterUrl;
                 if (editImageFiles.length > 0) {
                     const file = editImageFiles[0];
+                    const compressedFile = await compressImage(file);
                     const storageRef = ref(storage, `posters/${Date.now()}_${file.name}`);
-                    const snapshot = await uploadBytes(storageRef, file);
+                    const snapshot = await uploadBytes(storageRef, compressedFile);
                     posterUrl = await getDownloadURL(snapshot.ref);
                 }
+
+                let downloadURLs = editForm.galleryUrls ? [...editForm.galleryUrls] : [];
+                if (editGalleryFiles.length > 0) {
+                    const uploadPromises = Array.from(editGalleryFiles).map(async (file) => {
+                        const compressedFile = await compressImage(file);
+                        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+                        const snapshot = await uploadBytes(storageRef, compressedFile);
+                        return getDownloadURL(snapshot.ref);
+                    });
+                    const newUrls = await Promise.all(uploadPromises);
+                    downloadURLs = [...downloadURLs, ...newUrls];
+                }
+
+                if (downloadURLs.length > 15) {
+                    alert(`You have ${downloadURLs.length} gallery images. Maximum allowed is 15. Please remove some.`);
+                    setIsSaving(false);
+                    return;
+                }
+
                 await updateDoc(doc(db, "messes", editingItem.id), {
                     ...editForm,
                     posterUrl,
+                    galleryUrls: downloadURLs,
                     lastUpdatedDate: editForm.isUserSourced ? editForm.lastUpdatedDate : null
                 });
             } else {
@@ -335,6 +388,7 @@ const OperationalDashboard = () => {
             setEditingItem(null);
             setEditForm(null);
             setEditImageFiles([]);
+            setEditGalleryFiles([]);
             alert("Updated successfully");
         } catch (error) {
             console.error("Save failed:", error);
@@ -474,7 +528,7 @@ const OperationalDashboard = () => {
                             }`}
                     >
                         <BedDouble size={20} />
-                        Room Inquiries
+                        Find Your Room Requests
                         {roomInquiries.length > 0 && (
                             <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
                                 {roomInquiries.length}
@@ -697,7 +751,7 @@ const OperationalDashboard = () => {
                         <div className="max-w-6xl mx-auto">
                             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-orange-500">
                                 <BedDouble />
-                                Book Room Requests
+                                Find Your Room Requests
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {roomInquiries.length === 0 ? (
@@ -1531,6 +1585,40 @@ const OperationalDashboard = () => {
                                             onChange={e => setEditImageFiles(e.target.files)}
                                             accept="image/*"
                                         />
+                                    </div>
+
+                                    <div className="pt-2 border-t border-slate-700">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                                            Mess Photo Gallery (Max 15)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            onChange={(e) => setEditGalleryFiles(e.target.files)}
+                                            className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20"
+                                        />
+
+                                        {editForm.galleryUrls?.length > 0 && (
+                                            <div className="mt-4">
+                                                <p className="text-xs text-slate-500 mb-2 font-medium">Current Gallery ({editForm.galleryUrls.length}/15):</p>
+                                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                                                    {editForm.galleryUrls.map((url, idx) => (
+                                                        <div key={idx} className="relative group rounded-md overflow-hidden border border-slate-700 shadow-sm aspect-square bg-slate-900">
+                                                            <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.preventDefault(); removeGalleryImage(url); }}
+                                                                className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                title="Remove Image"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             ) : (

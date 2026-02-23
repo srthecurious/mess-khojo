@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { trackMessRegistration } from '../analytics';
+import usePageSEO from '../hooks/usePageSEO';
 
 const MessRegistration = () => {
     const navigate = useNavigate();
@@ -21,6 +22,12 @@ const MessRegistration = () => {
     });
 
     const totalSteps = 6;
+
+    usePageSEO({
+        title: 'Register Your Mess | MessKhojo',
+        description: 'Register your boys or ladies mess in Balasore on MessKhojo. Increase zero-broker visibility and get direct student bookings.',
+        keywords: 'register mess balasore, list mess online, mess owners balasore, pg registration balasore'
+    });
 
     // Track when user starts registration
     useEffect(() => {
@@ -93,8 +100,8 @@ const MessRegistration = () => {
                             <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Building2 size={32} className="text-purple-600" />
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-800">What is your Mess Name?</h2>
-                            <p className="text-gray-500">Let's start with the basics</p>
+                            <h1 className="text-2xl font-bold text-gray-800">Register Your Mess in Balasore</h1>
+                            <p className="text-gray-500">Step 1: What is the name of your mess?</p>
                         </div>
                         <input
                             type="text"

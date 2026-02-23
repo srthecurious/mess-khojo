@@ -27,16 +27,20 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
 
     const cardContent = (
         <>
-            <div className="h-36 md:h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm">
-                <img src={displayImage} alt={title} className="w-full h-full object-cover" />
+            <div className="h-36 md:h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm group-hover/img:shadow-md">
+                <img
+                    src={displayImage}
+                    alt={title}
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                />
 
                 {/* Count Badge */}
                 {room.availableCount > 0 ? (
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-green-100/90 text-green-800 shadow-sm backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-green-100/90 text-green-800 shadow-sm backdrop-blur-sm pointer-events-none">
                         Available
                     </div>
                 ) : (
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-red-100/90 text-red-800 shadow-sm backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-red-100/90 text-red-800 shadow-sm backdrop-blur-sm pointer-events-none">
                         Full
                     </div>
                 )}

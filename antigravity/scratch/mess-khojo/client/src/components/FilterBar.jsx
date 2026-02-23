@@ -19,17 +19,12 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
         maxDistance: ''
     });
 
-    // Sync internal state when parent filters change (e.g. from Category Switcher)
+    // Sync internal state when parent filters change (e.g. from Header Search or Category Switcher)
     useEffect(() => {
         if (currentFilters) {
-            // eslint-disable-next-line
-            setFilters(prev => {
-                // Only update if there's a difference to avoid loops
-                if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
-                    return currentFilters;
-                }
-                return prev;
-            });
+            // Directly update filters. React handles bailing out automatically if currentFilters 
+            // is the exact same reference, so we safely avoid infinite loops!
+            setFilters(currentFilters);
         }
     }, [currentFilters]);
 
@@ -99,7 +94,11 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
                             />
                             {filters.location && (
                                 <button
-                                    onClick={() => setFilters({ ...filters, location: '' })}
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setFilters({ ...filters, location: '' });
+                                    }}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
                                 >
                                     <X size={14} />
@@ -138,7 +137,11 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
                                 />
                                 {filters.location && (
                                     <button
-                                        onClick={() => setFilters({ ...filters, location: '' })}
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setFilters({ ...filters, location: '' });
+                                        }}
                                         className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
                                     >
                                         <X size={16} />

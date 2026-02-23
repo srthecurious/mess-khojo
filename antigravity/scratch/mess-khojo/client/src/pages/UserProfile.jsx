@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle } from 'lucide-react';
 
 const UserProfile = () => {
-    const { currentUser, logout, userRole } = useAuth();
+    const { currentUser, logout, userRole, deleteAccount } = useAuth();
     const [userData, setUserData] = useState(null);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,6 +14,9 @@ const UserProfile = () => {
     const [editedPhone, setEditedPhone] = useState('');
     const [phoneError, setPhoneError] = useState('');
     const [savingPhone, setSavingPhone] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -100,6 +103,29 @@ const UserProfile = () => {
             navigate('/user-login');
         } catch (error) {
             console.error("Failed to log out", error);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        setDeletingAccount(true);
+        setDeleteError('');
+        try {
+            // Delete user document from Firestore (it cleans up their data profile)
+            const userDocRef = doc(db, "users", currentUser.uid);
+            await deleteDoc(userDocRef);
+
+            // Delete Firebase Auth user
+            await deleteAccount();
+            navigate('/user-login');
+        } catch (error) {
+            console.error("Failed to delete account:", error);
+            if (error.code === 'auth/requires-recent-login') {
+                setDeleteError("For security reasons, please log out and log back in before deleting your account.");
+            } else {
+                setDeleteError("Failed to delete account. Please try again later.");
+            }
+        } finally {
+            setDeletingAccount(false);
         }
     };
 
@@ -284,7 +310,7 @@ const UserProfile = () => {
                 </div>
 
                 {/* Logout Button Section */}
-                <div className="pt-12 pb-8 border-t border-gray-100 flex justify-center">
+                <div className="pt-12 pb-8 border-t border-gray-100 flex flex-col items-center gap-4">
                     <button
                         onClick={handleLogout}
                         className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-3 px-10 py-4 bg-white text-red-600 rounded-3xl hover:bg-red-50 transition-all font-black text-sm uppercase tracking-widest border-2 border-red-50 shadow-lg active:scale-95"
@@ -292,8 +318,67 @@ const UserProfile = () => {
                         <LogOut size={20} strokeWidth={2.5} />
                         Sign Out Account
                     </button>
+
+                    <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="text-xs text-brand-text-gray hover:text-red-500 transition-colors mt-2 font-medium"
+                    >
+                        Delete My Account
+                    </button>
                 </div>
             </div>
+
+            {/* Delete Account Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform transition-all">
+                        <div className="flex justify-center mb-4">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500">
+                                <AlertTriangle size={32} />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold text-center text-gray-900 mb-2">Delete Account?</h3>
+                        <p className="text-center text-sm text-gray-600 mb-6 font-medium">
+                            This action cannot be undone. All your details, history, and active requests will be permanently removed.
+                        </p>
+
+                        {deleteError && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-center flex flex-col items-center gap-3">
+                                <p className="text-red-600 text-xs font-medium">{deleteError}</p>
+                                {deleteError.includes('log out and log back in') && (
+                                    <button
+                                        onClick={handleLogout}
+                                        className="px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm hover:bg-red-700 active:scale-95 transition-all flex items-center gap-2"
+                                    >
+                                        <LogOut size={14} strokeWidth={2.5} />
+                                        Log Out Now
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={deletingAccount}
+                                className="w-full py-3.5 bg-red-500 text-white rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {deletingAccount ? "Deleting..." : "Yes, Delete Account"}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setDeleteError('');
+                                }}
+                                disabled={deletingAccount}
+                                className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
