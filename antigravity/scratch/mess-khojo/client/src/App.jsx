@@ -20,7 +20,17 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsAndConditions from './pages/TermsAndConditions';
 import AboutUs from './pages/AboutUs';
 import NotFound from './pages/NotFound';
+import Wishlist from './pages/Wishlist';
 import { trackPageView } from './analytics';
+
+// Scroll to top on every route change
+function ScrollToTop() {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
+  return null;
+}
 
 // Analytics wrapper component to track route changes
 function AnalyticsTracker() {
@@ -38,6 +48,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <AnalyticsTracker />
         <div className="min-h-screen bg-brand-secondary text-brand-text-dark font-sans flex flex-col">
           <Routes>
@@ -58,6 +69,7 @@ function App() {
             <Route path="/user-signup" element={<UserSignup />} />
             <Route path="/user-login" element={<UserLogin />} />
             <Route path="/profile" element={<UserProfile />} />
+            <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/booking-success" element={<BookingSuccess />} />
             <Route path="/register-mess" element={<MessRegistration />} />
             <Route path="/find-your-room" element={<BookRoomComingSoon />} />

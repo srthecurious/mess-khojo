@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
 import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent } from '../analytics';
 import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
+import { useWishlist } from '../hooks/useWishlist';
+import { useAuth } from '../context/AuthContext';
 
 const MessDetails = () => {
     const { id: messId } = useParams();
     const navigate = useNavigate();
+    const { currentUser } = useAuth();
+    const { isRoomWishlisted, toggleRoomWishlist, isMessWishlisted, toggleMessWishlist } = useWishlist();
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+    const handleRoomWishlistToggle = async (roomId) => {
+        if (!currentUser) { setShowLoginPrompt(true); return; }
+        await toggleRoomWishlist(roomId);
+    };
     const [mess, setMess] = useState(null);
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -121,7 +131,7 @@ const MessDetails = () => {
             });
 
             // 2. Prepare WhatsApp message
-            const message = `*Inquiry for ${mess.name}* \n\nHello Mess Khojo, I am ${inquiryData.name}. I am looking for a ${inquiryData.seating === 'Any' ? 'room' : inquiryData.seating + ' room'} in *${mess.name}*. \n\nMy contact: ${inquiryData.phone}\n\nPlease help me with seat availability and details.`;
+            const message = `* Inquiry for ${mess.name} * \n\nHello Mess Khojo, I am ${inquiryData.name}. I am looking for a ${inquiryData.seating === 'Any' ? 'room' : inquiryData.seating + ' room'} in * ${mess.name}*.\n\nMy contact: ${inquiryData.phone} \n\nPlease help me with seat availability and details.`;
             const encodedMessage = encodeURIComponent(message);
             const whatsappUrl = `https://wa.me/+919692819621?text=${encodedMessage}`;
 
@@ -135,6 +145,16 @@ const MessDetails = () => {
         } finally {
             setSubmittingInquiry(false);
         }
+    };
+
+    const handleMessWishlistClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!currentUser) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        toggleMessWishlist(messId);
     };
 
     useEffect(() => {
@@ -317,6 +337,36 @@ const MessDetails = () => {
 
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
+
+            {/* Login Prompt Modal - slides down from top */}
+            {showLoginPrompt && (
+                <div className="fixed inset-0 z-[200] flex flex-col items-center pointer-events-none">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
+                        onClick={() => setShowLoginPrompt(false)}
+                    />
+                    <div className="relative pointer-events-auto w-full max-w-sm mt-20 mx-4 bg-white rounded-3xl shadow-2xl p-6">
+                        <div className="flex flex-col items-center text-center gap-3">
+                            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl">❤️</div>
+                            <h3 className="text-lg font-bold text-brand-text-dark">Save to Wishlist</h3>
+                            <p className="text-sm text-brand-text-gray">Login to save messes and rooms to your personal wishlist.</p>
+                            <button
+                                onClick={() => { setShowLoginPrompt(false); navigate('/user-login'); }}
+                                className="w-full py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover transition-colors shadow-lg shadow-brand-primary/20"
+                            >
+                                Login / Sign Up
+                            </button>
+                            <button
+                                onClick={() => setShowLoginPrompt(false)}
+                                className="text-sm text-brand-text-gray hover:text-brand-text-dark transition-colors"
+                            >
+                                Maybe later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header Area */}
             {/* Header Area */}
             <div className="bg-gradient-to-b from-purple-100 to-white border-b border-brand-light-gray/60 shadow-sm relative overflow-hidden">
@@ -339,7 +389,16 @@ const MessDetails = () => {
 
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
                         <div>
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-purple-600 mb-2 tracking-tight drop-shadow-sm">{mess.name}</h1>
+                            <div className="flex items-center gap-3 mb-2">
+                                <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-purple-600 tracking-tight drop-shadow-sm">{mess.name}</h1>
+                                <button
+                                    onClick={handleMessWishlistClick}
+                                    className={`p-2 rounded-full transition-all flex border shadow-sm shrink-0 items-center justify-center ${isMessWishlisted(messId) ? 'bg-red-50 border-red-200' : 'bg-white border-brand-light-gray hover:bg-gray-50'}`}
+                                    title={isMessWishlisted(messId) ? "Remove from wishlist" : "Add to wishlist"}
+                                >
+                                    <Heart size={24} className={`transition-all ${isMessWishlisted(messId) ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 fill-transparent'}`} />
+                                </button>
+                            </div>
                             <div className="flex items-center text-brand-text-gray mb-4">
                                 <MapPin size={18} className="text-gray-400 mr-1.5 flex-shrink-0" />
                                 <span className="text-lg">{mess.address || "Address not available"}</span>
@@ -452,7 +511,13 @@ const MessDetails = () => {
                     rooms.length > 0 ? (
                         <div className="space-y-8">
                             {sortedGroups.map(([occupancy, groupRooms]) => (
-                                <RoomTypeGroup key={occupancy} occupancy={occupancy} rooms={groupRooms} />
+                                <RoomTypeGroup
+                                    key={occupancy}
+                                    occupancy={occupancy}
+                                    rooms={groupRooms}
+                                    isRoomWishlisted={isRoomWishlisted}
+                                    onToggleRoomWishlist={handleRoomWishlistToggle}
+                                />
                             ))}
                         </div>
                     ) : (
@@ -770,7 +835,7 @@ const MessDetails = () => {
     );
 };
 
-const RoomTypeGroup = ({ occupancy, rooms }) => {
+const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlist }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     // Calculate price range
@@ -830,7 +895,11 @@ const RoomTypeGroup = ({ occupancy, rooms }) => {
                     <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
                         {rooms.map(room => (
                             <div key={room.id} className="min-w-[260px] md:min-w-[340px] snap-center">
-                                <RoomCard room={room} />
+                                <RoomCard
+                                    room={room}
+                                    isWishlisted={isRoomWishlisted(room.id)}
+                                    onToggleWishlist={onToggleRoomWishlist}
+                                />
                             </div>
                         ))}
                     </div>

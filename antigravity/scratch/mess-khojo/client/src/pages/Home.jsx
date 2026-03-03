@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
 import SkeletonCard from '../components/SkeletonCard';
@@ -11,6 +12,8 @@ import MapLocationModal from '../components/MapLocationModal';
 import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { trackLocationUsage, trackSearch, trackViewMore } from '../analytics';
+import { useWishlist } from '../hooks/useWishlist';
+import { useAuth } from '../context/AuthContext';
 
 // Helper functions moved outside component
 const deg2rad = (deg) => {
@@ -40,7 +43,94 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; // Distance in km
 };
 
+// Levenshtein edit distance for typo tolerance
+const levenshtein = (a, b) => {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp = Array.from({ length: m + 1 }, (_, i) => i);
+    for (let j = 1; j <= n; j++) {
+        let prev = dp[0];
+        dp[0] = j;
+        for (let i = 1; i <= m; i++) {
+            const temp = dp[i];
+            dp[i] = a[i - 1] === b[j - 1]
+                ? prev
+                : 1 + Math.min(prev, dp[i], dp[i - 1]);
+            prev = temp;
+        }
+    }
+    return dp[m];
+};
+
+// Score how well `query` matches `text` (0 = no match, higher = better)
+const fuzzyScore = (query, text) => {
+    if (!query || !text) return 0;
+    const q = query.toLowerCase().trim();
+    const t = text.toLowerCase().trim();
+    if (!q || !t) return 0;
+
+    // Exact full match
+    if (t === q) return 120;
+    // Starts with query
+    if (t.startsWith(q)) return 110;
+    // Contains query as substring
+    if (t.includes(q)) return 100;
+
+    // Word-level matching: check if individual query words appear in text
+    const qWords = q.split(/\s+/);
+    const tWords = t.split(/\s+/);
+    let wordMatchCount = 0;
+    for (const qw of qWords) {
+        if (qw.length < 2) continue;
+        if (tWords.some(tw => tw.includes(qw) || qw.includes(tw))) {
+            wordMatchCount++;
+        }
+    }
+    if (wordMatchCount > 0) {
+        return 60 + (wordMatchCount / Math.max(qWords.length, 1)) * 30; // 60-90
+    }
+
+    // Check if any word in text starts with the query
+    if (tWords.some(tw => tw.startsWith(q))) return 70;
+
+    // Levenshtein similarity on each word pair (for typos)
+    let bestWordSim = 0;
+    for (const qw of qWords) {
+        if (qw.length < 2) continue;
+        for (const tw of tWords) {
+            if (tw.length < 2) continue;
+            const dist = levenshtein(qw, tw);
+            const maxLen = Math.max(qw.length, tw.length);
+            const sim = 1 - dist / maxLen;
+            if (sim > bestWordSim) bestWordSim = sim;
+        }
+    }
+    // Also check full string similarity for short queries
+    const fullDist = levenshtein(q, t.substring(0, Math.min(t.length, q.length + 3)));
+    const fullSim = 1 - fullDist / Math.max(q.length, t.substring(0, q.length + 3).length);
+    bestWordSim = Math.max(bestWordSim, fullSim);
+
+    if (bestWordSim >= 0.5) {
+        return 20 + bestWordSim * 30; // 20-50
+    }
+
+    return 0;
+};
+
 const Home = () => {
+    const { currentUser } = useAuth();
+    const navigate = useNavigate();
+    const { isMessWishlisted, toggleMessWishlist } = useWishlist();
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+    const handleMessWishlistToggle = async (messId) => {
+        if (!currentUser) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        await toggleMessWishlist(messId);
+    };
     const [messes, setMesses] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -335,11 +425,17 @@ const Home = () => {
 
     const handleFilterChange = React.useCallback((newFilters) => {
         setFilters(newFilters);
+    }, []);
 
-        // Track search if location filter (mess name) changed
-        if (newFilters.location !== filters.location && newFilters.location) {
-            trackSearch(newFilters.location);
-        }
+    // Debounce search analytics tracking
+    useEffect(() => {
+        if (!filters.location) return;
+
+        const timeoutId = setTimeout(() => {
+            trackSearch(filters.location);
+        }, 800);
+
+        return () => clearTimeout(timeoutId);
     }, [filters.location]);
 
     // Filtering & Sorting Logic - Memoized for Performance
@@ -368,11 +464,12 @@ const Home = () => {
             // Visibility Filter
             if (mess.hidden) return null;
 
-            // 1. Location Filter (Mess Name Only)
+            // 1. Location Filter (Fuzzy Search)
+            let searchScore = 0;
             if (filters.location) {
-                const searchTerm = filters.location.toLowerCase();
-                const matchesName = (mess.name || '').toLowerCase().includes(searchTerm);
-                if (!matchesName) return null;
+                const nameScore = fuzzyScore(filters.location, mess.name || '');
+                const addrScore = fuzzyScore(filters.location, mess.address || '') * 0.8; // Slightly lower weight for address
+                searchScore = Math.max(nameScore, addrScore);
             }
 
             // 2. Mess Type Filter (Gender)
@@ -438,6 +535,7 @@ const Home = () => {
 
             return {
                 ...messWithDist,
+                searchScore,
                 matchingBeds,
                 isFiltered,
                 minPrice,
@@ -445,8 +543,32 @@ const Home = () => {
             };
         }).filter(Boolean); // Remove nulls
 
-        // Sort by Distance if userLocation exists (Default Sort)
-        if (userLocation) {
+        // Fuzzy Search: If searching, split into exact and fuzzy matches
+        let isFuzzy = false;
+        if (filters.location) {
+            const exactMatches = result.filter(m => m.searchScore >= 100);
+            if (exactMatches.length > 0) {
+                // Have exact/substring matches — use only those
+                result = exactMatches;
+            } else {
+                // No exact matches — show fuzzy results sorted by relevance
+                const fuzzyMatches = result
+                    .filter(m => m.searchScore > 0)
+                    .sort((a, b) => b.searchScore - a.searchScore)
+                    .slice(0, 10); // Cap at 10 fuzzy suggestions
+                if (fuzzyMatches.length > 0) {
+                    result = fuzzyMatches;
+                    isFuzzy = true;
+                } else {
+                    result = []; // Truly nothing matched
+                }
+            }
+        }
+
+        // Sort by search score first (if searching), then by distance or default
+        if (filters.location) {
+            result.sort((a, b) => b.searchScore - a.searchScore);
+        } else if (userLocation) {
             result.sort((a, b) => {
                 const distA = (typeof a.distance === 'number') ? a.distance : Infinity;
                 const distB = (typeof b.distance === 'number') ? b.distance : Infinity;
@@ -474,13 +596,14 @@ const Home = () => {
             });
         }
 
-        return result;
+        return { results: result, isFuzzy };
 
     }, [messes, rooms, filters, userLocation]);
 
     // Paginated messes for display
-    const displayedMesses = filteredMesses.slice(0, displayCount);
-    const hasMore = displayCount < filteredMesses.length;
+    const { results: searchResults, isFuzzy: isFuzzySearch } = filteredMesses;
+    const displayedMesses = searchResults.slice(0, displayCount);
+    const hasMore = displayCount < searchResults.length;
 
     const loadMore = () => {
         const newCount = displayCount + CARDS_PER_PAGE;
@@ -528,7 +651,40 @@ const Home = () => {
 
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
+
+            {/* Login Prompt Modal - slides down from top */}
+            {showLoginPrompt && (
+                <div className="fixed inset-0 z-[200] flex flex-col items-center pointer-events-none">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
+                        onClick={() => setShowLoginPrompt(false)}
+                    />
+                    {/* Modal - anchored to top */}
+                    <div className="relative pointer-events-auto w-full max-w-sm mt-20 mx-4 bg-white rounded-3xl shadow-2xl p-6 animate-[slideDown_0.3s_ease-out]">
+                        <div className="flex flex-col items-center text-center gap-3">
+                            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl">❤️</div>
+                            <h3 className="text-lg font-bold text-brand-text-dark">Save to Wishlist</h3>
+                            <p className="text-sm text-brand-text-gray">Login to save messes and rooms to your personal wishlist.</p>
+                            <button
+                                onClick={() => { setShowLoginPrompt(false); navigate('/user-login'); }}
+                                className="w-full py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover transition-colors shadow-lg shadow-brand-primary/20"
+                            >
+                                Login / Sign Up
+                            </button>
+                            <button
+                                onClick={() => setShowLoginPrompt(false)}
+                                className="text-sm text-brand-text-gray hover:text-brand-text-dark transition-colors"
+                            >
+                                Maybe later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* New Header */}
+
             <Header
                 userLocation={userLocation}
                 onLocationSelect={handleLocationSelect}
@@ -648,7 +804,7 @@ const Home = () => {
 
                     <div className="flex flex-col items-end">
                         <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-lg border border-gray-100">
-                            {filteredMesses.length} results
+                            {searchResults.length} results
                         </span>
                         {filters.location && !userLocation && (
                             <span className="text-[10px] text-gray-400 mt-1 italic">
@@ -658,13 +814,30 @@ const Home = () => {
                     </div>
                 </div>
 
+                {/* Fuzzy Match Banner */}
+                {isFuzzySearch && filters.location && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-4 px-4 py-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl border border-purple-100 flex items-center gap-3"
+                    >
+                        <Search size={18} className="text-purple-500 flex-shrink-0" />
+                        <div>
+                            <p className="text-sm font-medium text-gray-700">
+                                Showing closest matches for <span className="font-bold text-purple-600">"{filters.location}"</span>
+                            </p>
+                            <p className="text-[11px] text-gray-500">No exact match found. Here are similar results.</p>
+                        </div>
+                    </motion.div>
+                )}
+
                 {loading ? (
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                         {[...Array(6)].map((_, i) => (
                             <SkeletonCard key={i} />
                         ))}
                     </div>
-                ) : filteredMesses.length > 0 ? (
+                ) : searchResults.length > 0 ? (
                     <motion.div
                         className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6"
                         initial="hidden"
@@ -679,7 +852,13 @@ const Home = () => {
                     >
                         {/* First 4 mess cards */}
                         {displayedMesses.slice(0, 4).map((mess, index) => (
-                            <MessCard key={mess.id} mess={mess} index={index} />
+                            <MessCard
+                                key={mess.id}
+                                mess={mess}
+                                isWishlisted={isMessWishlisted(mess.id)}
+                                onToggleWishlist={handleMessWishlistToggle}
+                                index={index}
+                            />
                         ))}
 
 
@@ -754,7 +933,13 @@ const Home = () => {
 
                         {/* Remaining mess cards */}
                         {displayedMesses.slice(4).map((mess, index) => (
-                            <MessCard key={mess.id} mess={mess} index={index + 4} />
+                            <MessCard
+                                key={mess.id}
+                                mess={mess}
+                                isWishlisted={isMessWishlisted(mess.id)}
+                                onToggleWishlist={handleMessWishlistToggle}
+                                index={index + 4}
+                            />
                         ))}
                     </motion.div>
                 ) : (

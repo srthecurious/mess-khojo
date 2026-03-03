@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const UserProfile = () => {
     const { currentUser, logout, userRole, deleteAccount } = useAuth();
@@ -230,10 +231,17 @@ const UserProfile = () => {
                             </div>
                         </div>
 
-                        <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
+                        <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3 mt-4 md:mt-0">
+                            <Link
+                                to="/wishlist"
+                                className="w-full sm:w-auto px-6 py-3 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl transition-all font-bold text-sm flex items-center justify-center gap-2 border border-red-100 shadow-sm active:scale-95 group"
+                            >
+                                <Heart size={18} className="fill-current group-hover:scale-110 transition-transform" />
+                                My Wishlist
+                            </Link>
                             <button
                                 onClick={() => navigate('/')}
-                                className="w-full sm:w-auto px-6 py-3 bg-brand-secondary text-brand-primary rounded-2xl hover:bg-brand-primary/10 transition-all font-bold text-sm flex items-center justify-center gap-2 border border-brand-primary/10 active:scale-95"
+                                className="w-full sm:w-auto px-6 py-3 bg-brand-secondary text-brand-primary rounded-2xl hover:bg-brand-primary/10 transition-all font-bold text-sm flex items-center justify-center gap-2 border border-brand-primary/10 active:scale-95 shadow-sm"
                             >
                                 <span>←</span> Back to Home
                             </button>

@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search, Info } from 'lucide-react';
+import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search, Info, Heart, Download } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../hooks/useWishlist';
+import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
 const Header = ({ showSearch, searchTerm, onSearchChange }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const { currentUser } = useAuth();
+    const { totalCount: wishlistCount } = useWishlist();
+    const { isInstallable, promptInstall } = useInstallPrompt();
     const [notifications, setNotifications] = useState([]);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
     const [hasUnread, setHasUnread] = useState(false);
     const [isContactOpen, setIsContactOpen] = useState(false);
+    const [showInstallGuide, setShowInstallGuide] = useState(false);
 
     // Fetch Notifications
     useEffect(() => {
@@ -151,6 +156,23 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
 
                         {/* Right Section: Menu/Notifications */}
                         <div className="flex items-center gap-1 justify-end">
+                            {/* Install PWA Button (Always visible on mobile & desktop) */}
+                            <button
+                                onClick={() => {
+                                    if (isInstallable) {
+                                        promptInstall();
+                                    } else {
+                                        setShowInstallGuide(true);
+                                    }
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 mr-1 bg-brand-accent-green hover:bg-emerald-500 text-white text-sm font-bold rounded-full transition-colors shadow-sm"
+                                title="Install App"
+                            >
+                                <Download size={14} strokeWidth={2.5} />
+                                <span className="hidden sm:inline">Install App</span>
+                                <span className="sm:hidden">Install</span>
+                            </button>
+
                             <button
                                 onClick={handleOpenNotifications}
                                 className="p-2 text-white hover:bg-brand-primary-hover rounded-full transition-colors relative"
@@ -162,11 +184,16 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                 )}
                             </button>
 
+                            {/* Hamburger Menu Button */}
                             <button
-                                onClick={toggleMenu}
-                                className="p-2 text-white hover:bg-brand-primary-hover rounded-lg transition-colors"
+                                onClick={() => setIsMenuOpen(true)}
+                                className="p-2 text-white hover:bg-brand-primary-hover rounded-full transition-colors relative"
+                                aria-label="Menu"
                             >
-                                <Menu size={24} strokeWidth={2} />
+                                <Menu size={24} />
+                                {wishlistCount > 0 && (
+                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-brand-primary"></span>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -293,6 +320,30 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
 
                                     {/* Menu Items */}
                                     <div className="flex-1 overflow-y-auto py-4 px-2 space-y-2">
+                                        {/* Install App - Prominent Mobile Banner */}
+                                        <button
+                                            onClick={() => {
+                                                setIsMenuOpen(false);
+                                                if (isInstallable) {
+                                                    promptInstall();
+                                                } else {
+                                                    setShowInstallGuide(true);
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 mb-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl shadow-md transition-all group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
+                                                    <Download size={20} className="text-white" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="font-bold text-sm">Install MessKhojo App</p>
+                                                    <p className="text-white/80 text-xs">Faster access, offline support</p>
+                                                </div>
+                                            </div>
+                                            <ChevronRight size={18} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                                        </button>
+
                                         {/* My Profile - Moved to Top */}
                                         <Link
                                             to={currentUser ? "/profile" : "/user-login"}
@@ -302,10 +353,48 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 }`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <UserCircle size={20} className={`relative z-10 ${isActive(currentUser ? "/profile" : "/user-login") ? "text-white" : "group-hover:text-white transition-colors"}`} />
-                                            <span className="relative z-10">{currentUser ? "My Profile" : "Login / Signup"}</span>
-                                            <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive(currentUser ? "/profile" : "/user-login") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+                                            <div className="relative z-10 w-8 h-8 rounded-full bg-brand-primary-hover flex items-center justify-center border border-white/20 overflow-hidden shrink-0">
+                                                {currentUser && currentUser.photoURL ? (
+                                                    <img
+                                                        src={currentUser.photoURL}
+                                                        alt="User profile"
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                            e.target.nextElementSibling.style.display = 'block';
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <UserCircle
+                                                    className={`w-5 h-5 ${isActive(currentUser ? "/profile" : "/user-login") ? "text-brand-accent-green" : "text-white/80"}`}
+                                                    style={{ display: (currentUser && currentUser.photoURL) ? 'none' : 'block' }}
+                                                />
+                                            </div>
+                                            <div className="relative z-10 text-left">
+                                                <div className="block">{currentUser ? "My Profile" : "Login / Register"}</div>
+                                                {currentUser && <div className="text-xs font-normal text-white/50 truncate max-w-[160px]">{currentUser.email}</div>}
+                                            </div>
                                         </Link>
+
+                                        {/* My Wishlist - Below Profile */}
+                                        <Link
+                                            to={currentUser ? '/wishlist' : '/user-login'}
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-semibold border-r-4 rounded-l-xl transition-all relative overflow-hidden ${isActive('/wishlist')
+                                                ? 'text-white bg-white/10 border-red-400'
+                                                : 'text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-red-400'
+                                                }`}
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            <Heart size={20} className={`relative z-10 transition-colors ${isActive('/wishlist') ? 'text-red-400 fill-red-400' : 'group-hover:text-red-400'}`} />
+                                            <span className="relative z-10">My Wishlist</span>
+                                            {wishlistCount > 0 && (
+                                                <span className="ml-auto px-2 py-0.5 text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm relative z-10">
+                                                    {wishlistCount}
+                                                </span>
+                                            )}
+                                        </Link>
+
+                                        <div className="h-px bg-white/10 my-2 mx-4"></div>
 
                                         <Link
                                             to="/register-mess"
@@ -485,6 +574,67 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                     document.body
                 )
             }
+
+            {/* Install Guide Modal */}
+            <AnimatePresence>
+                {showInstallGuide && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowInstallGuide(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="relative bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden z-10"
+                        >
+                            <div className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
+                                        <Download size={24} />
+                                    </div>
+                                    <button onClick={() => setShowInstallGuide(false)} className="text-gray-400 hover:text-gray-600 p-1 transition-colors">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Install MessKhojo</h3>
+                                <p className="text-gray-600 text-sm mb-6">Install our app for faster access, offline mode, and a better experience.</p>
+
+                                <div className="space-y-4">
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                        <div className="font-bold text-gray-800 mb-1 flex items-center gap-2">
+                                            <span className="text-xl">🍎</span> iOS (Safari)
+                                        </div>
+                                        <ol className="text-sm text-gray-600 font-medium pl-5 list-decimal space-y-1">
+                                            <li>Tap the <span className="font-bold">Share</span> button</li>
+                                            <li>Scroll down and tap <span className="font-bold">Add to Home Screen</span></li>
+                                        </ol>
+                                    </div>
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                        <div className="font-bold text-gray-800 mb-1 flex items-center gap-2">
+                                            <span className="text-xl">🤖</span> Android (Chrome)
+                                        </div>
+                                        <ol className="text-sm text-gray-600 font-medium pl-5 list-decimal space-y-1">
+                                            <li>Tap the <span className="font-bold">3-dots menu</span> icon</li>
+                                            <li>Tap <span className="font-bold">Install app</span> or <span className="font-bold">Add to Home screen</span></li>
+                                        </ol>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowInstallGuide(false)}
+                                    className="w-full mt-6 bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors"
+                                >
+                                    Got it !
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </>
     );
 };
