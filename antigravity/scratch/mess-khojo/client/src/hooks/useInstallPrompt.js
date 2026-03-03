@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
 
 export const useInstallPrompt = () => {
-    const [deferredPrompt, setDeferredPrompt] = useState(null);
-    const [isInstallable, setIsInstallable] = useState(false);
+    // Initialize from the global window object (populated by inline script in index.html)
+    const [deferredPrompt, setDeferredPrompt] = useState(window.deferredPrompt || null);
+    const [isInstallable, setIsInstallable] = useState(window.isInstallable || false);
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    // Detect iOS (Safari doesn't support beforeinstallprompt)
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
     useEffect(() => {
+        // Check if already running as installed PWA
+        const standalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+        setIsStandalone(standalone);
+
+        if (standalone) return; // Already installed — skip everything
+
         // Register service worker if supported
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').catch((err) => {
@@ -12,33 +25,40 @@ export const useInstallPrompt = () => {
             });
         }
 
-        const handleBeforeInstallPrompt = (e) => {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later.
-            setDeferredPrompt(e);
-            // Update UI notify the user they can install the PWA
-            setIsInstallable(true);
+        const handleReady = () => {
+            setDeferredPrompt(window.deferredPrompt);
+            setIsInstallable(window.isInstallable);
         };
 
-        const handleAppInstalled = () => {
-            setIsInstallable(false);
+        const handleInstalled = () => {
             setDeferredPrompt(null);
-            // Optional: send analytics event
-            console.log('PWA was installed');
+            setIsInstallable(false);
+            setIsStandalone(true);
         };
 
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        window.addEventListener('appinstalled', handleAppInstalled);
+        // Listen for standard events AND our custom global events
+        window.addEventListener('pwa-ready', handleReady);
+        window.addEventListener('pwa-installed', handleInstalled);
 
-        // Check if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-            setIsInstallable(false);
-        }
+        // Also add direct listeners here just in case the manual script missed it 
+        // (though the inline script should catch it)
+        const handleBeforeInstallPrompt = (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            window.isInstallable = true;
+            handleReady();
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleInstalled);
+
+        // Check one more time immediately in case we missed the sync
+        handleReady();
 
         return () => {
+            window.removeEventListener('pwa-ready', handleReady);
+            window.removeEventListener('pwa-installed', handleInstalled);
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-            window.removeEventListener('appinstalled', handleAppInstalled);
+            window.removeEventListener('appinstalled', handleInstalled);
         };
     }, []);
 
@@ -53,12 +73,16 @@ export const useInstallPrompt = () => {
         // Wait for the user to respond to the prompt
         const { outcome } = await deferredPrompt.userChoice;
 
-        // We've used the prompt, and can't use it again, throw it away
-        setDeferredPrompt(null);
-        setIsInstallable(false);
+        if (outcome === 'accepted') {
+            // We've used the prompt, and can't use it again, throw it away
+            setDeferredPrompt(null);
+            setIsInstallable(false);
+            window.deferredPrompt = null;
+            window.isInstallable = false;
+        }
 
         return outcome === 'accepted';
     };
 
-    return { isInstallable, promptInstall };
+    return { isInstallable, promptInstall, isIOS, isStandalone };
 };

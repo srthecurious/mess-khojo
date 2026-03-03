@@ -13,10 +13,26 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
 
+  <!-- Capture PWA install prompt early before React loads -->
+  <script>
+    window.deferredPrompt = null;
+    window.isInstallable = false;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+      window.isInstallable = true;
+      window.dispatchEvent(new Event('pwa-ready'));
+    });
+    window.addEventListener('appinstalled', () => {
+      window.deferredPrompt = null;
+      window.isInstallable = false;
+      window.dispatchEvent(new Event('pwa-installed'));
+    });
+  </script>
+
   <!-- Primary Meta Tags -->
   <title>MessKhojo - Boys & Ladies Mess in Balasore | Near FM College | No Broker</title>
-  <meta name="title"
-    content="MessKhojo - Best Boys Mess & Ladies Mess in Balasore | No Broker Room Rent" />
+  <meta name="title" content="MessKhojo - Best Boys Mess & Ladies Mess in Balasore | No Broker Room Rent" />
   <meta name="description"
     content="Find the best boys mess & ladies mess in Balasore near FM College & Nuapadhi. Hygienic food, discipline environment, safe hostels. Direct owner contact, no broker." />
   <meta name="keywords"

@@ -1,9 +1,9 @@
 import React from 'react';
-import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers, ArrowRight } from 'lucide-react';
+import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers, ArrowRight, Heart } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
 
-const RoomCard = ({ room, isAdmin, onDelete }) => {
+const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishlist }) => {
     // Handle both old (imageUrl) and new (imageUrls) data structures
     const displayImage = (room.imageUrls && room.imageUrls.length > 0)
         ? room.imageUrls[0]
@@ -33,6 +33,20 @@ const RoomCard = ({ room, isAdmin, onDelete }) => {
                     alt={title}
                     className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                 />
+
+                {/* Wishlist Heart Button */}
+                {onToggleWishlist && (
+                    <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(room.id); }}
+                        className={`absolute top-2 left-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 ${isWishlisted
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500'
+                            }`}
+                        title={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                    >
+                        <Heart size={15} fill={isWishlisted ? 'currentColor' : 'none'} strokeWidth={2} />
+                    </button>
+                )}
 
                 {/* Count Badge */}
                 {room.availableCount > 0 ? (

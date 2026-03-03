@@ -15,7 +15,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const { currentUser } = useAuth();
     const { totalCount: wishlistCount } = useWishlist();
-    const { isInstallable, promptInstall } = useInstallPrompt();
+    const { isInstallable, promptInstall, isIOS, isStandalone } = useInstallPrompt();
     const [notifications, setNotifications] = useState([]);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
     const [hasUnread, setHasUnread] = useState(false);
@@ -115,7 +115,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                         </div>
 
                         {/* Center Section: Sticky Search Bar */}
-                        <div className="flex-1 flex justify-center mx-4">
+                        <div className="flex-1 flex justify-center mx-1.5 sm:mx-4">
                             <AnimatePresence>
                                 {(showSearch || isSearchFocused) && (
                                     <motion.div
@@ -132,7 +132,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             onFocus={() => setIsSearchFocused(true)}
                                             onBlur={() => setIsSearchFocused(false)}
                                             onChange={(e) => onSearchChange(e.target.value)}
-                                            className="w-full pl-10 pr-10 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
+                                            className="w-full pl-9 pr-7 sm:pl-10 sm:pr-10 py-1.5 sm:py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
                                         />
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90 pointer-events-none" size={16} />
                                         {searchTerm && (
@@ -146,7 +146,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
                                                 title="Clear search"
                                             >
-                                                <X size={16} />
+                                                <X size={14} className="sm:w-4 sm:h-4" />
                                             </button>
                                         )}
                                     </motion.div>
@@ -156,22 +156,24 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
 
                         {/* Right Section: Menu/Notifications */}
                         <div className="flex items-center gap-1 justify-end">
-                            {/* Install PWA Button (Always visible on mobile & desktop) */}
-                            <button
-                                onClick={() => {
-                                    if (isInstallable) {
-                                        promptInstall();
-                                    } else {
-                                        setShowInstallGuide(true);
-                                    }
-                                }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 mr-1 bg-brand-accent-green hover:bg-emerald-500 text-white text-sm font-bold rounded-full transition-colors shadow-sm"
-                                title="Install App"
-                            >
-                                <Download size={14} strokeWidth={2.5} />
-                                <span className="hidden sm:inline">Install App</span>
-                                <span className="sm:hidden">Install</span>
-                            </button>
+                            {/* Install PWA Button — hidden when already installed */}
+                            {!isStandalone && (isInstallable || isIOS) && (
+                                <button
+                                    onClick={() => {
+                                        if (isInstallable) {
+                                            promptInstall();
+                                        } else {
+                                            // iOS — show manual guide
+                                            setShowInstallGuide(true);
+                                        }
+                                    }}
+                                    className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 mr-0.5 sm:mr-1 bg-brand-accent-green hover:bg-emerald-500 text-white text-sm font-bold rounded-full transition-colors shadow-sm"
+                                    title="Install App"
+                                >
+                                    <Download size={14} strokeWidth={2.5} />
+                                    <span className="hidden sm:inline">Install App</span>
+                                </button>
+                            )}
 
                             <button
                                 onClick={handleOpenNotifications}
@@ -320,8 +322,8 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
 
                                     {/* Menu Items */}
                                     <div className="flex-1 overflow-y-auto py-4 px-2 space-y-2">
-                                        {/* Install App - Prominent Mobile Banner */}
-                                        <button
+                                        {/* Install App - Prominent Mobile Banner — hide when already installed */}
+                                        {!isStandalone && (isInstallable || isIOS) && <button
                                             onClick={() => {
                                                 setIsMenuOpen(false);
                                                 if (isInstallable) {
@@ -342,7 +344,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 </div>
                                             </div>
                                             <ChevronRight size={18} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                                        </button>
+                                        </button>}
 
                                         {/* My Profile - Moved to Top */}
                                         <Link
