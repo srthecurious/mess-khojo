@@ -169,7 +169,6 @@ const OperationalDashboard = () => {
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
 
             // Send notification for new room inquiries
-            /*
             if (!isFirstLoad) {
                 const newInquiries = data.filter(inquiry =>
                     !roomInquiries.some(old => old.id === inquiry.id)
@@ -179,7 +178,7 @@ const OperationalDashboard = () => {
                     sendTelegramNotification(telegramTemplates.newRoomInquiry(inquiry));
                 });
             }
-            */
+
 
             setRoomInquiries(data);
             isFirstLoad = false;
@@ -982,22 +981,56 @@ const OperationalDashboard = () => {
                                             </div>
 
                                             <div>
-                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Room Types</p>
-                                                <div className="flex flex-wrap gap-1">
+                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Rooms & Rent</p>
+                                                <div className="flex flex-col gap-1 mt-1">
                                                     {reg.roomTypes?.map((t, i) => (
-                                                        <span key={i} className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-xs">
-                                                            {t}
-                                                        </span>
+                                                        <div key={i} className="flex justify-between items-center text-sm bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50">
+                                                            <span className="text-emerald-400 font-medium">{t}</span>
+                                                            <span className="text-slate-300 font-mono text-xs">
+                                                                {reg.rentInfo && reg.rentInfo[t] ? `₹${reg.rentInfo[t]}/mo` : 'No rent info'}
+                                                            </span>
+                                                        </div>
                                                     ))}
                                                 </div>
+                                                {reg.vacantRooms && reg.vacantRooms.length > 0 && (
+                                                    <p className="text-xs text-slate-400 mt-2">
+                                                        <span className="font-bold text-slate-300">Vacant:</span> {reg.vacantRooms.join(', ')}
+                                                    </p>
+                                                )}
                                             </div>
 
+                                            {(reg.advancePayment?.type || reg.maintenanceCharge?.taken) && (
+                                                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-700/50">
+                                                    {reg.advancePayment?.type && (
+                                                        <div>
+                                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Advance Payment</p>
+                                                            <p className="text-slate-300 text-sm font-medium">
+                                                                {reg.advancePayment.type === 'Custom Amount' ? `₹${reg.advancePayment.customAmount}` : reg.advancePayment.type}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {reg.maintenanceCharge?.taken && (
+                                                        <div>
+                                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Maintenance Charge</p>
+                                                            <p className="text-slate-300 text-sm font-medium">
+                                                                ₹{reg.maintenanceCharge.amount} <span className="text-xs text-slate-500">({reg.maintenanceCharge.frequency})</span>
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             <div>
-                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Facilities</p>
-                                                <div className="flex flex-wrap gap-1">
+                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Facilities & Inclusions</p>
+                                                <div className="flex flex-wrap gap-1 mb-2">
                                                     {reg.facilities?.map((f, i) => (
-                                                        <span key={i} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-xs">
+                                                        <span key={`fac-${i}`} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-[10px] font-medium">
                                                             {f}
+                                                        </span>
+                                                    ))}
+                                                    {reg.includedInRent?.map((inc, i) => (
+                                                        <span key={`inc-${i}`} className="px-2 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded text-[10px] font-bold flex items-center gap-1">
+                                                            <CheckCircle size={10} /> {inc}
                                                         </span>
                                                     ))}
                                                 </div>

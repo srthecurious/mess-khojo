@@ -15,13 +15,18 @@ const MessRegistration = () => {
         messName: '',
         messType: [],
         roomTypes: [],
+        rentInfo: {},
+        includedInRent: [],
+        advancePayment: { type: '', customAmount: '' },
+        maintenanceCharge: { taken: false, amount: '', frequency: 'Per Year' },
+        vacantRooms: [],
         landmark: '',
         facilities: [],
         phoneNumber: '',
         consent: false
     });
 
-    const totalSteps = 6;
+    const totalSteps = 8;
 
     usePageSEO({
         title: 'Register Your Mess | MessKhojo',
@@ -80,7 +85,7 @@ const MessRegistration = () => {
             // Track successful registration
             trackMessRegistration(false, docRef.id);
 
-            setStep(7); // Success step
+            setStep(9); // Success step
         } catch (error) {
             console.error("Error submitting registration:", error);
             alert("Failed to submit. Please try again.");
@@ -172,6 +177,148 @@ const MessRegistration = () => {
                 return (
                     <div className="space-y-6">
                         <div className="text-center space-y-2">
+                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Building2 size={32} className="text-blue-600" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-800">Rooms & Rent Details</h2>
+                            <p className="text-gray-500">How much is the monthly rent?</p>
+                        </div>
+                        <div className="space-y-4">
+                            {formData.roomTypes.map(room => (
+                                <div key={room} className="flex flex-col gap-2 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                    <label className="font-bold text-gray-700">{room} Rent (₹/month)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.rentInfo[room] || ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, rentInfo: { ...prev.rentInfo, [room]: e.target.value } }))}
+                                        placeholder={`e.g. ${room.includes('1') ? '5000' : '3000'}`}
+                                        className="w-full text-lg p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-100">
+                            <h3 className="font-bold text-gray-800 mb-3">Which rooms are currently vacant? <span className="text-xs text-gray-400 font-normal">(Optional)</span></h3>
+                            <div className="flex flex-wrap gap-2">
+                                {formData.roomTypes.map(room => (
+                                    <button
+                                        key={room}
+                                        onClick={() => handleCheckboxChange('vacantRooms', room)}
+                                        className={`px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${formData.vacantRooms.includes(room)
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                            : 'border-gray-100 bg-white hover:border-blue-200 text-gray-600'
+                                            }`}
+                                    >
+                                        {room}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 5:
+                return (
+                    <div className="space-y-6 max-h-[60vh] overflow-y-auto px-1 pb-4">
+                        <div className="text-center space-y-2">
+                            <h2 className="text-2xl font-bold text-gray-800">Payment & Inclusions</h2>
+                            <p className="text-gray-500">What extra charges apply?</p>
+                        </div>
+
+                        {/* Included in Rent */}
+                        <div className="space-y-3">
+                            <h3 className="font-bold text-gray-800">What is included in rent?</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {['Food Charges', 'Electricity Bills', 'Cleaning Charges'].map(item => (
+                                    <button
+                                        key={item}
+                                        onClick={() => handleCheckboxChange('includedInRent', item)}
+                                        className={`px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold flex items-center gap-2 ${formData.includedInRent.includes(item)
+                                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                            : 'border-gray-100 bg-white hover:border-purple-200 text-gray-600'
+                                            }`}
+                                    >
+                                        {formData.includedInRent.includes(item) && <Check size={14} />} {item}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Advance Payment */}
+                        <div className="space-y-3 pt-4 border-t border-gray-100">
+                            <h3 className="font-bold text-gray-800">Advance Payment Required</h3>
+                            <div className="grid grid-cols-2 gap-2">
+                                {['1 Month', '2 Months', '3 Months', '4 Months', '5 Months', '6 Months', 'Custom Amount'].map(adv => (
+                                    <button
+                                        key={adv}
+                                        onClick={() => setFormData(prev => ({ ...prev, advancePayment: { ...prev.advancePayment, type: adv } }))}
+                                        className={`px-3 py-2 rounded-xl border-2 transition-all text-sm font-bold text-center ${formData.advancePayment.type === adv
+                                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                            : 'border-gray-100 bg-white hover:border-purple-200 text-gray-600'
+                                            }`}
+                                    >
+                                        {adv}
+                                    </button>
+                                ))}
+                            </div>
+                            {formData.advancePayment.type === 'Custom Amount' && (
+                                <input
+                                    type="number"
+                                    value={formData.advancePayment.customAmount}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, advancePayment: { ...prev.advancePayment, customAmount: e.target.value } }))}
+                                    placeholder="Enter advance amount (₹)"
+                                    className="w-full text-md p-3 border-2 border-purple-100 rounded-xl focus:border-purple-500 outline-none transition-all mt-2"
+                                />
+                            )}
+                        </div>
+
+                        {/* Maintenance */}
+                        <div className="space-y-3 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-bold text-gray-800">Extra Maintenance Charge?</h3>
+                                <div className="flex bg-gray-100 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setFormData(prev => ({ ...prev, maintenanceCharge: { ...prev.maintenanceCharge, taken: true } }))}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${formData.maintenanceCharge.taken ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
+                                    >
+                                        Yes
+                                    </button>
+                                    <button
+                                        onClick={() => setFormData(prev => ({ ...prev, maintenanceCharge: { ...prev.maintenanceCharge, taken: false } }))}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${!formData.maintenanceCharge.taken ? 'bg-white shadow text-gray-700' : 'text-gray-500'}`}
+                                    >
+                                        No
+                                    </button>
+                                </div>
+                            </div>
+
+                            {formData.maintenanceCharge.taken && (
+                                <div className="flex gap-2 mt-2">
+                                    <input
+                                        type="number"
+                                        value={formData.maintenanceCharge.amount}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, maintenanceCharge: { ...prev.maintenanceCharge, amount: e.target.value } }))}
+                                        placeholder="Amount (₹)"
+                                        className="flex-1 text-md p-3 border-2 border-purple-100 rounded-xl focus:border-purple-500 outline-none transition-all"
+                                    />
+                                    <select
+                                        value={formData.maintenanceCharge.frequency}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, maintenanceCharge: { ...prev.maintenanceCharge, frequency: e.target.value } }))}
+                                        className="w-[120px] text-md p-3 border-2 border-purple-100 rounded-xl focus:border-purple-500 outline-none transition-all cursor-pointer bg-white"
+                                    >
+                                        <option value="Per Year">Per Year</option>
+                                        <option value="Per Month">Per Month</option>
+                                        <option value="One Time">One Time</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            case 6:
+                return (
+                    <div className="space-y-6">
+                        <div className="text-center space-y-2">
                             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <MapPin size={32} className="text-amber-600" />
                             </div>
@@ -188,7 +335,7 @@ const MessRegistration = () => {
                         />
                     </div>
                 );
-            case 5:
+            case 7:
                 return (
                     <div className="space-y-6">
                         <div className="text-center space-y-2">
@@ -217,7 +364,7 @@ const MessRegistration = () => {
                         </div>
                     </div>
                 );
-            case 6:
+            case 8:
                 return (
                     <div className="space-y-6">
                         <div className="text-center space-y-2">
@@ -253,7 +400,7 @@ const MessRegistration = () => {
                         </div>
                     </div>
                 );
-            case 7:
+            case 9:
                 return (
                     <div className="text-center py-12 px-6">
                         <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
@@ -281,9 +428,16 @@ const MessRegistration = () => {
             case 1: return formData.messName.trim().length > 0;
             case 2: return formData.messType.length > 0;
             case 3: return formData.roomTypes.length > 0;
-            case 4: return formData.landmark.trim().length > 0;
-            case 5: return formData.facilities.length > 0;
-            case 6: return formData.phoneNumber.length === 10 && formData.consent;
+            case 4:
+                return formData.roomTypes.length > 0 && formData.roomTypes.every(room => formData.rentInfo[room] && formData.rentInfo[room].trim().length > 0);
+            case 5:
+                if (!formData.advancePayment.type) return false;
+                if (formData.advancePayment.type === 'Custom Amount' && (!formData.advancePayment.customAmount || formData.advancePayment.customAmount.trim().length === 0)) return false;
+                if (formData.maintenanceCharge.taken && (!formData.maintenanceCharge.amount || formData.maintenanceCharge.amount.trim().length === 0)) return false;
+                return true;
+            case 6: return formData.landmark.trim().length > 0;
+            case 7: return formData.facilities.length > 0;
+            case 8: return formData.phoneNumber.length === 10 && formData.consent;
             default: return true;
         }
     };
@@ -293,11 +447,11 @@ const MessRegistration = () => {
             <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden min-h-[500px] flex flex-col relative">
 
                 {/* Progress Bar */}
-                {step < 7 && (
+                {step < 9 && (
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100">
                         <div
                             className="h-full bg-brand-primary transition-all duration-300 ease-out"
-                            style={{ width: `${(step / 6) * 100}%` }}
+                            style={{ width: `${(step / 8) * 100}%` }}
                         />
                     </div>
                 )}
@@ -319,7 +473,7 @@ const MessRegistration = () => {
                 </div>
 
                 {/* Navigation Buttons */}
-                {step < 7 && (
+                {step < 9 && (
                     <div className="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
                         <button
                             onClick={handleBack}
@@ -329,7 +483,7 @@ const MessRegistration = () => {
                             <ChevronLeft size={20} /> Back
                         </button>
 
-                        {step < 6 ? (
+                        {step < 8 ? (
                             <button
                                 onClick={handleNext}
                                 disabled={!isStepValid()}

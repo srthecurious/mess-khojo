@@ -12,6 +12,9 @@
  * @param {string} message - The message to send (supports HTML formatting)
  * @returns {Promise<boolean>} - Success status
  */
+// Escape special HTML characters to prevent Telegram parse errors
+const esc = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 export const sendTelegramNotification = async (message) => {
     // In production, use the secure Netlify Function
     if (!import.meta.env.DEV) {
@@ -110,13 +113,39 @@ export const telegramTemplates = {
             timeStyle: 'short'
         });
 
-        return `🏢 <b>NEW MESS REGISTRATION!</b>\n\n` +
-            `📍 <b>Mess:</b> ${registration.messName}\n` +
-            `👤 <b>Owner:</b> ${registration.ownerName}\n` +
-            `📞 <b>Contact:</b> ${registration.contactNumber}\n` +
-            `📧 <b>Email:</b> ${registration.email || 'Not provided'}\n` +
-            `🏷️ <b>Type:</b> ${Array.isArray(registration.messType) ? registration.messType.join(', ') : registration.messType}\n\n` +
-            `⏰ <i>${time}</i>\n\n` +
+        let rentDetails = '';
+        if (registration.rentInfo && Object.keys(registration.rentInfo).length > 0) {
+            rentDetails = '\\n💰 <b>Rent Info:</b>\\n' + Object.entries(registration.rentInfo).map(([room, rent]) => `  - ${room}: ₹${rent}`).join('\\n');
+        }
+
+        let inclusions = '';
+        if (registration.includedInRent && registration.includedInRent.length > 0) {
+            inclusions = `\\n✅ <b>Included:</b> ${registration.includedInRent.join(', ')}`;
+        }
+
+        let advanceInfo = '';
+        if (registration.advancePayment && registration.advancePayment.type) {
+            advanceInfo = `\\n💳 <b>Advance:</b> ${registration.advancePayment.type === 'Custom Amount' ? `₹${registration.advancePayment.customAmount}` : registration.advancePayment.type}`;
+        }
+
+        let maintenanceInfo = '';
+        if (registration.maintenanceCharge?.taken) {
+            maintenanceInfo = `\\n🔧 <b>Maintenance:</b> ₹${registration.maintenanceCharge.amount} (${registration.maintenanceCharge.frequency})`;
+        }
+
+        let vacantInfo = '';
+        if (registration.vacantRooms && registration.vacantRooms.length > 0) {
+            vacantInfo = `\\n🛏️ <b>Vacant:</b> ${registration.vacantRooms.join(', ')}`;
+        }
+
+        const messTypeStr = Array.isArray(registration.messType) ? registration.messType.join(', ') : (registration.messType || 'Not specified');
+
+        return `🏢 <b>NEW MESS REGISTRATION!</b>\\n\\n` +
+            `📍 <b>Mess:</b> ${registration.messName || 'Not provided'}\\n` +
+            `📞 <b>Contact:</b> ${registration.phoneNumber || registration.contactNumber || 'Not provided'}\\n` +
+            `🏷️ <b>Type:</b> ${messTypeStr}` +
+            rentDetails + inclusions + advanceInfo + maintenanceInfo + vacantInfo + `\\n\\n` +
+            `⏰ <i>${time}</i>\\n\\n` +
             `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;
     },
 
@@ -173,13 +202,13 @@ export const telegramTemplates = {
         });
 
         return `🛏️ <b>NEW ROOM INQUIRY!</b>\n\n` +
-            `👤 <b>Name:</b> ${inquiry.name}\n` +
-            `📱 <b>Phone:</b> ${inquiry.phone}\n` +
-            `📍 <b>Location:</b> ${inquiry.location}\n` +
-            `💰 <b>Budget:</b> ${inquiry.budget}\n` +
-            `👥 <b>Occupancy:</b> ${inquiry.occupancy}\n` +
-            `${inquiry.contactMethod ? `📞 <b>Prefer:</b> ${inquiry.contactMethod.toUpperCase()}\n` : ''}` +
-            `${inquiry.requirements ? `📝 <b>Requirements:</b> ${inquiry.requirements.substring(0, 80)}...\n` : ''}` +
+            `👤 <b>Name:</b> ${esc(inquiry.name)}\n` +
+            `📱 <b>Phone:</b> ${esc(inquiry.phone)}\n` +
+            `📍 <b>Location:</b> ${esc(inquiry.location)}\n` +
+            `💰 <b>Budget:</b> ${esc(inquiry.budget)}\n` +
+            `👥 <b>Occupancy:</b> ${esc(inquiry.occupancy)}\n` +
+            `${inquiry.contactMethod ? `📞 <b>Prefer:</b> ${esc(inquiry.contactMethod).toUpperCase()}\n` : ''}` +
+            `${inquiry.requirements ? `📝 <b>Requirements:</b> ${esc(inquiry.requirements).substring(0, 80)}\n` : ''}` +
             `\n⏰ <i>${time}</i>\n\n` +
             `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;
     },

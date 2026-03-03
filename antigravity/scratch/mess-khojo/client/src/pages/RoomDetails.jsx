@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell } from 'lucide-react';
+import { useWishlist } from '../hooks/useWishlist';
+import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackRoomView, trackBookingInitiated } from '../analytics';
@@ -16,10 +17,11 @@ const RoomDetails = () => {
     const [mess, setMess] = useState(null);
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [bookingProcessing, setBookingProcessing] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showPhoneModal, setShowPhoneModal] = useState(false);
     const [userPhone, setUserPhone] = useState('');
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const { isRoomWishlisted, toggleRoomWishlist } = useWishlist();
 
     // Notification / Inquiry State
     const [showNotifyModal, setShowNotifyModal] = useState(false);
@@ -235,11 +237,50 @@ const RoomDetails = () => {
         }
     };
 
+    const handleRoomWishlistClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!currentUser) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        toggleRoomWishlist(roomId);
+    };
+
     if (loading) return <div className="p-10 text-center">Loading details...</div>;
     if (!mess || !room) return <div className="p-10 text-center">Details not found.</div>;
 
     return (
         <div className="min-h-screen bg-brand-secondary pb-20">
+            {/* Login Prompt Modal - slides down from top */}
+            {showLoginPrompt && (
+                <div className="fixed inset-0 z-[200] flex flex-col items-center pointer-events-none">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
+                        onClick={() => setShowLoginPrompt(false)}
+                    />
+                    <div className="relative pointer-events-auto w-full max-w-sm mt-20 mx-4 bg-white rounded-3xl shadow-2xl p-6">
+                        <div className="flex flex-col items-center text-center gap-3">
+                            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl">❤️</div>
+                            <h3 className="text-lg font-bold text-brand-text-dark">Save to Wishlist</h3>
+                            <p className="text-sm text-brand-text-gray">Login to save messes and rooms to your personal wishlist.</p>
+                            <button
+                                onClick={() => { setShowLoginPrompt(false); navigate('/user-login'); }}
+                                className="w-full py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover transition-colors shadow-lg shadow-brand-primary/20"
+                            >
+                                Login / Sign Up
+                            </button>
+                            <button
+                                onClick={() => setShowLoginPrompt(false)}
+                                className="text-sm text-brand-text-gray hover:text-brand-text-dark transition-colors"
+                            >
+                                Maybe later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header / Nav */}
             <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-brand-light-gray px-4 py-3 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -281,9 +322,9 @@ const RoomDetails = () => {
                 </div>
 
                 {/* Title & Price */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between md:items-start gap-4">
                     <div>
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-3 mb-2">
                             <h2 className="text-2xl font-bold text-brand-text-dark">{({
                                 'Single': '1',
                                 'Double': '2',
@@ -295,6 +336,13 @@ const RoomDetails = () => {
                             <span className="bg-brand-accent-green/10 text-brand-accent-green text-xs font-bold px-2 py-0.5 rounded-full border border-brand-accent-green/20">
                                 {room.category || 'Standard'}
                             </span>
+                            <button
+                                onClick={handleRoomWishlistClick}
+                                className={`p-1.5 ml-1 rounded-full transition-all flex border shadow-sm shrink-0 items-center justify-center ${isRoomWishlisted(roomId) ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
+                                title={isRoomWishlisted(roomId) ? "Remove from wishlist" : "Add to wishlist"}
+                            >
+                                <Heart size={20} className={`transition-all ${isRoomWishlisted(roomId) ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 fill-transparent'}`} />
+                            </button>
                         </div>
                         <div className="flex items-center gap-2 text-brand-text-gray">
                             <MapPin size={16} className="text-brand-primary" />
