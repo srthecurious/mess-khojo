@@ -1,11 +1,11 @@
 import React, { useState, useEffect, memo } from 'react';
-import { MapPin, ArrowRight, Info } from 'lucide-react';
+import { MapPin, ArrowRight, Info, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { storage } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 
-const MessCard = memo(({ mess }) => {
+const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
     const [imageUrl, setImageUrl] = useState(null);
 
     useEffect(() => {
@@ -95,9 +95,21 @@ const MessCard = memo(({ mess }) => {
                         </div>
                     )}
 
+                    {/* Wishlist Heart Button */}
+                    {onToggleWishlist && (
+                        <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(mess.id); }}
+                            className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 ${isWishlisted
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500'
+                                }`}
+                            title={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                        >
+                            <Heart size={15} fill={isWishlisted ? 'currentColor' : 'none'} strokeWidth={2} />
+                        </button>
+                    )}
 
 
-                    {/* Filter Match Badge - Only show when there are matching beds */}
                     {mess.isFiltered && mess.matchingBeds > 0 && (
                         <div className="absolute top-2 left-2 bg-brand-accent-green px-2 py-0.5 rounded-md text-[10px] font-bold text-white shadow-md">
                             Available
