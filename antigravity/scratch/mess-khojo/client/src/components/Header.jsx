@@ -115,7 +115,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                         </div>
 
                         {/* Center Section: Sticky Search Bar */}
-                        <div className="flex-1 flex justify-center mx-1.5 sm:mx-4">
+                        <div className="flex-1 flex justify-center ml-6 mr-1.5 sm:mx-4">
                             <AnimatePresence>
                                 {(showSearch || isSearchFocused) && (
                                     <motion.div
