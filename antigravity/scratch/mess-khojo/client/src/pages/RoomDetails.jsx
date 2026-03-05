@@ -21,6 +21,7 @@ const RoomDetails = () => {
     const [showPhoneModal, setShowPhoneModal] = useState(false);
     const [userPhone, setUserPhone] = useState('');
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [bookingProcessing, setBookingProcessing] = useState(false);
     const { isRoomWishlisted, toggleRoomWishlist } = useWishlist();
 
     // Notification / Inquiry State

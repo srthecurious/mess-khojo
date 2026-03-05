@@ -79,12 +79,12 @@ export const trackLocationUsage = (method) => {
 
 // Track mess views
 export const trackMessView = (messId, messName) => {
-    trackEvent('Mess', 'mess_viewed', messName, messId);
+    trackEvent('Mess', 'mess_viewed', `${messName} (${messId})`);
 };
 
 // Track room views
 export const trackRoomView = (roomId, messId, price) => {
-    trackEvent('Room', 'room_viewed', `Room ${roomId} in Mess ${messId}`, price);
+    trackEvent('Room', 'room_viewed', `Room ${roomId} in Mess ${messId}`, Number(price) || undefined);
 };
 
 // Track contact clicks
@@ -95,7 +95,7 @@ export const trackContactClick = (contactType, messId) => {
 
 // Track booking attempts
 export const trackBookingInitiated = (roomId, messId, price) => {
-    trackEvent('Booking', 'booking_initiated', `Room ${roomId}`, price);
+    trackEvent('Booking', 'booking_initiated', `Room ${roomId}`, Number(price) || undefined);
 };
 
 // Track availability checks

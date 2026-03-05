@@ -158,6 +158,8 @@ const MessDetails = () => {
     };
 
     useEffect(() => {
+        let unsubscribeRooms = null;
+
         const fetchMessAndRooms = async () => {
             try {
                 // 1. Fetch Mess Details
@@ -166,9 +168,9 @@ const MessDetails = () => {
                     setMess({ id: messDoc.id, ...messDoc.data() });
                 }
 
-                // 2. Fetch Rooms for this Mess
+                // 2. Fetch Rooms for this Mess (real-time)
                 const q = query(collection(db, "rooms"), where("messId", "==", messId));
-                const unsubscribe = onSnapshot(q, (snapshot) => {
+                unsubscribeRooms = onSnapshot(q, (snapshot) => {
                     const roomsData = snapshot.docs.map(doc => ({
                         id: doc.id,
                         ...doc.data()
@@ -176,8 +178,6 @@ const MessDetails = () => {
                     setRooms(roomsData);
                     setLoading(false);
                 });
-
-                return () => unsubscribe();
             } catch (error) {
                 console.error("Error fetching details:", error);
                 setLoading(false);
@@ -185,6 +185,10 @@ const MessDetails = () => {
         };
 
         fetchMessAndRooms();
+
+        return () => {
+            if (unsubscribeRooms) unsubscribeRooms();
+        };
     }, [messId]);
 
     // Scroll to top on mount/change
