@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
@@ -9,6 +9,7 @@ import Header from '../components/Header'; // Import new Header
 import FeedbackForm from '../components/FeedbackForm';
 import MessExplorer from '../components/MessExplorer';
 import MapLocationModal from '../components/MapLocationModal';
+import HeroCarousel from '../components/HeroCarousel';
 import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { trackLocationUsage, trackSearch, trackViewMore } from '../analytics';
@@ -155,6 +156,7 @@ const Home = () => {
     const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
 
     const [loadingLocation, setLoadingLocation] = useState(false);
+    const [carouselEnabled, setCarouselEnabled] = useState(false);
 
 
     const isScrolledRef = useRef(false);
@@ -421,6 +423,18 @@ const Home = () => {
             unsubscribeMesses();
             unsubscribeRooms();
         };
+    }, []);
+
+    // Listen to carousel toggle
+    useEffect(() => {
+        const unsub = onSnapshot(doc(db, 'app_config', 'hero'), (snap) => {
+            if (snap.exists()) {
+                setCarouselEnabled(!!snap.data().carouselEnabled);
+            } else {
+                setCarouselEnabled(false);
+            }
+        });
+        return unsub;
     }, []);
 
     const handleFilterChange = React.useCallback((newFilters) => {
@@ -697,14 +711,29 @@ const Home = () => {
 
             {/* Filter Section - Moved to Top */}
             <div ref={filterBarRef} className="pt-2 pb-6 relative z-40">
-                <FilterBar onFilterChange={handleFilterChange} currentFilters={filters} />
+                <FilterBar
+                    onFilterChange={handleFilterChange}
+                    currentFilters={filters}
+                    onGps={carouselEnabled ? () => handleLocationSelect() : undefined}
+                    loadingLocation={loadingLocation}
+                    userLocation={userLocation}
+                />
             </div>
 
             {/* Mess Explorer Map Banner */}
-            <MessExplorer messes={messes} userLocation={userLocation} />
+            <MessExplorer 
+                messes={messes} 
+                rooms={rooms}
+                userLocation={userLocation} 
+            />
 
-            {/* Spotlight Hero Section - Only show when no filters are active (except messType) */}
-            {!filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
+            {/* Hero Section — Conditional */}
+            {carouselEnabled ? (
+                /* Dynamic Ad Carousel */
+                <HeroCarousel onMap={handleOpenMap} />
+            ) : (
+            /* Spotlight Hero Section - Only show when no filters are active (except messType) */
+            !filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
                 <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
                     <div
                         className="w-full h-[38vh] flex items-center justify-center overflow-hidden relative rounded-3xl shadow-lg"
@@ -772,7 +801,7 @@ const Home = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            ))}
 
             {/* Mess List */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">

@@ -81,13 +81,15 @@ const UserLogin = () => {
         setLoading(true);
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            console.log("Attempting login for:", email);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+             console.log("Login successful for UID:", userCredential.user.uid);
             navigate(redirectUrl);
 
             // Track successful login
             trackLoginAttempt(true);
         } catch (err) {
-            console.error("Login Error:", err);
+            console.error("Login Error details:", { code: err.code, message: err.message });
             let msg = "Failed to login.";
             if (err.code === 'auth/invalid-credential') msg = "Invalid email or password.";
             setError(msg);
@@ -200,7 +202,7 @@ const UserLogin = () => {
                             className="w-4 h-4 accent-brand-primary mt-1 cursor-pointer"
                         />
                         <label htmlFor="login-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
-                            I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                            I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
                         </label>
                     </div>
 

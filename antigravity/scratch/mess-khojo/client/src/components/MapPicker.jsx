@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { APIProvider, Map, Marker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Search, MapPin, Navigation, Crosshair } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -128,6 +128,7 @@ const MapPicker = ({ onConfirm, onCancel, initialLocation }) => {
                     <Map
                         defaultCenter={defaultCenter}
                         defaultZoom={15}
+                        mapId="map-picker"
                         gestureHandling="greedy"
                         onClick={handleMapClick}
                         disableDefaultUI={true}
@@ -140,9 +141,8 @@ const MapPicker = ({ onConfirm, onCancel, initialLocation }) => {
                         style={{ width: '100%', height: '100%' }}
                     >
                         {position && (
-                            <Marker
+                            <AdvancedMarker
                                 position={position}
-                                animation={window.google?.maps?.Animation?.DROP}
                             />
                         )}
                     </Map>

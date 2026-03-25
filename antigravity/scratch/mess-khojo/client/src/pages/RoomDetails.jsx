@@ -4,10 +4,10 @@ import { db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
-import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell, Heart } from 'lucide-react';
+import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell, Heart, Phone, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
-import { trackRoomView, trackBookingInitiated } from '../analytics';
+import { trackRoomView, trackBookingInitiated, trackContactOwner, trackAvailabilityInquiry } from '../analytics';
 
 const RoomDetails = () => {
     const { messId, roomId } = useParams();
@@ -96,6 +96,12 @@ const RoomDetails = () => {
             navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
             return;
         }
+
+        // Check if owner contact is available
+        if (!mess.contact || mess.hideContact) {
+            alert("Owner's contact is currently unavailable for this mess. Please try again later.");
+            return;
+        }
         if (userRole !== 'user') {
             alert("Partners cannot book rooms. Please login as a User.");
             return;
@@ -139,8 +145,9 @@ const RoomDetails = () => {
         const userData = userDoc.exists() ? userDoc.data() : {};
         const phone = userData.phone || '';
 
-        // Track booking initiation
+        // Track booking initiation (Contact Owner button clicked)
         trackBookingInitiated(roomId, messId, room.price);
+        trackContactOwner('button_clicked', messId, roomId);
 
         if (!phone || phone === 'N/A') {
             // No phone - show phone collection modal
@@ -167,7 +174,8 @@ const RoomDetails = () => {
                 roomId: room.id,
                 roomType: room.occupancy || "Standard",
                 price: room.price,
-                status: 'pending',
+                ownerPhone: mess.contact,
+                status: 'contacted',
                 createdAt: serverTimestamp()
             };
 
@@ -178,10 +186,13 @@ const RoomDetails = () => {
                 sendTelegramNotification(telegramTemplates.newBooking(bookingData));
             });
             setShowConfirmModal(false);
-            navigate('/booking-success');
+
+            // Open the phone dialer with the owner's contact number
+            trackContactOwner('call_confirmed', messId, roomId);
+            window.location.href = `tel:${mess.contact}`;
         } catch (error) {
-            console.error("Booking failed:", error);
-            alert("Booking failed. Please try again.");
+            console.error("Contact owner failed:", error);
+            alert("Something went wrong. Please try again.");
         } finally {
             setBookingProcessing(false);
         }
@@ -220,6 +231,9 @@ const RoomDetails = () => {
             };
 
             await addDoc(collection(db, "inquiries"), inquiryData);
+
+            // Track the availability inquiry
+            trackAvailabilityInquiry(mess.id, room.id);
 
             // Send Telegram Notification
             import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
@@ -429,7 +443,7 @@ const RoomDetails = () => {
                         : 'bg-indigo-500 hover:bg-indigo-600'
                         }`}
                 >
-                    {room.availableCount > 0 ? 'Request Call' : 'Check Availability'}
+                    {room.availableCount > 0 ? 'Contact Owner' : 'Check Availability'}
                 </button>
             </div>
 
@@ -444,7 +458,7 @@ const RoomDetails = () => {
                 >
                     {room.availableCount > 0 ? (
                         <>
-                            <span>Request Call</span>
+                            <span>Contact Owner</span>
                             <div className="w-px h-6 bg-white/20"></div>
                             <span className="font-normal text-white/80">₹{room.price}</span>
                         </>
@@ -458,7 +472,7 @@ const RoomDetails = () => {
             </div>
 
 
-            {/* Confirmation Modal */}
+            {/* Contact Owner Modal */}
             <AnimatePresence>
                 {showConfirmModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -475,17 +489,33 @@ const RoomDetails = () => {
                             exit={{ scale: 0.9, opacity: 0 }}
                             className="bg-white w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl"
                         >
-                            <div className="text-center mb-6">
-                                <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-primary">
-                                    <CheckCircle size={32} />
+                            <div className="text-center mb-5">
+                                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                                    <Phone size={32} />
                                 </div>
-                                <h3 className="text-2xl font-bold text-brand-text-dark">Request Callback?</h3>
+                                <h3 className="text-2xl font-bold text-brand-text-dark">Contact Owner</h3>
                                 <p className="text-gray-500 mt-2 text-sm">
-                                    You are asking the owner of <strong>{mess.name}</strong> to call you back.
+                                    You are about to call the owner of <strong>{mess.name}</strong>.
                                 </p>
                             </div>
 
-                            <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+                            {/* Polite Instructions */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+                                <div className="flex items-start gap-2">
+                                    <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                                    <div className="text-sm text-amber-800 space-y-1">
+                                        <p className="font-semibold">Please keep in mind:</p>
+                                        <ul className="list-disc list-inside text-xs space-y-0.5 text-amber-700">
+                                            <li>Introduce yourself politely</li>
+                                            <li>Mention you found the mess on <strong>MessKhojo</strong></li>
+                                            <li>Be respectful of the owner's time</li>
+                                            <li>Ask your queries clearly and patiently</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Room Type</span>
                                     <span className="font-bold text-gray-900">{({
@@ -501,10 +531,6 @@ const RoomDetails = () => {
                                     <span className="text-gray-500">Price</span>
                                     <span className="font-bold text-gray-900">₹{room.price}/mo</span>
                                 </div>
-                                <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm">
-                                    <span className="text-gray-500">Your Phone</span>
-                                    <span className="font-bold text-gray-900">{userPhone || currentUser.phoneNumber || 'Provided'}</span>
-                                </div>
                             </div>
 
                             <div className="flex gap-3">
@@ -517,9 +543,10 @@ const RoomDetails = () => {
                                 <button
                                     onClick={handleConfirmBooking}
                                     disabled={bookingProcessing}
-                                    className="flex-1 py-3 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-xl transition-colors shadow-lg disabled:opacity-70"
+                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-green-200 disabled:opacity-70 flex items-center justify-center gap-2"
                                 >
-                                    {bookingProcessing ? 'Sending...' : 'Request Call'}
+                                    <Phone size={18} />
+                                    {bookingProcessing ? 'Connecting...' : 'Call Now'}
                                 </button>
                             </div>
                         </motion.div>
@@ -560,9 +587,10 @@ const RoomDetails = () => {
                                     <input
                                         type="tel"
                                         value={notifyPhone}
-                                        onChange={(e) => setNotifyPhone(e.target.value)}
-                                        placeholder="Enter your phone number"
+                                        onChange={(e) => setNotifyPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        placeholder="10 digit mobile number"
                                         required
+                                        maxLength="10"
                                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                     />
                                 </div>
@@ -585,7 +613,7 @@ const RoomDetails = () => {
                                         className="w-5 h-5 accent-indigo-500 mt-0.5 cursor-pointer shrink-0"
                                     />
                                     <label htmlFor="notify-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
-                                        I agree to the <a href="/terms-and-conditions" target="_blank" className="text-indigo-500 font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-indigo-500 font-bold hover:underline">Privacy Policy</a>.
+                                        I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-indigo-500 font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-500 font-bold hover:underline">Privacy Policy</a>.
                                     </label>
                                 </div>
 

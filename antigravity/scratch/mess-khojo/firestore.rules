@@ -15,13 +15,16 @@ service cloud.firestore {
     }
 
     // --- Users Collection ---
-    // Users can read/write ONLY their own document
+    // Users can read their own document
+    // Users can create their own document (on signup)
+    // Users can update their own document, BUT cannot change sensitive fields
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
-      
-      // Prevent users from escalating privileges (e.g. settings role: 'admin')
-      // This requires more complex validation logic on update, 
-      // but strictly separating Admin/User collections or using Custom Claims is better.
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId
+                    && (!request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['role', 'isAdmin', 'adminId', 'isOperator']));
+      allow delete: if false; // Users cannot delete their own account doc
     }
 
     // --- Messes Collection ---
@@ -83,6 +86,27 @@ service cloud.firestore {
     match /mess_registrations/{registrationId} {
         allow create: if true;
         allow read, update, delete: if isOperator();
+    }
+
+    // --- App Config (Hero Carousel Toggle) ---
+    // Public read, Operator write
+    match /app_config/{configId} {
+        allow read: if true;
+        allow write: if isOperator();
+    }
+
+    // --- Hero Ads (Desktop Banners) ---
+    // Public read, Operator write, max 10 enforced in app
+    match /hero_ads_desktop/{adId} {
+        allow read: if true;
+        allow create, update, delete: if isOperator();
+    }
+
+    // --- Hero Ads (Mobile Banners) ---
+    // Public read, Operator write, max 10 enforced in app
+    match /hero_ads_mobile/{adId} {
+        allow read: if true;
+        allow create, update, delete: if isOperator();
     }
   }
 }

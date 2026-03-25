@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Filter, X, Check, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Filter, X, Check, Search, MapPin, Loader2 } from 'lucide-react';
 import MultiSelectDropdown from './MultiSelectDropdown';
 
-const FilterBar = ({ onFilterChange, currentFilters }) => {
+const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, userLocation }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [filters, setFilters] = useState({
+    const filters = currentFilters || {
         location: '',
         minPrice: '',
         maxPrice: '',
@@ -17,24 +17,15 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
         availableOnly: false,
         messType: '',
         maxDistance: ''
-    });
+    };
 
-    // Sync internal state when parent filters change (e.g. from Header Search or Category Switcher)
-    useEffect(() => {
-        if (currentFilters) {
-            // Directly update filters. React handles bailing out automatically if currentFilters 
-            // is the exact same reference, so we safely avoid infinite loops!
-            setFilters(currentFilters);
+    const setFilters = (newFiltersOrFn) => {
+        if (typeof newFiltersOrFn === 'function') {
+            onFilterChange(newFiltersOrFn(filters));
+        } else {
+            onFilterChange(newFiltersOrFn);
         }
-    }, [currentFilters]);
-
-    // Debounce filter changes to avoid excessive updates
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            onFilterChange(filters);
-        }, 300);
-        return () => clearTimeout(timeoutId);
-    }, [filters, onFilterChange]);
+    };
 
 
 
@@ -106,6 +97,24 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
                             )}
                         </div>
 
+                        {/* GPS Button — between search and filter */}
+                        {onGps && (
+                            <button
+                                onClick={onGps}
+                                disabled={loadingLocation}
+                                title={userLocation ? 'Location Active' : 'Use GPS'}
+                                className={`p-2.5 rounded-xl shrink-0 transition-all shadow-md ${
+                                    userLocation
+                                        ? 'bg-green-500 text-white shadow-green-500/30'
+                                        : 'bg-white border border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-400'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                                {loadingLocation
+                                    ? <Loader2 size={18} className="animate-spin" />
+                                    : <MapPin size={18} />}
+                            </button>
+                        )}
+
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shrink-0 ${isOpen || activeFilterCount > 0
@@ -126,25 +135,45 @@ const FilterBar = ({ onFilterChange, currentFilters }) => {
                         {/* Search Bar - Desktop */}
                         <div className="hidden md:block w-full md:w-1/3">
                             <label className="block text-sm font-bold text-gray-700 mb-2">Search Mess</label>
-                            <div className="relative">
-                                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by mess name..."
-                                    className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
-                                    value={filters.location}
-                                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                                />
-                                {filters.location && (
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by mess name..."
+                                        className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
+                                        value={filters.location}
+                                        onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                                    />
+                                    {filters.location && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setFilters({ ...filters, location: '' });
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                                {/* Desktop GPS Button */}
+                                {onGps && (
                                     <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            setFilters({ ...filters, location: '' });
-                                        }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                                        onClick={onGps}
+                                        disabled={loadingLocation}
+                                        title={userLocation ? 'Location Active' : 'Use GPS'}
+                                        className={`p-2 rounded-xl shrink-0 transition-all shadow-sm flex items-center justify-center ${
+                                            userLocation
+                                                ? 'bg-green-500 text-white shadow-green-500/30'
+                                                : 'bg-white border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-400'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        style={{ height: '44px', width: '44px' }}
                                     >
-                                        <X size={16} />
+                                        {loadingLocation
+                                            ? <Loader2 size={20} className="animate-spin" />
+                                            : <MapPin size={20} />}
                                     </button>
                                 )}
                             </div>

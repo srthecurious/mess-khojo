@@ -14,6 +14,12 @@ const AdminDashboard = () => {
     const [user, setUser] = useState(null);
     const [messProfile, setMessProfile] = useState(null);
     const [loadingProfile, setLoadingProfile] = useState(true);
+    const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3500);
+    };
 
     // Image compression helper
     const compressImage = async (file) => {
@@ -448,13 +454,13 @@ const AdminDashboard = () => {
 
             if (editingRoomId) {
                 await updateDoc(doc(db, "rooms", editingRoomId), roomData);
-                alert("Room Type updated successfully!");
+                showToast('✅ Room updated successfully!');
             } else {
                 await addDoc(collection(db, "rooms"), {
                     ...roomData,
                     createdAt: new Date()
                 });
-                alert("Room Type added successfully!");
+                showToast('✅ Room added successfully!');
             }
 
             // Reset form
@@ -474,7 +480,7 @@ const AdminDashboard = () => {
             setEditingRoomId(null);
         } catch (error) {
             console.error("Error saving room: ", error);
-            alert(`Error saving room: ${error.message}`);
+            showToast(`❌ Error saving room: ${error.message}`, 'error');
         } finally {
             setUploading(false);
         }
@@ -576,6 +582,13 @@ const AdminDashboard = () => {
 
     return (
         <div className="min-h-screen bg-brand-secondary">
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] px-6 py-3.5 rounded-2xl shadow-2xl text-white font-semibold text-sm flex items-center gap-2 transition-all animate-bounce-in ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+                    {toast.message}
+                </div>
+            )}
+
             <nav className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
                 <div className="flex items-center gap-4">
                     <h1 className="text-xl font-bold text-brand-primary">Admin Dashboard</h1>
@@ -1134,22 +1147,24 @@ const AdminDashboard = () => {
                 )}
             </div>
             {/* Map Picker Modal */}
-            {showMapPicker && (
-                <div className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col">
-                        <MapPicker
-                            onConfirm={handleMapConfirm}
-                            onCancel={() => setShowMapPicker(false)}
-                            initialLocation={
-                                messForm.latitude && messForm.longitude
-                                    ? { lat: parseFloat(messForm.latitude), lng: parseFloat(messForm.longitude), address: messForm.address }
-                                    : null
-                            }
-                        />
+            {
+                showMapPicker && (
+                    <div className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col">
+                            <MapPicker
+                                onConfirm={handleMapConfirm}
+                                onCancel={() => setShowMapPicker(false)}
+                                initialLocation={
+                                    messForm.latitude && messForm.longitude
+                                        ? { lat: parseFloat(messForm.latitude), lng: parseFloat(messForm.longitude), address: messForm.address }
+                                        : null
+                                }
+                            />
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 export default AdminDashboard;

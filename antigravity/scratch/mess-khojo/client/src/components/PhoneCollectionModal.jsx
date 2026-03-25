@@ -81,10 +81,10 @@ const PhoneCollectionModal = ({ user, onClose, onSkip }) => {
                                 type="tel"
                                 required
                                 className="w-full pl-10 pr-4 py-3 border border-brand-light-gray rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all"
-                                placeholder="+91 98765 43210"
+                                placeholder="10 digit mobile number"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                maxLength="13"
+                                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                maxLength="10"
                             />
                         </div>
                         <p className="text-xs text-gray-500 mt-1">

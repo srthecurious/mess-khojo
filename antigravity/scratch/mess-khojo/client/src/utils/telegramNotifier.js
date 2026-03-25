@@ -93,12 +93,13 @@ export const telegramTemplates = {
             timeStyle: 'short'
         });
 
-        return `📞 <b>NEW CALL REQUEST!</b>\n\n` +
+        return `📞 <b>OWNER CONTACTED!</b>\n\n` +
             `🏢 <b>Mess:</b> ${booking.messName}\n` +
             `🛏️ <b>Room:</b> ${booking.roomType}\n` +
             `👤 <b>User:</b> ${booking.userName}\n` +
-            `📱 <b>Phone:</b> ${booking.userPhone}\n` +
+            `📱 <b>User Phone:</b> ${booking.userPhone}\n` +
             `💰 <b>Price:</b> ₹${booking.price}/month\n\n` +
+            `ℹ️ <i>User has been given the owner's contact number to call directly.</i>\n\n` +
             `⏰ <i>${time}</i>\n\n` +
             `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;
     },

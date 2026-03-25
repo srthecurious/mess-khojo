@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-
+import { trackAppInstall } from '../analytics';
 export const useInstallPrompt = () => {
     // Initialize from the global window object (populated by inline script in index.html)
     const [deferredPrompt, setDeferredPrompt] = useState(window.deferredPrompt || null);
@@ -74,6 +74,7 @@ export const useInstallPrompt = () => {
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
+            trackAppInstall();
             // We've used the prompt, and can't use it again, throw it away
             setDeferredPrompt(null);
             setIsInstallable(false);

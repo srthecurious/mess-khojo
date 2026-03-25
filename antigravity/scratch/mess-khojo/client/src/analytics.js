@@ -138,6 +138,32 @@ export const trackAmenityFilter = (amenity, enabled) => {
     trackEvent('Filter', 'amenity_filter', amenity, enabled ? 1 : 0);
 };
 
+// Track App Installation
+export const trackAppInstall = () => {
+    trackEvent('App', 'install_accepted');
+};
+
+// Track Gallery Views
+export const trackGalleryView = (messId) => {
+    trackEvent('Mess', 'gallery_viewed', messId);
+};
+
+// Track Wishlist Interactions
+export const trackWishlistToggle = (type, id, isAdding) => {
+    trackEvent('Wishlist', isAdding ? 'added_to_wishlist' : 'removed_from_wishlist', `${type}_${id}`);
+};
+
+// Track Contact Owner feature
+export const trackContactOwner = (action, messId, roomId) => {
+    // action: 'button_clicked', 'call_confirmed', 'call_cancelled'
+    trackEvent('ContactOwner', action, `mess_${messId}_room_${roomId}`);
+};
+
+// Track Availability Inquiry (sold-out rooms)
+export const trackAvailabilityInquiry = (messId, roomId) => {
+    trackEvent('ContactOwner', 'availability_inquiry_submitted', `mess_${messId}_room_${roomId}`);
+};
+
 export default {
     initialize: initializeAnalytics,
     trackPageView,
@@ -156,4 +182,9 @@ export default {
     trackMessExplorer,
     trackViewMore,
     trackAmenityFilter,
+    trackAppInstall,
+    trackGalleryView,
+    trackWishlistToggle,
+    trackContactOwner,
+    trackAvailabilityInquiry,
 };

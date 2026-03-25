@@ -29,6 +29,7 @@ const MapLocationModal = ({ initialLocation, onLocationSelect, onClose }) => {
             }
         } catch (error) {
             console.error('Reverse geocoding error:', error);
+            setSelectedLocation(prev => ({ ...prev, address: 'Pinned Location' }));
         } finally {
             setIsLoadingAddress(false);
         }
@@ -49,7 +50,7 @@ const MapLocationModal = ({ initialLocation, onLocationSelect, onClose }) => {
     };
 
     const handleConfirm = () => {
-        onLocationSelect(selectedLocation);
+        onLocationSelect({ ...selectedLocation, address: selectedLocation.address || 'Pinned Location' });
     };
 
     return (
@@ -133,8 +134,8 @@ const MapLocationModal = ({ initialLocation, onLocationSelect, onClose }) => {
                                 Cancel
                             </button>
                             <button
-                                onClick={handleConfirm}
-                                disabled={!selectedLocation.address}
+                                onClick={() => onLocationSelect({ ...selectedLocation, address: selectedLocation.address || 'Pinned Location' })}
+                                disabled={!selectedLocation.lat}
                                 className="flex-1 py-3 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-xl transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 <Check size={20} />

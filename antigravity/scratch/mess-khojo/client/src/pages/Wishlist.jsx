@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, Building2, BedDouble, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import MessCard from '../components/MessCard';
@@ -48,15 +48,40 @@ const Wishlist = () => {
                 for (let i = 0; i < ids.length; i += 10) {
                     batches.push(ids.slice(i, i + 10));
                 }
-                const results = await Promise.all(
+                // Fetch mess documents
+                const messResults = await Promise.all(
                     batches.map(batch => {
                         const q = query(collection(db, 'messes'), where('__name__', 'in', batch));
                         return getDocs(q);
                     })
                 );
-                const data = results.flatMap(snap =>
+                const messData = messResults.flatMap(snap =>
                     snap.docs.map(d => ({ id: d.id, ...d.data() }))
                 );
+
+                // Fetch rooms for these messes to compute price ranges
+                const roomResults = await Promise.all(
+                    batches.map(batch => {
+                        const q = query(collection(db, 'rooms'), where('messId', 'in', batch));
+                        return getDocs(q);
+                    })
+                );
+                const allRooms = roomResults.flatMap(snap =>
+                    snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                );
+
+                // Attach minPrice / maxPrice to each mess
+                const data = messData.map(mess => {
+                    const messRooms = allRooms.filter(r => r.messId === mess.id);
+                    const prices = messRooms
+                        .map(r => Number(r.price || r.rent))
+                        .filter(p => !isNaN(p) && p > 0);
+                    return {
+                        ...mess,
+                        minPrice: prices.length ? Math.min(...prices) : null,
+                        maxPrice: prices.length ? Math.max(...prices) : null,
+                    };
+                });
                 setMesses(data);
             } catch (err) {
                 console.error('Error fetching wishlist messes:', err);
@@ -186,7 +211,7 @@ const Wishlist = () => {
                                 </Link>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                 {messes.map(mess => (
                                     <MessCard
                                         key={mess.id}

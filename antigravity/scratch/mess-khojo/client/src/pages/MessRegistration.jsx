@@ -101,12 +101,17 @@ const MessRegistration = () => {
             case 1:
                 return (
                     <div className="space-y-6">
-                        <div className="text-center space-y-2">
-                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Building2 size={32} className="text-purple-600" />
+                        <div className="text-center space-y-3">
+                            <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-[28px] shadow-inner flex items-center justify-center mx-auto mb-2 relative group">
+                                <Building2 size={36} className="text-purple-600 group-hover:scale-110 transition-transform" />
+                                <div className="absolute -top-2 -right-6 bg-gradient-to-r from-red-500 to-rose-500 text-white text-[10px] font-extrabold px-3 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse transform rotate-12">
+                                    100% FREE
+                                </div>
                             </div>
-                            <h1 className="text-2xl font-bold text-gray-800">Register Your Mess in Balasore</h1>
-                            <p className="text-gray-500">Step 1: What is the name of your mess?</p>
+                            <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-purple-900 to-gray-900 leading-tight">
+                                List Your Mess on MessKhojo
+                            </h1>
+                            <p className="text-gray-500 font-medium">Step 1: What is the name of your mess?</p>
                         </div>
                         <input
                             type="text"
@@ -379,6 +384,7 @@ const MessRegistration = () => {
                             value={formData.phoneNumber}
                             onChange={(e) => handleChange('phoneNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
                             placeholder="Enter 10-digit number"
+                            maxLength="10"
                             className="w-full text-2xl p-4 border-2 border-rose-100 rounded-2xl focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all text-center placeholder:text-gray-300 font-mono tracking-widest"
                             autoFocus
                         />
@@ -395,7 +401,7 @@ const MessRegistration = () => {
                                 className="w-5 h-5 accent-brand-primary mt-0.5 cursor-pointer"
                             />
                             <label htmlFor="consent" className="text-sm text-gray-600 cursor-pointer text-left leading-tight">
-                                I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                                I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
                             </label>
                         </div>
                     </div>

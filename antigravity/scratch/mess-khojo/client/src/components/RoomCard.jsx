@@ -3,7 +3,7 @@ import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Lay
 
 import { Link } from 'react-router-dom';
 
-const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishlist }) => {
+const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishlist, isUserSourced = false }) => {
     // Handle both old (imageUrl) and new (imageUrls) data structures
     const displayImage = (room.imageUrls && room.imageUrls.length > 0)
         ? room.imageUrls[0]
@@ -27,84 +27,106 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
 
     const cardContent = (
         <>
-            <div className="h-36 md:h-44 rounded-2xl overflow-hidden mb-2 relative shadow-sm group-hover/img:shadow-md">
+            {/* Image Section */}
+            <div className="h-40 md:h-48 relative overflow-hidden bg-gray-100">
                 <img
                     src={displayImage}
                     alt={title}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
+                {/* Gradient for badge readability */}
+                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                {/* Wishlist Heart Button */}
+                {/* Wishlist Heart Button - Keep it top left */}
                 {onToggleWishlist && (
                     <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(room.id); }}
-                        className={`absolute top-2 left-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 ${isWishlisted
+                        className={`absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-all active:scale-90 ${isWishlisted
                                 ? 'bg-red-500 text-white'
-                                : 'bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500'
+                                : 'bg-white/95 backdrop-blur-sm text-gray-400 hover:text-red-500'
                             }`}
                         title={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
                     >
-                        <Heart size={15} fill={isWishlisted ? 'currentColor' : 'none'} strokeWidth={2} />
+                        <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} strokeWidth={2.5} />
                     </button>
                 )}
 
                 {/* Count Badge */}
-                {room.availableCount > 0 ? (
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-green-100/90 text-green-800 shadow-sm backdrop-blur-sm pointer-events-none">
-                        Available
-                    </div>
-                ) : (
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold bg-red-100/90 text-red-800 shadow-sm backdrop-blur-sm pointer-events-none">
-                        Full
-                    </div>
+                {!isUserSourced && (
+                    room.availableCount > 0 ? (
+                        <div className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase tracking-wide bg-brand-accent-green text-white shadow-sm pointer-events-none">
+                            Available
+                        </div>
+                    ) : (
+                        <div className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase tracking-wide bg-brand-red text-white shadow-sm pointer-events-none">
+                            Full
+                        </div>
+                    )
                 )}
             </div>
 
-            <div className="flex flex-col gap-2 flex-grow">
-                <div>
-                    <h3 className="uiverse-header-title mb-1 line-clamp-1">{title}</h3>
-                    {room.category && <p className="uiverse-header-subtitle">{room.category}</p>}
+            {/* Content Section */}
+            <div className="p-4 flex flex-col flex-grow">
+                <div className="mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 line-clamp-1">{title}</h3>
+                    {room.category && <p className="text-sm font-medium text-gray-500">{room.category}</p>}
                 </div>
 
-                {/* Icons Row */}
-                <div className="flex gap-3 text-yellow-800/60 mt-2">
-                    {am.ac && <Wind size={16} />}
-                    {am.attachedBathroom && <Droplets size={16} />}
+                {/* Amenities - Explicit Tags */}
+                <div className="flex flex-wrap gap-2 mt-1 mb-4">
+                    {am.ac && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold">
+                            <Wind size={13} strokeWidth={2.5} /> AC
+                        </span>
+                    )}
+                    {am.attachedBathroom && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-cyan-50 text-cyan-800 text-xs font-bold">
+                            <Droplets size={13} strokeWidth={2.5} /> Attached Bath
+                        </span>
+                    )}
+                    {am.furnished && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-800 text-xs font-bold">
+                            <Home size={13} strokeWidth={2.5} /> Furnished
+                        </span>
+                    )}
+                    {/* Fallback spacer to keep cards roughly same height if no amenities */}
+                    {!am.ac && !am.attachedBathroom && !am.furnished && (
+                         <span className="inline-flex items-center py-1 opacity-0 select-none text-xs">Spacer</span>
+                    )}
                 </div>
-            </div>
 
-            {/* Footer */}
-            <div className="mt-2 flex items-end justify-between">
-                <div>
-                    <div className="uiverse-price">₹{price}</div>
-                    <div className="uiverse-header-subtitle text-xs">per month</div>
-                </div>
-
-                {isAdmin && (
-                    <button
-                        onClick={(e) => { e.preventDefault(); onDelete(room.id); }}
-                        className="uiverse-badge bg-red-100 text-red-600 hover:bg-red-200"
-                    >
-                        Delete
-                    </button>
-                )}
-                {!isAdmin && (
-                    <div className="w-10 h-10 rounded-full bg-brand-light-gray flex items-center justify-center text-brand-primary transition-all duration-300 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-110 shadow-sm ml-auto">
-                        <ArrowRight size={20} strokeWidth={2.5} />
+                {/* Footer Section - Pushed to bottom */}
+                <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                        <div className="text-2xl font-extrabold text-brand-primary leading-none">₹{price}</div>
+                        <div className="text-xs font-medium text-gray-500 mt-0.5">per month</div>
                     </div>
-                )}
+
+                    {isAdmin ? (
+                        <button
+                            onClick={(e) => { e.preventDefault(); onDelete(room.id); }}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                            Delete
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-1 px-3 py-2 bg-brand-primary/5 rounded-lg text-sm font-bold text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-all duration-300">
+                            View <ArrowRight size={16} className="transform group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                    )}
+                </div>
             </div>
         </>
     );
 
     return (
-        <div className="uiverse-card flex flex-col h-full">
+        <div className="group flex flex-col h-full bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_35px_rgba(75,46,131,0.12)] border border-gray-100 overflow-hidden transition-all duration-300 hover:-translate-y-1.5 cursor-pointer">
             {isAdmin ? (
-                <div className="cursor-pointer h-full relative flex flex-col">
+                <div className="flex flex-col h-full relative">
                     {cardContent}
                 </div>
             ) : (
-                <Link to={`/room/${room.messId}/${room.id}`} className="block h-full relative flex flex-col">
+                <Link to={`/room/${room.messId}/${room.id}`} className="flex flex-col h-full relative">
                     {cardContent}
                 </Link>
             )}

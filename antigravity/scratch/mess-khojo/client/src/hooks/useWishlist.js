@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { trackWishlistToggle } from '../analytics';
 
 export const useWishlist = () => {
     const { currentUser } = useAuth();
@@ -50,6 +51,8 @@ export const useWishlist = () => {
             return next;
         });
 
+        trackWishlistToggle('mess', messId, isAdding);
+
         try {
             await updateDoc(userRef, {
                 wishlistedMesses: isAdding ? arrayUnion(messId) : arrayRemove(messId)
@@ -78,6 +81,8 @@ export const useWishlist = () => {
             isAdding ? next.add(roomId) : next.delete(roomId);
             return next;
         });
+
+        trackWishlistToggle('room', roomId, isAdding);
 
         try {
             await updateDoc(userRef, {

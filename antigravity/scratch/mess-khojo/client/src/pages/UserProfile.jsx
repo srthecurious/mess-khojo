@@ -162,8 +162,23 @@ const UserProfile = () => {
 
                     <div className="relative flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="flex flex-col md:flex-row items-center md:items-start gap-5 md:gap-6 w-full md:w-auto">
-                            <div className="w-20 h-20 md:w-24 md:h-24 bg-brand-primary/10 rounded-[24px] md:rounded-3xl flex items-center justify-center text-brand-primary shadow-inner shrink-0">
-                                <User size={40} strokeWidth={1.5} />
+                            <div className="w-20 h-20 md:w-24 md:h-24 bg-brand-primary/10 rounded-[24px] md:rounded-3xl flex items-center justify-center text-brand-primary border border-white/20 shadow-inner overflow-hidden shrink-0">
+                                {currentUser && currentUser.photoURL ? (
+                                    <img
+                                        src={currentUser.photoURL}
+                                        alt="User profile"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextElementSibling.style.display = 'block';
+                                        }}
+                                    />
+                                ) : null}
+                                <User 
+                                    size={40} 
+                                    strokeWidth={1.5} 
+                                    style={{ display: (currentUser && currentUser.photoURL) ? 'none' : 'block' }}
+                                />
                             </div>
                             <div className="text-center md:text-left space-y-3 w-full">
                                 <div>
@@ -200,10 +215,10 @@ const UserProfile = () => {
                                                 <input
                                                     type="tel"
                                                     value={editedPhone}
-                                                    onChange={(e) => setEditedPhone(e.target.value)}
+                                                    onChange={(e) => setEditedPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                                     className="px-3 py-2 text-xs md:text-sm border border-brand-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary w-full"
-                                                    placeholder="+91 98765 43210"
-                                                    maxLength="13"
+                                                    placeholder="10 digit mobile number"
+                                                    maxLength="10"
                                                 />
                                                 <button
                                                     onClick={handleSavePhone}

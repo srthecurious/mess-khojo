@@ -75,7 +75,6 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-    // Lock Body Scroll
     useEffect(() => {
         if (isMenuOpen || isNotificationModalOpen) {
             document.body.style.overflow = 'hidden';
@@ -87,14 +86,58 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
         }
     }, [isMenuOpen, isNotificationModalOpen]);
 
-
-
-
-
     const location = useLocation();
 
     // Helper to check if a link is active
     const isActive = (path) => location.pathname === path;
+
+    // Push dummy history state when an overlay opens
+    const [historyPushed, setHistoryPushed] = useState(false);
+    useEffect(() => {
+        const overlayOpen = isMenuOpen || isNotificationModalOpen || showInstallGuide;
+        if (overlayOpen && !historyPushed) {
+            window.history.pushState({ modalOpen: true }, '');
+            setHistoryPushed(true);
+        } else if (!overlayOpen && historyPushed) {
+            setHistoryPushed(false);
+        }
+    }, [isMenuOpen, isNotificationModalOpen, showInstallGuide, historyPushed]);
+
+    // Handle back button for menu and notifications
+    useEffect(() => {
+        const handlePopState = (e) => {
+            if (isMenuOpen || isNotificationModalOpen || showInstallGuide || isContactOpen) {
+                setIsMenuOpen(false);
+                setIsNotificationModalOpen(false);
+                setShowInstallGuide(false);
+                setIsContactOpen(false);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [isMenuOpen, isNotificationModalOpen, showInstallGuide, isContactOpen]);
+
+    // Close overlays securely, popping history if we pushed it
+    const closeOverlays = () => {
+        if (window.history.state?.modalOpen) {
+            window.history.back(); // Triggers popstate listener to close
+        } else {
+            setIsMenuOpen(false);
+            setIsNotificationModalOpen(false);
+            setShowInstallGuide(false);
+            setIsContactOpen(false);
+        }
+    };
+
+    // Close overlays on route change as fallback
+    useEffect(() => {
+        setIsMenuOpen(false);
+        setIsNotificationModalOpen(false);
+        setShowInstallGuide(false);
+        setIsContactOpen(false);
+        setHistoryPushed(false);
+    }, [location.pathname, location.search]);
 
     return (
         <>
@@ -215,7 +258,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 className="absolute inset-0 bg-transparent pointer-events-auto"
-                                onClick={() => setIsNotificationModalOpen(false)}
+                                onClick={closeOverlays}
                             />
 
                             {/* Modal Content */}
@@ -233,7 +276,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                         <Bell size={20} className="text-brand-primary" />
                                         Notifications
                                     </h3>
-                                    <button onClick={() => setIsNotificationModalOpen(false)} className="p-3 text-brand-text-dark hover:bg-brand-light-gray rounded-full transition-all">
+                                    <button onClick={closeOverlays} className="p-3 text-brand-text-dark hover:bg-brand-light-gray rounded-full transition-all">
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -295,7 +338,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    onClick={() => setIsMenuOpen(false)}
+                                    onClick={closeOverlays}
                                     className="fixed inset-0 bg-neu-base/80 backdrop-blur-sm z-[60]"
                                 />
 
@@ -314,7 +357,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             <div>
                                                 <h2 className="text-3xl font-bold text-white">MessKhojo</h2>
                                             </div>
-                                            <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                                            <button onClick={closeOverlays} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                                                 <X size={24} />
                                             </button>
                                         </div>
@@ -390,7 +433,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             <Heart size={20} className={`relative z-10 transition-colors ${isActive('/wishlist') ? 'text-red-400 fill-red-400' : 'group-hover:text-red-400'}`} />
                                             <span className="relative z-10">My Wishlist</span>
                                             {wishlistCount > 0 && (
-                                                <span className="ml-auto px-2 py-0.5 text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm relative z-10">
+                                                <span className="ml-auto w-[22px] h-[22px] flex items-center justify-center text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm relative z-10">
                                                     {wishlistCount}
                                                 </span>
                                             )}
@@ -401,14 +444,24 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                         <Link
                                             to="/register-mess"
                                             onClick={() => setIsMenuOpen(false)}
-                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/register-mess") || isActive("/register-mess-success")
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-bold border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/register-mess") || isActive("/register-mess-success")
                                                 ? "text-white bg-white/10 border-blue-400"
-                                                : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-blue-400"
+                                                : "text-white/90 hover:text-white hover:bg-white/5 border-transparent hover:border-blue-400"
                                                 }`}
                                         >
-                                            <Building2 size={20} className={`relative z-10 transition-colors ${isActive("/register-mess") ? "text-blue-400" : "group-hover:text-blue-400"}`} />
-                                            <span className="relative z-10">Register your mess</span>
-                                            <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive("/register-mess") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+                                            <div className="relative z-10 p-1.5 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
+                                                <Building2 size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <div className="relative z-10 flex flex-col">
+                                                <span className="leading-tight">List your Mess</span>
+                                                <span className="text-xs font-medium text-blue-300">Join MessKhojo</span>
+                                            </div>
+                                            <div className="relative z-10 ml-auto flex items-center gap-2">
+                                                <span className="px-2 py-0.5 text-[10px] font-bold tracking-wide text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-md shadow-sm animate-pulse">
+                                                    FREE
+                                                </span>
+                                                <ChevronRight size={16} className={`transition-opacity ${isActive("/register-mess") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+                                            </div>
                                         </Link>
 
                                         <Link
@@ -586,7 +639,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                            onClick={() => setShowInstallGuide(false)}
+                            onClick={closeOverlays}
                         />
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -599,7 +652,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                     <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
                                         <Download size={24} />
                                     </div>
-                                    <button onClick={() => setShowInstallGuide(false)} className="text-gray-400 hover:text-gray-600 p-1 transition-colors">
+                                    <button onClick={closeOverlays} className="text-gray-400 hover:text-gray-600 p-1 transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -627,7 +680,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={() => setShowInstallGuide(false)}
+                                    onClick={closeOverlays}
                                     className="w-full mt-6 bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors"
                                 >
                                     Got it !

@@ -1,10 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { Home } from 'lucide-react';
 
 const AboutUs = () => {
     return (
         <div className="min-h-screen bg-brand-secondary py-12 px-4 sm:px-6 lg:px-8 font-sans">
             <div className="max-w-3xl mx-auto mt-16">
+                {/* Animated Back to Home CTA (Above Container) */}
+                <div className="flex justify-center mb-10">
+                    <Link 
+                        to="/" 
+                        className="relative overflow-hidden inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-brand-primary to-indigo-600 text-white text-lg font-bold rounded-2xl shadow-[0_8px_25px_rgba(75,46,131,0.3)] hover:shadow-[0_12px_35px_rgba(75,46,131,0.5)] transition-all duration-300 hover:-translate-y-1 active:scale-95 group animate-bounce-slow"
+                    >
+                        {/* Glazing / Shine Effect (Continuous) */}
+                        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                        
+                        <Home size={22} className="relative z-10 group-hover:scale-110 transition-transform duration-300" />
+                        <span className="relative z-10">Back to Home</span>
+                    </Link>
+                </div>
+
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

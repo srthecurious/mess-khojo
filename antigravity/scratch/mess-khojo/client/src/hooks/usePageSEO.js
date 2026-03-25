@@ -144,7 +144,7 @@ export function generateMessSchema(mess) {
         "name": mess.name,
         "description": mess.description || `${mess.name} is a ${mess.messType || 'premium'} accommodation in ${mess.address || 'Balasore'}. Hygienic food, safe environment, no broker.`,
         "url": `https://messkhojo.com/mess/${mess.id}`,
-        "image": mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/logo.png",
+        "image": mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/preview.png",
         "address": {
             "@type": "PostalAddress",
             "streetAddress": mess.address || "",

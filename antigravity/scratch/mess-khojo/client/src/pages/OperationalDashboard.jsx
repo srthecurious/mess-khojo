@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { db, auth, secondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification, telegramTemplates } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
@@ -37,6 +37,15 @@ const OperationalDashboard = () => {
     const [rooms, setRooms] = useState([]);
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Hero Ads State
+    const [carouselEnabled, setCarouselEnabled] = useState(false);
+    const [desktopAds, setDesktopAds] = useState([]);
+    const [mobileAds, setMobileAds] = useState([]);
+    const [heroAdUploading, setHeroAdUploading] = useState(false);
+    const [heroAdForm, setHeroAdForm] = useState({ linkUrl: '', title: '' });
+    const [heroAdFile, setHeroAdFile] = useState(null);
+    const [heroAdSection, setHeroAdSection] = useState('desktop'); // which section's upload form is active
 
     // Editing State
     const [editingItem, setEditingItem] = useState(null); // For mess/room edit modal
@@ -262,6 +271,125 @@ const OperationalDashboard = () => {
         });
         return () => unsubscribe();
     }, []);
+
+    // Fetch carousel toggle
+    useEffect(() => {
+        const unsub = onSnapshot(doc(db, 'app_config', 'hero'), (snap) => {
+            if (snap.exists()) {
+                setCarouselEnabled(!!snap.data().carouselEnabled);
+            }
+        });
+        return unsub;
+    }, []);
+
+    // Fetch desktop ads
+    useEffect(() => {
+        const q = query(collection(db, 'hero_ads_desktop'));
+        const unsub = onSnapshot(q, (snap) => {
+            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            data.sort((a, b) => (a.order || 0) - (b.order || 0));
+            setDesktopAds(data);
+        });
+        return unsub;
+    }, []);
+
+    // Fetch mobile ads
+    useEffect(() => {
+        const q = query(collection(db, 'hero_ads_mobile'));
+        const unsub = onSnapshot(q, (snap) => {
+            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            data.sort((a, b) => (a.order || 0) - (b.order || 0));
+            setMobileAds(data);
+        });
+        return unsub;
+    }, []);
+
+    // Toggle carousel
+    const handleToggleCarousel = async () => {
+        try {
+            await setDoc(doc(db, 'app_config', 'hero'), { carouselEnabled: !carouselEnabled }, { merge: true });
+        } catch (error) {
+            console.error('Toggle failed:', error);
+            alert('Failed to toggle carousel');
+        }
+    };
+
+    // Upload hero ad
+    const handleHeroAdUpload = async (section) => {
+        if (!heroAdFile) return alert('Please select an image');
+        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
+        const storagePath = section === 'desktop' ? 'ads/desktop' : 'ads/mobile';
+        const currentAds = section === 'desktop' ? desktopAds : mobileAds;
+
+        if (currentAds.length >= 10) return alert('Limit reached (10/10). Delete one to upload more.');
+
+        setHeroAdUploading(true);
+        try {
+            const compressed = await compressImage(heroAdFile);
+            const storageRef = ref(storage, `${storagePath}/${Date.now()}_${heroAdFile.name}`);
+            const snapshot = await uploadBytes(storageRef, compressed);
+            const imageUrl = await getDownloadURL(snapshot.ref);
+
+            await addDoc(collection(db, collectionName), {
+                imageUrl,
+                linkUrl: heroAdForm.linkUrl || '',
+                title: heroAdForm.title || '',
+                order: currentAds.length,
+                active: true,
+                createdAt: serverTimestamp()
+            });
+
+            setHeroAdFile(null);
+            setHeroAdForm({ linkUrl: '', title: '' });
+            // Reset file input
+            const fileInput = document.getElementById(`hero-ad-file-${section}`);
+            if (fileInput) fileInput.value = '';
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Upload failed: ' + error.message);
+        } finally {
+            setHeroAdUploading(false);
+        }
+    };
+
+    // Delete hero ad
+    const handleDeleteHeroAd = async (adId, section) => {
+        if (!window.confirm('Delete this banner?')) return;
+        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
+        try {
+            await deleteDoc(doc(db, collectionName, adId));
+        } catch (error) {
+            console.error('Delete failed:', error);
+            alert('Delete failed');
+        }
+    };
+
+    // Toggle hero ad active
+    const handleToggleHeroAd = async (adId, currentActive, section) => {
+        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
+        try {
+            await updateDoc(doc(db, collectionName, adId), { active: !currentActive });
+        } catch (error) {
+            console.error('Toggle failed:', error);
+        }
+    };
+
+    // Reorder hero ad
+    const handleReorderHeroAd = async (adId, direction, section) => {
+        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
+        const ads = section === 'desktop' ? [...desktopAds] : [...mobileAds];
+        const idx = ads.findIndex(a => a.id === adId);
+        if (idx === -1) return;
+        const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= ads.length) return;
+
+        try {
+            await updateDoc(doc(db, collectionName, ads[idx].id), { order: newIdx });
+            await updateDoc(doc(db, collectionName, ads[newIdx].id), { order: idx });
+        } catch (error) {
+            console.error('Reorder failed:', error);
+        }
+    };
 
     const handleBookingAction = async (id, status) => {
         try {
@@ -581,6 +709,21 @@ const OperationalDashboard = () => {
                         <span className="ml-auto bg-white/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-60">
                             {rooms.length}
                         </span>
+                    </button>
+
+                    <div className="pt-4 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4">
+                        Marketing
+                    </div>
+
+                    <button
+                        onClick={() => setActiveTab('hero_ads')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'hero_ads'
+                            ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
+                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            }`}
+                    >
+                        <Image size={20} />
+                        Hero Ads
                     </button>
                 </aside>
 
@@ -1430,6 +1573,175 @@ const OperationalDashboard = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* HERO ADS TAB */}
+                    {activeTab === 'hero_ads' && (
+                        <div className="max-w-6xl mx-auto">
+                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                                <Image className="text-pink-500" />
+                                Hero Ads Management
+                            </h2>
+
+                            {/* Global Toggle */}
+                            <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8 shadow-xl">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Enable Ad Carousel</h3>
+                                        <p className="text-slate-400 text-sm mt-1">
+                                            {carouselEnabled
+                                                ? 'Carousel is LIVE — users see ad banners on the home page'
+                                                : 'Carousel is OFF — users see the default hero section'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleToggleCarousel}
+                                        className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-lg ${
+                                            carouselEnabled
+                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
+                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
+                                        }`}
+                                    >
+                                        {carouselEnabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                                        {carouselEnabled ? 'ON' : 'OFF'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Two Sections */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                {/* Desktop Banners */}
+                                {[{ section: 'desktop', ads: desktopAds, icon: <Monitor size={20} />, label: 'Desktop Banners', size: '1400 × 500 px', color: 'blue' },
+                                  { section: 'mobile', ads: mobileAds, icon: <Smartphone size={20} />, label: 'Mobile Banners', size: '800 × 600 px', color: 'orange' }].map(({ section, ads: sectionAds, icon, label, size, color }) => (
+                                    <div key={section} className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+                                        {/* Section Header */}
+                                        <div className={`p-5 border-b border-slate-700 bg-${color}-500/5`}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg bg-${color}-500/10 text-${color}-400`}>
+                                                        {icon}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-white text-lg">{label}</h3>
+                                                        <p className="text-slate-500 text-xs">Recommended: {size}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                                                    sectionAds.length >= 10
+                                                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                                        : 'bg-slate-700 text-slate-300'
+                                                }`}>
+                                                    {sectionAds.length}/10
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Upload Form */}
+                                        <div className="p-5 border-b border-slate-700">
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <input
+                                                        id={`hero-ad-file-${section}`}
+                                                        type="file"
+                                                        accept="image/*"
+                                                        disabled={sectionAds.length >= 10 || heroAdUploading}
+                                                        onChange={(e) => setHeroAdFile(e.target.files?.[0] || null)}
+                                                        className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-pink-500/10 file:text-pink-400 hover:file:bg-pink-500/20 disabled:opacity-40"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Link URL (optional)"
+                                                        value={heroAdForm.linkUrl}
+                                                        onChange={(e) => setHeroAdForm({ ...heroAdForm, linkUrl: e.target.value })}
+                                                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Title (optional)"
+                                                        value={heroAdForm.title}
+                                                        onChange={(e) => setHeroAdForm({ ...heroAdForm, title: e.target.value })}
+                                                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => handleHeroAdUpload(section)}
+                                                    disabled={!heroAdFile || heroAdUploading || sectionAds.length >= 10}
+                                                    className="w-full py-2.5 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-pink-500/10"
+                                                >
+                                                    {heroAdUploading ? 'Uploading...' : sectionAds.length >= 10 ? 'Limit Reached (10/10)' : 'Upload Banner'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Banner List */}
+                                        <div className="p-5 space-y-3 max-h-[600px] overflow-y-auto">
+                                            {sectionAds.length === 0 ? (
+                                                <div className="text-center py-12 text-slate-500 text-sm">
+                                                    No banners uploaded yet.
+                                                </div>
+                                            ) : (
+                                                sectionAds.map((ad, idx) => (
+                                                    <div key={ad.id} className={`bg-slate-900/50 rounded-xl border ${ad.active ? 'border-slate-700' : 'border-slate-700/50 opacity-50'} p-3 flex gap-3 items-center group`}>
+                                                        {/* Thumbnail */}
+                                                        <img
+                                                            src={ad.imageUrl}
+                                                            alt={ad.title || 'Banner'}
+                                                            className="w-24 h-16 object-cover rounded-lg shrink-0 border border-slate-700"
+                                                        />
+
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-white text-sm font-bold truncate">{ad.title || 'Untitled'}</p>
+                                                            {ad.linkUrl && <p className="text-slate-500 text-xs truncate">{ad.linkUrl}</p>}
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold mt-1 inline-block ${ad.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                                                                {ad.active ? 'ACTIVE' : 'HIDDEN'}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Actions */}
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                onClick={() => handleReorderHeroAd(ad.id, 'up', section)}
+                                                                disabled={idx === 0}
+                                                                className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-20"
+                                                                title="Move up"
+                                                            >
+                                                                <ArrowUp size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleReorderHeroAd(ad.id, 'down', section)}
+                                                                disabled={idx === sectionAds.length - 1}
+                                                                className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-20"
+                                                                title="Move down"
+                                                            >
+                                                                <ArrowDown size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleToggleHeroAd(ad.id, ad.active, section)}
+                                                                className={`p-1.5 rounded-lg transition-colors ${ad.active ? 'text-emerald-400 hover:bg-emerald-500/20' : 'text-slate-500 hover:bg-slate-700'}`}
+                                                                title={ad.active ? 'Hide' : 'Show'}
+                                                            >
+                                                                {ad.active ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteHeroAd(ad.id, section)}
+                                                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                                title="Delete"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                 </main>
             </div>
 

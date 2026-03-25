@@ -159,8 +159,12 @@ const BookRoomComingSoon = () => {
                                             name="phone"
                                             required
                                             value={formData.phone}
-                                            onChange={handleChange}
-                                            placeholder="e.g. 98765 43210"
+                                            maxLength="10"
+                                            onChange={(e) => {
+                                                e.target.value = e.target.value.replace(/\D/g, '');
+                                                handleChange(e);
+                                            }}
+                                            placeholder="10 digit mobile number"
                                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
                                         />
                                     </div>
@@ -276,7 +280,7 @@ const BookRoomComingSoon = () => {
                                         className="w-4 h-4 accent-brand-primary mt-1 cursor-pointer"
                                     />
                                     <label htmlFor="book-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
-                                        I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                                        I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
                                     </label>
                                 </div>
 

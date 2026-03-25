@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
-import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent } from '../analytics';
+import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView } from '../analytics';
 import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
@@ -14,10 +14,18 @@ const MessDetails = () => {
     const navigate = useNavigate();
     const { currentUser } = useAuth();
     const { isRoomWishlisted, toggleRoomWishlist, isMessWishlisted, toggleMessWishlist } = useWishlist();
-    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [loginPromptConfig, setLoginPromptConfig] = useState({ show: false, title: '', message: '', icon: '' });
 
     const handleRoomWishlistToggle = async (roomId) => {
-        if (!currentUser) { setShowLoginPrompt(true); return; }
+        if (!currentUser) { 
+            setLoginPromptConfig({
+                show: true,
+                title: 'Save to Wishlist',
+                message: 'Login to save messes and rooms to your personal wishlist.',
+                icon: '❤️'
+            }); 
+            return; 
+        }
         await toggleRoomWishlist(roomId);
     };
     const [mess, setMess] = useState(null);
@@ -151,7 +159,12 @@ const MessDetails = () => {
         e.preventDefault();
         e.stopPropagation();
         if (!currentUser) {
-            setShowLoginPrompt(true);
+            setLoginPromptConfig({
+                show: true,
+                title: 'Save to Wishlist',
+                message: 'Login to save messes and rooms to your personal wishlist.',
+                icon: '❤️'
+            });
             return;
         }
         toggleMessWishlist(messId);
@@ -206,9 +219,9 @@ const MessDetails = () => {
 
     // Dynamic SEO for mess detail pages
     usePageSEO({
-        title: mess ? `${mess.name} - ${mess.messType || 'Mess'} in Balasore${!mess.hideContact && mess.contact ? ` | Contact ${mess.contact}` : ''} | MessKhojo` : 'Loading... | MessKhojo',
+        title: mess ? `${mess.name} - ${mess.messType || 'Mess'} in Balasore | MessKhojo` : 'Loading... | MessKhojo',
         description: mess ? `${mess.name} offers ${mess.messType || 'quality'} accommodation in ${mess.address || 'Balasore'}. ${mess.description ? mess.description.substring(0, 120) + '...' : `Check amenities, pricing & availability. ${mess.amenities?.food ? 'Food available. ' : ''}${mess.amenities?.wifi ? 'WiFi included. ' : ''}`}` : 'Find mess accommodation on MessKhojo',
-        keywords: mess ? `${mess.name}, ${mess.name} balasore, ${!mess.hideContact ? `${mess.name} contact number, ${mess.name} phone number, ` : ''}${mess.name} ${mess.address || ''}, ${mess.messType} mess balasore, mess near ${mess.address || 'fm college'}, ${mess.name} hostel, student accommodation balasore` : undefined,
+        keywords: mess ? `${mess.name}, ${mess.name} balasore, ${mess.name} ${mess.address || ''}, ${mess.messType} mess balasore, mess near ${mess.address || 'fm college'}, ${mess.name} hostel, student accommodation balasore` : undefined,
         canonicalUrl: mess ? `https://messkhojo.com/mess/${messId}` : undefined,
         ogImage: mess?.posterUrl || mess?.images?.[0] || 'https://messkhojo.com/logo.png',
         ogType: 'business.business',
@@ -343,25 +356,25 @@ const MessDetails = () => {
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
 
             {/* Login Prompt Modal - slides down from top */}
-            {showLoginPrompt && (
+            {loginPromptConfig.show && (
                 <div className="fixed inset-0 z-[200] flex flex-col items-center pointer-events-none">
                     <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
-                        onClick={() => setShowLoginPrompt(false)}
+                        onClick={() => setLoginPromptConfig({ ...loginPromptConfig, show: false })}
                     />
                     <div className="relative pointer-events-auto w-full max-w-sm mt-20 mx-4 bg-white rounded-3xl shadow-2xl p-6">
                         <div className="flex flex-col items-center text-center gap-3">
-                            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl">❤️</div>
-                            <h3 className="text-lg font-bold text-brand-text-dark">Save to Wishlist</h3>
-                            <p className="text-sm text-brand-text-gray">Login to save messes and rooms to your personal wishlist.</p>
+                            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl">{loginPromptConfig.icon || '👋'}</div>
+                            <h3 className="text-lg font-bold text-brand-text-dark">{loginPromptConfig.title || 'Login Required'}</h3>
+                            <p className="text-sm text-brand-text-gray">{loginPromptConfig.message || 'Please login to continue.'}</p>
                             <button
-                                onClick={() => { setShowLoginPrompt(false); navigate('/user-login'); }}
+                                onClick={() => { setLoginPromptConfig({ ...loginPromptConfig, show: false }); navigate(`/user-login?redirect=${encodeURIComponent(window.location.pathname)}`); }}
                                 className="w-full py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary-hover transition-colors shadow-lg shadow-brand-primary/20"
                             >
                                 Login / Sign Up
                             </button>
                             <button
-                                onClick={() => setShowLoginPrompt(false)}
+                                onClick={() => setLoginPromptConfig({ ...loginPromptConfig, show: false })}
                                 className="text-sm text-brand-text-gray hover:text-brand-text-dark transition-colors"
                             >
                                 Maybe later
@@ -371,95 +384,119 @@ const MessDetails = () => {
                 </div>
             )}
 
-            {/* Header Area */}
-            {/* Header Area */}
-            <div className="bg-gradient-to-b from-purple-100 to-white border-b border-brand-light-gray/60 shadow-sm relative overflow-hidden">
-                {/* Decorative background blob */}
-                <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-purple-200/40 rounded-full blur-3xl pointer-events-none"></div>
-
-                <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
-                    <div className="flex items-center justify-between mb-6">
-                        <Link to="/" className="inline-flex items-center text-sm font-medium text-brand-text-gray hover:text-brand-primary transition-colors bg-white/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-brand-light-gray hover:border-brand-primary/30 shadow-sm">
-                            <ArrowLeft size={16} className="mr-1.5" /> Back to Explore
-                        </Link>
-                        <button
-                            onClick={handleShare}
-                            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/60 border border-brand-light-gray text-brand-primary shadow-sm hover:bg-brand-primary hover:text-white transition-all active:scale-95 backdrop-blur-sm"
-                            title="Share"
-                        >
-                            {isCopied ? <Check size={18} /> : <Send size={18} />}
-                        </button>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-                        <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-purple-600 tracking-tight drop-shadow-sm">{mess.name}</h1>
-                                <button
-                                    onClick={handleMessWishlistClick}
-                                    className={`p-2 rounded-full transition-all flex border shadow-sm shrink-0 items-center justify-center ${isMessWishlisted(messId) ? 'bg-red-50 border-red-200' : 'bg-white border-brand-light-gray hover:bg-gray-50'}`}
-                                    title={isMessWishlisted(messId) ? "Remove from wishlist" : "Add to wishlist"}
-                                >
-                                    <Heart size={24} className={`transition-all ${isMessWishlisted(messId) ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 fill-transparent'}`} />
-                                </button>
+            {/* Header Area — Full-width Image Banner */}
+            {(() => {
+                const bannerImage = mess.posterUrl || mess.galleryUrls?.[0] || null;
+                return (
+                    <div className="relative overflow-hidden shadow-lg">
+                        {/* --- IMAGE or GRADIENT BANNER --- */}
+                        {bannerImage ? (
+                            <div className="relative w-full h-56 sm:h-72 md:h-80">
+                                <img
+                                    src={bannerImage}
+                                    alt={mess.name}
+                                    className="w-full h-full object-cover"
+                                />
+                                {/* Darkening overlay so text is always readable */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" />
                             </div>
-                            <div className="flex items-center text-brand-text-gray mb-4">
-                                <MapPin size={18} className="text-gray-400 mr-1.5 flex-shrink-0" />
-                                <span className="text-lg">{mess.address || "Address not available"}</span>
+                        ) : (
+                            /* Fallback: rich gradient with pattern */
+                            <div className="relative w-full h-56 sm:h-72 md:h-80 bg-gradient-to-br from-brand-primary via-purple-700 to-indigo-800 flex items-center justify-center overflow-hidden">
+                                {/* subtle decorative circles */}
+                                <div className="absolute -top-16 -left-16 w-64 h-64 bg-white/5 rounded-full" />
+                                <div className="absolute -bottom-20 -right-8 w-72 h-72 bg-white/5 rounded-full" />
+                                <div className="absolute top-8 right-12 w-32 h-32 bg-white/5 rounded-full" />
                             </div>
+                        )}
 
-                            {/* Global Amenities Display - Modern Pills */}
-                            <div className="flex flex-wrap gap-3 mt-1">
-                                {hasFood && (
-                                    <div className="flex items-center text-sm font-semibold text-green-700 bg-green-50 px-3 py-1.5 rounded-full border border-green-100/50">
-                                        <Utensils size={14} className="mr-1.5" /> Food Available
-                                    </div>
-                                )}
-                                {hasWifi && (
-                                    <div className="flex items-center text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100/50">
-                                        <Wifi size={14} className="mr-1.5" /> WiFi
-                                    </div>
-                                )}
-                                {hasInverter && (
-                                    <div className="flex items-center text-sm font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100/50">
-                                        <Zap size={14} className="mr-1.5" /> Power Backup
-                                    </div>
-                                )}
-                            </div>
+                        {/* --- FLOATING TOP BAR: Back + Share --- */}
+                        <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
+                            <Link
+                                to="/"
+                                className="inline-flex items-center text-sm font-semibold text-white bg-black/30 hover:bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm transition-all"
+                            >
+                                <ArrowLeft size={16} className="mr-1.5" /> Back
+                            </Link>
+                            <button
+                                onClick={handleShare}
+                                className="flex items-center justify-center w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-sm transition-all active:scale-95"
+                                title="Share"
+                            >
+                                {isCopied ? <Check size={16} /> : <Send size={16} />}
+                            </button>
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
-                            {mess.locationUrl ? (
-                                <a
-                                    href={mess.locationUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={() => trackContactClick('location', messId)}
-                                    className="flex items-center bg-brand-primary text-white border border-brand-primary hover:bg-brand-primary-hover px-5 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
-                                >
-                                    <MapPin size={18} className="mr-2" />
-                                    <span className="font-semibold">Locate</span>
-                                    <ExternalLink size={14} className="ml-2 opacity-70" />
-                                </a>
-                            ) : (
-                                <button disabled className="flex items-center bg-gray-100 text-gray-400 px-5 py-2.5 rounded-xl cursor-not-allowed">
-                                    <MapPin size={18} className="mr-2" />
-                                    <span>Locate</span>
-                                </button>
-                            )}
-
-                            {!mess.hideContact && (
-                                <div className="flex items-center px-5 py-2.5 rounded-xl border bg-white border-brand-light-gray text-brand-text-dark shadow-sm">
-                                    <Phone size={18} className="mr-2 text-brand-accent-green" />
-                                    <span className="font-semibold">{mess.contact || "No Contact"}</span>
+                        {/* --- BOTTOM OVERLAY: Name + Address + Amenity Pills --- */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 z-20">
+                            <div className="flex items-end justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight drop-shadow-md truncate">
+                                            {mess.name}
+                                        </h1>
+                                        <button
+                                            onClick={handleMessWishlistClick}
+                                            className={`p-1.5 rounded-full transition-all flex items-center justify-center shrink-0 border shadow-sm backdrop-blur-sm ${
+                                                isMessWishlisted(messId)
+                                                    ? 'bg-red-500/80 border-red-400'
+                                                    : 'bg-black/30 border-white/20 hover:bg-black/50'
+                                            }`}
+                                            title={isMessWishlisted(messId) ? 'Remove from wishlist' : 'Add to wishlist'}
+                                        >
+                                            <Heart size={18} className={`transition-all ${
+                                                isMessWishlisted(messId) ? 'fill-white text-white scale-110' : 'text-white fill-transparent'
+                                            }`} />
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center text-white/80 mb-2">
+                                        <MapPin size={14} className="mr-1 shrink-0" />
+                                        <span className="text-sm line-clamp-1">{mess.address || 'Address not available'}</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {hasFood && (
+                                            <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                                <Utensils size={11} className="mr-1" /> Food
+                                            </span>
+                                        )}
+                                        {hasWifi && (
+                                            <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                                <Wifi size={11} className="mr-1" /> WiFi
+                                            </span>
+                                        )}
+                                        {hasInverter && (
+                                            <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                                <Zap size={11} className="mr-1" /> Power Backup
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
 
+                                {/* Action Buttons — anchored to bottom-right */}
+                                <div className="flex flex-col gap-2 shrink-0">
+                                    {mess.locationUrl ? (
+                                        <a
+                                            href={mess.locationUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={() => trackContactClick('location', messId)}
+                                            className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white px-3 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg active:scale-95"
+                                        >
+                                            <MapPin size={15} /> Locate
+                                            <ExternalLink size={12} className="opacity-70" />
+                                        </a>
+                                    ) : (
+                                        <button disabled className="flex items-center gap-1.5 bg-white/20 text-white/50 px-3 py-2 rounded-xl text-sm cursor-not-allowed">
+                                            <MapPin size={15} /> Locate
+                                        </button>
+                                    )}
 
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                );
+            })()}
 
             {mess.isUserSourced && (
                 <div className="max-w-7xl mx-auto px-4 mt-6">
@@ -521,6 +558,7 @@ const MessDetails = () => {
                                     rooms={groupRooms}
                                     isRoomWishlisted={isRoomWishlisted}
                                     onToggleRoomWishlist={handleRoomWishlistToggle}
+                                    isUserSourced={mess.isUserSourced}
                                 />
                             ))}
                         </div>
@@ -626,7 +664,7 @@ const MessDetails = () => {
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                 {mess.galleryUrls.map((url, idx) => (
-                                    <div key={idx} className="relative shadow-sm aspect-square group rounded-2xl overflow-hidden border border-brand-light-gray cursor-pointer" onClick={() => window.open(url, '_blank')}>
+                                    <div key={idx} className="relative shadow-sm aspect-square group rounded-2xl overflow-hidden border border-brand-light-gray cursor-pointer" onClick={() => { trackGalleryView(messId); window.open(url, '_blank'); }}>
                                         <img
                                             src={url}
                                             alt={`${mess.name} Gallery ${idx + 1}`}
@@ -729,7 +767,8 @@ const MessDetails = () => {
                                                 required
                                                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-brand-text-dark text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all placeholder:text-gray-400"
                                                 value={inquiryData.phone}
-                                                onChange={(e) => setInquiryData({ ...inquiryData, phone: e.target.value })}
+                                                maxLength="10"
+                                                onChange={(e) => setInquiryData({ ...inquiryData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                                                 placeholder="10 digit mobile number"
                                             />
                                         </div>
@@ -768,7 +807,7 @@ const MessDetails = () => {
                                                 className="w-4 h-4 accent-brand-primary mt-1 cursor-pointer"
                                             />
                                             <label htmlFor="inquiry-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
-                                                I agree to the <a href="/terms-and-conditions" target="_blank" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
+                                                I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary font-bold hover:underline">Privacy Policy</a>.
                                             </label>
                                         </div>
 
@@ -824,6 +863,15 @@ const MessDetails = () => {
 
             <button
                 onClick={() => {
+                    if (!currentUser) {
+                        setLoginPromptConfig({
+                            show: true,
+                            title: 'Login to Chat',
+                            message: 'Please login to use WhatsApp for queries or help.',
+                            icon: '💬'
+                        });
+                        return;
+                    }
                     const message = `Hi MessKhojo, I want to know more about ${mess.name} (${mess.address || 'No Address'})`;
                     window.open(`https://wa.me/919692819621?text=${encodeURIComponent(message)}`, '_blank');
                 }}
@@ -839,9 +887,7 @@ const MessDetails = () => {
     );
 };
 
-const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlist }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
+const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlist, isUserSourced }) => {
     // Calculate price range
     const prices = rooms.map(r => Number(r.price || r.rent)).sort((a, b) => a - b);
     const minPrice = prices[0];
@@ -862,11 +908,9 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
     const displayOccupancy = occupancyMap[occupancy] || occupancy;
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-brand-light-gray overflow-hidden transition-all hover:shadow-md">
-            <div
-                className="p-6 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => setIsOpen(!isOpen)}
-            >
+        <div className="mb-10 last:mb-0">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 px-2">
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <h3 className="text-xl font-bold text-brand-text-dark">{displayOccupancy} Seater Rooms</h3>
@@ -875,40 +919,34 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
                     <p className="text-brand-text-gray text-sm">Starting from <span className="font-semibold text-brand-primary">{priceDisplay}/mo</span></p>
                 </div>
 
-                <div className="flex items-center gap-4 mt-4 md:mt-0">
-                    {totalAvailable > 0 ? (
-                        <span className="text-brand-accent-green text-sm font-medium bg-brand-accent-green/10 px-3 py-1 rounded-full">
-                            Available
-                        </span>
-                    ) : (
-                        <span className="text-brand-red text-sm font-medium bg-brand-red/10 px-3 py-1 rounded-full">
-                            Full
-                        </span>
+                <div className="flex items-center gap-4 mt-2 md:mt-0">
+                    {!isUserSourced && (
+                        totalAvailable > 0 ? (
+                            <span className="text-brand-accent-green text-xs font-bold uppercase tracking-wide bg-brand-accent-green/10 px-3 py-1.5 rounded-full border border-brand-accent-green/20">
+                                Available
+                            </span>
+                        ) : (
+                            <span className="text-brand-red text-xs font-bold uppercase tracking-wide bg-brand-red/10 px-3 py-1.5 rounded-full border border-brand-red/20">
+                                Full
+                            </span>
+                        )
                     )}
-
-                    <button className="flex items-center gap-1 text-brand-primary font-medium hover:text-brand-primary-hover transition-colors">
-                        {isOpen ? 'Hide Rooms' : 'View Rooms'}
-                        {isOpen ? <ChevronDown size={20} className="rotate-180 transition-transform" /> : <ChevronDown size={20} className="transition-transform" />}
-                    </button>
                 </div>
             </div>
 
-            {/* Dropdown Content - Subcategories */}
-            {isOpen && (
-                <div className="p-6 border-t border-brand-light-gray">
-                    <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
-                        {rooms.map(room => (
-                            <div key={room.id} className="min-w-[260px] md:min-w-[340px] snap-center">
-                                <RoomCard
-                                    room={room}
-                                    isWishlisted={isRoomWishlisted(room.id)}
-                                    onToggleWishlist={onToggleRoomWishlist}
-                                />
-                            </div>
-                        ))}
+            {/* Always Visible Rooms Grid */}
+            <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar px-2">
+                {rooms.map(room => (
+                    <div key={room.id} className="min-w-[280px] md:min-w-[320px] snap-center">
+                        <RoomCard
+                            room={room}
+                            isWishlisted={isRoomWishlisted(room.id)}
+                            onToggleWishlist={onToggleRoomWishlist}
+                            isUserSourced={isUserSourced}
+                        />
                     </div>
-                </div>
-            )}
+                ))}
+            </div>
         </div>
     );
 };
