@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 
@@ -15,7 +16,35 @@ const AdminLogin = () => {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Verify they are a partner before navigating
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            let isPartner = false;
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                if (userData.role === 'admin' || userData.role === 'operator') {
+                    isPartner = true;
+                }
+            } else {
+                // If they don't have a users document, check if they own a mess (unmigrated partner)
+                const messesRef = collection(db, "messes");
+                const q = query(messesRef, where("adminId", "==", user.uid));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    isPartner = true;
+                }
+            }
+
+            if (!isPartner) {
+                await auth.signOut();
+                setError("Access Denied: This account is not registered as a Partner.");
+                return;
+            }
+
             navigate('/admin/dashboard');
         } catch (err) {
             console.error("Login Error:", err);

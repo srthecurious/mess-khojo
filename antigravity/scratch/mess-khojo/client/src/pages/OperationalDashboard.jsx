@@ -59,6 +59,7 @@ const OperationalDashboard = () => {
     const [partnerEmail, setPartnerEmail] = useState('');
     const [partnerPassword, setPartnerPassword] = useState('');
     const [partnerStatus, setPartnerStatus] = useState({ type: '', msg: '' });
+    const [migrationStatus, setMigrationStatus] = useState({ loading: false, msg: '', type: '' });
 
     const navigate = useNavigate();
 
@@ -531,7 +532,16 @@ const OperationalDashboard = () => {
 
         try {
             // Use secondaryAuth to avoid logging out the operator
-            await createUserWithEmailAndPassword(secondaryAuth, partnerEmail, partnerPassword);
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, partnerEmail, partnerPassword);
+            const newUser = userCredential.user;
+
+            // Create users document with role 'admin'
+            await setDoc(doc(db, "users", newUser.uid), {
+                uid: newUser.uid,
+                email: partnerEmail,
+                role: 'admin',
+                createdAt: serverTimestamp()
+            });
 
             setPartnerStatus({ type: 'success', msg: `Partner ${partnerEmail} created successfully!` });
             setPartnerEmail('');
@@ -539,10 +549,44 @@ const OperationalDashboard = () => {
 
             // secondaryAuth keeps the new user logged in on that instance, which is fine.
             // It does NOT affect the main 'auth' instance used by the dashboard.
+            await signOut(secondaryAuth); // Clean up the secondary auth state
 
         } catch (error) {
             console.error("Partner creation failed:", error);
             setPartnerStatus({ type: 'error', msg: error.message });
+        }
+    };
+
+    const handleMigratePartners = async () => {
+        if (!window.confirm("Are you sure you want to migrate existing partners? This will find accounts that own a mess but don't have an admin role and update them.")) return;
+        
+        setMigrationStatus({ loading: true, msg: 'Starting migration...', type: 'info' });
+        try {
+            let migratedCount = 0;
+            const messesSnapshot = await getDocs(collection(db, "messes"));
+            
+            for (const messDoc of messesSnapshot.docs) {
+                const messData = messDoc.data();
+                if (messData.adminId) {
+                    const userDocRef = doc(db, "users", messData.adminId);
+                    const userDocSnap = await getDoc(userDocRef);
+                    
+                    if (!userDocSnap.exists()) {
+                        // Found a partner without a user document!
+                        await setDoc(userDocRef, {
+                            uid: messData.adminId,
+                            email: "Migrated Partner (Update in Auth)",
+                            role: 'admin',
+                            createdAt: serverTimestamp()
+                        });
+                        migratedCount++;
+                    }
+                }
+            }
+            setMigrationStatus({ loading: false, msg: `Successfully migrated ${migratedCount} partners.`, type: 'success' });
+        } catch (error) {
+            console.error("Migration failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
         }
     };
 
@@ -884,6 +928,27 @@ const OperationalDashboard = () => {
                                         Create Account
                                     </button>
                                 </form>
+
+                                {/* Migration Tool Section */}
+                                <div className="mt-8 pt-8 border-t border-slate-700">
+                                    <h3 className="text-lg font-bold text-white mb-2">Migrate Existing Partners</h3>
+                                    <p className="text-sm text-slate-400 mb-4">Click this button to automatically fix the login issue for partners whose accounts were created before the security update.</p>
+                                    
+                                    {migrationStatus.msg && (
+                                        <div className={`p-4 rounded-xl mb-4 text-sm border ${migrationStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : migrationStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                                            {migrationStatus.msg}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={handleMigratePartners}
+                                        disabled={migrationStatus.loading}
+                                        type="button"
+                                        className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all border border-slate-600 disabled:opacity-50"
+                                    >
+                                        {migrationStatus.loading ? 'Migrating...' : 'Migrate Existing Partners'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}

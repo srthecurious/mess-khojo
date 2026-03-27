@@ -9,8 +9,10 @@ import { Pencil, Trash2, X } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import imageCompression from 'browser-image-compression';
 import MapPicker from '../components/MapPicker';
+import { useAuth } from '../context/AuthContext';
 
 const AdminDashboard = () => {
+    const { userRole } = useAuth();
     const [user, setUser] = useState(null);
     const [messProfile, setMessProfile] = useState(null);
     const [loadingProfile, setLoadingProfile] = useState(true);
@@ -137,21 +139,16 @@ const AdminDashboard = () => {
     }, [navigate]);
 
     // Security Check: Ensure user is NOT a student
-    /*
     useEffect(() => {
-        const checkRole = async () => {
-            if (user) {
-                const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", user.uid)));
-                if (!userDoc.empty) {
-                    alert("Access Denied: Student accounts cannot access the Partner Dashboard.");
-                    await signOut(auth);
+        if (user && userRole) {
+            if (userRole !== 'admin' && userRole !== 'operator') {
+                alert("Access Denied: Student accounts cannot access the Partner Dashboard.");
+                signOut(auth).then(() => {
                     navigate('/');
-                }
+                });
             }
-        };
-        checkRole();
-    }, [user, navigate]);
-    */
+        }
+    }, [user, userRole, navigate]);
 
     // Listen for rooms ONLY if mess profile exists
     useEffect(() => {

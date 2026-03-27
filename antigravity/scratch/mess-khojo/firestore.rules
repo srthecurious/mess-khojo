@@ -19,12 +19,13 @@ service cloud.firestore {
     // Users can create their own document (on signup)
     // Users can update their own document, BUT cannot change sensitive fields
     match /users/{userId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && request.auth.uid == userId
-                    && (!request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['role', 'isAdmin', 'adminId', 'isOperator']));
-      allow delete: if false; // Users cannot delete their own account doc
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isOperator());
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isOperator());
+      allow update: if isAuthenticated() && (
+                      (request.auth.uid == userId && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin', 'adminId', 'isOperator'])))
+                      || isOperator()
+                    );
+      allow delete: if isOperator(); // Users cannot delete their own account doc
     }
 
     // --- Messes Collection ---
