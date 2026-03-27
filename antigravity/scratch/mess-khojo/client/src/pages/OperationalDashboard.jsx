@@ -572,14 +572,21 @@ const OperationalDashboard = () => {
                     const userDocSnap = await getDoc(userDocRef);
                     
                     if (!userDocSnap.exists()) {
-                        // Found a partner without a user document!
+                        // Found a partner without a user document — create one
                         await setDoc(userDocRef, {
                             uid: messData.adminId,
-                            email: "Migrated Partner (Update in Auth)",
+                            email: messData.contact || "Migrated Partner",
                             role: 'admin',
                             createdAt: serverTimestamp()
                         });
                         migratedCount++;
+                    } else {
+                        // Document exists but may be missing the role field
+                        const userData = userDocSnap.data();
+                        if (!userData.role || (userData.role !== 'admin' && userData.role !== 'operator')) {
+                            await updateDoc(userDocRef, { role: 'admin' });
+                            migratedCount++;
+                        }
                     }
                 }
             }
