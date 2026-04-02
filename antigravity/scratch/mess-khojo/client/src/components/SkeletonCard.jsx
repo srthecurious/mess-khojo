@@ -1,27 +1,32 @@
 import React from 'react';
 
-const SkeletonCard = () => {
+const SkeletonCard = ({ index = 0 }) => {
+    const delay = `${index * 80}ms`;
+
     return (
-        <div className="uiverse-card flex flex-col h-full animate-pulse">
-            {/* Image Skeleton */}
-            <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden mb-3 relative bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-shimmer bg-[length:200%_100%]">
+        <div
+            className="skeleton-card"
+            style={{ animationDelay: delay }}
+        >
+            {/* Image area — matches MessCard aspect-[16/9] */}
+            <div className="skeleton-image skeleton-shimmer" />
+
+            {/* Content body */}
+            <div className="skeleton-body">
+                {/* Title — matches h3 font-bold */}
+                <div className="skeleton-shimmer skeleton-title" />
+
+                {/* Address row — matches MapPin + address */}
+                <div className="skeleton-shimmer skeleton-address" />
+
+                {/* Price — matches ₹price text */}
+                <div className="skeleton-shimmer skeleton-price" />
             </div>
 
-            <div className="flex flex-col gap-2 flex-grow">
-                {/* Title Skeleton */}
-                <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg w-3/4"></div>
-
-                {/* Address Skeleton */}
-                <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg w-full"></div>
-
-                {/* Contact Skeleton */}
-                <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg w-2/3 mt-2"></div>
-            </div>
-
-            {/* Footer Skeleton */}
-            <div className="mt-4 flex items-end justify-between">
-                <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-xl w-32"></div>
-                <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg w-12"></div>
+            {/* Footer row — matches badge + arrow button */}
+            <div className="skeleton-footer">
+                <div className="skeleton-shimmer skeleton-badge" />
+                <div className="skeleton-shimmer skeleton-arrow" />
             </div>
         </div>
     );

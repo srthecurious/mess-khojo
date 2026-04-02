@@ -18,6 +18,7 @@ const UserProfile = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [deleteError, setDeleteError] = useState('');
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -98,7 +99,11 @@ const UserProfile = () => {
         }
     };
 
-    const handleLogout = async () => {
+    const handleLogout = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = async () => {
         try {
             await logout();
             navigate('/user-login');
@@ -395,6 +400,38 @@ const UserProfile = () => {
                                 }}
                                 disabled={deletingAccount}
                                 className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Logout Modal */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform transition-all">
+                        <div className="flex justify-center mb-4">
+                            <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center text-brand-primary">
+                                <LogOut size={32} />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold text-center text-gray-900 mb-2">Sign Out?</h3>
+                        <p className="text-center text-sm text-gray-600 mb-6 font-medium">
+                            Are you sure you want to sign out of your account?
+                        </p>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={confirmLogout}
+                                className="w-full py-3.5 bg-brand-primary text-white rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2"
+                            >
+                                Yes, Sign Out
+                            </button>
+                            <button
+                                onClick={() => setShowLogoutModal(false)}
+                                className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-gray-200 transition-colors"
                             >
                                 Cancel
                             </button>

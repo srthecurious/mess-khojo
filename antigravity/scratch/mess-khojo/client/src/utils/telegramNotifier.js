@@ -205,9 +205,11 @@ export const telegramTemplates = {
         return `🛏️ <b>NEW ROOM INQUIRY!</b>\n\n` +
             `👤 <b>Name:</b> ${esc(inquiry.name)}\n` +
             `📱 <b>Phone:</b> ${esc(inquiry.phone)}\n` +
+            `🚻 <b>Gender:</b> ${esc(inquiry.gender)}\n` +
             `📍 <b>Location:</b> ${esc(inquiry.location)}\n` +
             `💰 <b>Budget:</b> ${esc(inquiry.budget)}\n` +
             `👥 <b>Occupancy:</b> ${esc(inquiry.occupancy)}\n` +
+            `📅 <b>Move-in:</b> ${esc(inquiry.expectedMoveIn)}\n` +
             `${inquiry.contactMethod ? `📞 <b>Prefer:</b> ${esc(inquiry.contactMethod).toUpperCase()}\n` : ''}` +
             `${inquiry.requirements ? `📝 <b>Requirements:</b> ${esc(inquiry.requirements).substring(0, 80)}\n` : ''}` +
             `\n⏰ <i>${time}</i>\n\n` +

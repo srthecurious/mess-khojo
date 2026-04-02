@@ -109,7 +109,7 @@ const MessRegistration = () => {
                                 </div>
                             </div>
                             <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-purple-900 to-gray-900 leading-tight">
-                                List Your Mess on MessKhojo
+                                Register Your Mess on MessKhojo
                             </h1>
                             <p className="text-gray-500 font-medium">Step 1: What is the name of your mess?</p>
                         </div>

@@ -430,7 +430,9 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 }`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <Heart size={20} className={`relative z-10 transition-colors ${isActive('/wishlist') ? 'text-red-400 fill-red-400' : 'group-hover:text-red-400'}`} />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <Heart size={20} className={`relative z-10 transition-colors ${isActive('/wishlist') ? 'text-red-400 fill-red-400' : 'group-hover:text-red-400'}`} />
+                                            </div>
                                             <span className="relative z-10">My Wishlist</span>
                                             {wishlistCount > 0 && (
                                                 <span className="ml-auto w-[22px] h-[22px] flex items-center justify-center text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm relative z-10">
@@ -449,13 +451,10 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 : "text-white/90 hover:text-white hover:bg-white/5 border-transparent hover:border-blue-400"
                                                 }`}
                                         >
-                                            <div className="relative z-10 p-1.5 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
+                                            <div className="relative z-10 w-8 h-8 flex items-center justify-center bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors shrink-0">
                                                 <Building2 size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
                                             </div>
-                                            <div className="relative z-10 flex flex-col">
-                                                <span className="leading-tight">List your Mess</span>
-                                                <span className="text-xs font-medium text-blue-300">Join MessKhojo</span>
-                                            </div>
+                                            <span className="relative z-10 leading-tight">Register your mess</span>
                                             <div className="relative z-10 ml-auto flex items-center gap-2">
                                                 <span className="px-2 py-0.5 text-[10px] font-bold tracking-wide text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-md shadow-sm animate-pulse">
                                                     FREE
@@ -472,7 +471,9 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 }`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <Home size={20} className={`relative z-10 ${isActive("/") ? "text-white" : "group-hover:text-white transition-colors"}`} />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <Home size={20} className={`relative z-10 ${isActive("/") ? "text-white" : "group-hover:text-white transition-colors"}`} />
+                                            </div>
                                             <span className="relative z-10">Home</span>
                                             <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive("/") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                                         </Link>
@@ -482,7 +483,9 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             className="group flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-brand-accent-blue rounded-l-xl transition-all relative overflow-hidden"
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <LogIn size={20} className="relative z-10 group-hover:text-brand-accent-blue transition-colors" />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <LogIn size={20} className="relative z-10 group-hover:text-brand-accent-blue transition-colors" />
+                                            </div>
                                             <span className="relative z-10">Partner Login</span>
                                             <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </Link>
@@ -492,7 +495,9 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             className="group flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-emerald-500 rounded-l-xl transition-all relative overflow-hidden"
                                             onClick={() => setIsMenuOpen(false)}
                                         >
-                                            <Server size={20} className="relative z-10 group-hover:text-emerald-500 transition-colors" />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <Server size={20} className="relative z-10 group-hover:text-emerald-500 transition-colors" />
+                                            </div>
                                             <span className="relative z-10">Operator Login</span>
                                             <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </Link>
@@ -505,7 +510,9 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-accent-green"
                                                 }`}
                                         >
-                                            <BedDouble size={20} className={`relative z-10 transition-colors ${isActive("/find-your-room") ? "text-brand-accent-green" : "group-hover:text-brand-accent-green"}`} />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <BedDouble size={20} className={`relative z-10 transition-colors ${isActive("/find-your-room") ? "text-brand-accent-green" : "group-hover:text-brand-accent-green"}`} />
+                                            </div>
                                             <span className="relative z-10">Find Your Room</span>
                                             <span className="ml-auto px-2 py-0.5 text-[10px] font-bold text-brand-accent-green bg-brand-accent-green/10 rounded-full border border-brand-accent-green/20 relative z-10">NEW</span>
                                         </Link>
@@ -523,13 +530,15 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                             }}
                                             className="group w-full flex items-center gap-4 py-4 px-5 text-base font-medium text-white/70 hover:text-white hover:bg-white/5 border-r-4 border-transparent hover:border-purple-400 rounded-l-xl transition-all relative overflow-hidden text-left"
                                         >
-                                            <MessageSquare size={20} className="relative z-10 group-hover:text-purple-400 transition-colors" />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <MessageSquare size={20} className="relative z-10 group-hover:text-purple-400 transition-colors" />
+                                            </div>
                                             <span className="relative z-10">Give Feedback</span>
                                             <ChevronRight size={16} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity relative z-10" />
                                         </button>
 
                                         {/* Community Links */}
-                                        <div className="px-2 py-3 space-y-2">
+                                        <div className="py-3 space-y-2">
                                             <div className="px-3 pb-2">
                                                 <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Join Our Community</p>
                                             </div>
@@ -541,9 +550,11 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 className="group flex items-center gap-4 py-3 px-5 text-sm font-medium text-white/90 bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#20b858] hover:to-[#0f6d5f] rounded-xl transition-all shadow-md hover:shadow-lg"
                                                 onClick={() => setIsMenuOpen(false)}
                                             >
-                                                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                                </svg>
+                                                <div className="w-8 flex justify-center shrink-0">
+                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                                    </svg>
+                                                </div>
                                                 <span className="relative z-10">WhatsApp Community</span>
                                             </a>
 
@@ -554,9 +565,11 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 className="group flex items-center gap-4 py-3 px-5 text-sm font-medium text-white/90 bg-[#0088cc] hover:bg-[#0077b5] rounded-xl transition-all shadow-md hover:shadow-lg"
                                                 onClick={() => setIsMenuOpen(false)}
                                             >
-                                                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                                                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                                                </svg>
+                                                <div className="w-8 flex justify-center shrink-0">
+                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                                                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                                                    </svg>
+                                                </div>
                                                 <span className="relative z-10">Telegram Group</span>
                                             </a>
                                         </div>
@@ -565,23 +578,27 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                         <Link
                                             to="/about-us"
                                             onClick={() => setIsMenuOpen(false)}
-                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium transition-all relative overflow-hidden text-left ${isActive("/about-us")
-                                                ? "text-white bg-white/10"
-                                                : "text-white/70 hover:text-white hover:bg-white/5"
+                                            className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/about-us")
+                                                ? "text-white bg-white/10 border-brand-white"
+                                                : "text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-white"
                                                 }`}
                                         >
-                                            <Info size={20} className={`relative z-10 transition-colors ${isActive("/about-us") ? "text-brand-white" : "group-hover:text-brand-white"}`} />
+                                            <div className="w-8 flex justify-center shrink-0">
+                                                <Info size={20} className={`relative z-10 transition-colors ${isActive("/about-us") ? "text-brand-white" : "group-hover:text-brand-white"}`} />
+                                            </div>
                                             <span className="relative z-10">About Us</span>
                                             <ChevronRight size={16} className={`ml-auto transition-opacity relative z-10 ${isActive("/about-us") ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                                         </Link>
 
                                         {/* Contact Us - Expandable Section */}
-                                        <div className="pt-2 px-2 pb-6">
+                                        <div className="pt-2 pb-6">
                                             <button
                                                 onClick={() => setIsContactOpen(!isContactOpen)}
-                                                className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium transition-all relative overflow-hidden rounded-xl ${isContactOpen ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                                                className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-medium border-r-4 transition-all relative overflow-hidden rounded-l-xl ${isContactOpen ? 'bg-white/10 text-white border-brand-secondary' : 'text-white/70 hover:text-white hover:bg-white/5 border-transparent hover:border-brand-secondary'}`}
                                             >
-                                                <Phone size={20} className={`relative z-10 transition-colors ${isContactOpen ? 'text-brand-secondary' : 'group-hover:text-brand-secondary'}`} />
+                                                <div className="w-8 flex justify-center shrink-0">
+                                                    <Phone size={20} className={`relative z-10 transition-colors ${isContactOpen ? 'text-brand-secondary' : 'group-hover:text-brand-secondary'}`} />
+                                                </div>
                                                 <span className="relative z-10">Contact Us</span>
                                                 <ChevronRight size={16} className={`ml-auto transition-transform duration-300 relative z-10 ${isContactOpen ? 'rotate-90 text-white' : 'text-white/50 group-hover:text-white'}`} />
                                             </button>
