@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { collection, onSnapshot, doc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, query, where, orderBy } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
@@ -11,10 +11,11 @@ import MessExplorer from '../components/MessExplorer';
 import MapLocationModal from '../components/MapLocationModal';
 import HeroCarousel from '../components/HeroCarousel';
 import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { trackLocationUsage, trackSearch, trackViewMore } from '../analytics';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
+// eslint-disable-next-line no-unused-vars
+import { motion } from 'framer-motion';
 
 // Helper functions moved outside component
 const deg2rad = (deg) => {
@@ -135,28 +136,54 @@ const Home = () => {
     const [messes, setMesses] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [userLocation, setUserLocation] = useState(null); // { lat, lng, address }
-    const [filters, setFilters] = useState({
-        location: '',
-        minPrice: '',
-        maxPrice: '',
-        amenities: {
-            wifi: false,
-            ac: false,
-            food: false,
-            inverter: false,
-            tableChair: false
-        },
-        availableOnly: false,
-        messType: '',
-        messName: ''
+    const [userLocation, setUserLocation] = useState(() => {
+        try {
+            const stored = sessionStorage.getItem('messkhojo_userLocation');
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
     });
+
+    const [filters, setFilters] = useState(() => {
+        try {
+            const stored = sessionStorage.getItem('messkhojo_filters');
+            if (stored) return JSON.parse(stored);
+        } catch { /* ignore */ }
+        return {
+            location: '',
+            minPrice: '',
+            maxPrice: '',
+            amenities: {
+                wifi: false,
+                ac: false,
+                food: false,
+                inverter: false,
+                tableChair: false
+            },
+            availableOnly: false,
+            messType: '',
+            messName: ''
+        };
+    });
+
+    useEffect(() => {
+        if (userLocation) {
+            sessionStorage.setItem('messkhojo_userLocation', JSON.stringify(userLocation));
+        } else {
+            sessionStorage.removeItem('messkhojo_userLocation');
+        }
+    }, [userLocation]);
+
+    useEffect(() => {
+        sessionStorage.setItem('messkhojo_filters', JSON.stringify(filters));
+    }, [filters]);
     const [showMapModal, setShowMapModal] = useState(false);
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
 
     const [loadingLocation, setLoadingLocation] = useState(false);
-    const [carouselEnabled, setCarouselEnabled] = useState(false);
+    const [carouselEnabled, setCarouselEnabled] = useState(null); // null indicates loading state
 
 
     const isScrolledRef = useRef(false);
@@ -437,6 +464,32 @@ const Home = () => {
         return unsub;
     }, []);
 
+    // Prefetch Hero Ads to prevent waterfall loading
+    const [desktopAds, setDesktopAds] = useState([]);
+    const [mobileAds, setMobileAds] = useState([]);
+    const [loadingAdsDesktop, setLoadingAdsDesktop] = useState(true);
+    const [loadingAdsMobile, setLoadingAdsMobile] = useState(true);
+
+    useEffect(() => {
+        const qDesktop = query(collection(db, 'hero_ads_desktop'), where('active', '==', true), orderBy('order', 'asc'));
+        const qMobile = query(collection(db, 'hero_ads_mobile'), where('active', '==', true), orderBy('order', 'asc'));
+
+        const unsubDesktop = onSnapshot(qDesktop, (snap) => {
+            setDesktopAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setLoadingAdsDesktop(false);
+        }, () => setLoadingAdsDesktop(false));
+
+        const unsubMobile = onSnapshot(qMobile, (snap) => {
+            setMobileAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setLoadingAdsMobile(false);
+        }, () => setLoadingAdsMobile(false));
+
+        return () => {
+            unsubDesktop();
+            unsubMobile();
+        };
+    }, []);
+
     const handleFilterChange = React.useCallback((newFilters) => {
         setFilters(newFilters);
     }, []);
@@ -454,7 +507,6 @@ const Home = () => {
 
     // Filtering & Sorting Logic - Memoized for Performance
     const filteredMesses = React.useMemo(() => {
-        console.log("Recalculating with User Location:", userLocation);
         let result = messes.map(mess => {
             // Calculate Distance FIRST if userLocation exists
             // Calculate Distance FIRST if userLocation exists
@@ -728,9 +780,20 @@ const Home = () => {
             />
 
             {/* Hero Section — Conditional */}
-            {carouselEnabled ? (
+            {carouselEnabled === null ? (
+                /* Loading Skeleton for Hero */
+                <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
+                    <div className="w-full h-[38vh] bg-gray-200 animate-pulse rounded-3xl" />
+                </div>
+            ) : carouselEnabled ? (
                 /* Dynamic Ad Carousel */
-                <HeroCarousel onMap={handleOpenMap} />
+                <HeroCarousel 
+                    onMap={handleOpenMap} 
+                    desktopAds={desktopAds}
+                    mobileAds={mobileAds}
+                    loadingDesktop={loadingAdsDesktop}
+                    loadingMobile={loadingAdsMobile}
+                />
             ) : (
             /* Spotlight Hero Section - Only show when no filters are active (except messType) */
             !filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (

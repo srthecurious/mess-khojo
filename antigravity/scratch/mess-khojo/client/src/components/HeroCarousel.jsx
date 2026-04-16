@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
 import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { trackHeroAdClick } from '../analytics';
 
-const HeroCarousel = ({ onMap }) => {
-    const [desktopAds, setDesktopAds] = useState([]);
-    const [mobileAds, setMobileAds] = useState([]);
+const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [isHovered, setIsHovered] = useState(false);
@@ -23,40 +20,12 @@ const HeroCarousel = ({ onMap }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Fetch desktop ads
-    useEffect(() => {
-        const q = query(
-            collection(db, 'hero_ads_desktop'),
-            where('active', '==', true),
-            orderBy('order', 'asc')
-        );
-        const unsub = onSnapshot(q, (snap) => {
-            setDesktopAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        }, (error) => {
-            console.error('HeroCarousel: Desktop ads query failed:', error);
-        });
-        return unsub;
-    }, []);
-
-    // Fetch mobile ads
-    useEffect(() => {
-        const q = query(
-            collection(db, 'hero_ads_mobile'),
-            where('active', '==', true),
-            orderBy('order', 'asc')
-        );
-        const unsub = onSnapshot(q, (snap) => {
-            setMobileAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        }, (error) => {
-            console.error('HeroCarousel: Mobile ads query failed:', error);
-        });
-        return unsub;
-    }, []);
-
+    const isLoading = isMobile ? loadingMobile : loadingDesktop;
     const ads = isMobile ? mobileAds : desktopAds;
 
     // Reset index when ads change or screen switches
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCurrentIndex(0);
     }, [isMobile, ads.length]);
 
@@ -112,9 +81,18 @@ const HeroCarousel = ({ onMap }) => {
     // Handle ad click (open link if present)
     const handleAdClick = (ad) => {
         if (ad.linkUrl) {
+            trackHeroAdClick(ad.id, ad.title, isMobile);
             window.open(ad.linkUrl, '_blank', 'noopener,noreferrer');
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="px-4 sm:px-6 lg:px-8 mb-6 max-w-7xl mx-auto">
+                <div className={`w-full bg-gray-200 animate-pulse rounded-3xl shadow-lg relative ${isMobile ? 'aspect-[3/2]' : 'h-[50vh]'}`} />
+            </div>
+        );
+    }
 
     if (ads.length === 0) return null;
 

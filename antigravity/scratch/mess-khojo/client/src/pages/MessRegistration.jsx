@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, Check, Building2, Users, BedDouble, MapPin, Wifi, Phone, Send } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Building2, Users, BedDouble, MapPin, Wifi, Phone, Send, X } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion';
 import { trackMessRegistration } from '../analytics';
 import usePageSEO from '../hooks/usePageSEO';
@@ -460,6 +461,17 @@ const MessRegistration = () => {
                             style={{ width: `${(step / 8) * 100}%` }}
                         />
                     </div>
+                )}
+
+                {/* Back to Home Button */}
+                {step < 9 && (
+                    <button
+                        onClick={() => navigate('/')}
+                        className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-gray-100/50 hover:bg-gray-100 text-gray-500 hover:text-gray-800 rounded-full transition-all"
+                        title="Cancel Registration and Return to Home"
+                    >
+                        <X size={18} />
+                    </button>
                 )}
 
                 {/* Content Area */}
