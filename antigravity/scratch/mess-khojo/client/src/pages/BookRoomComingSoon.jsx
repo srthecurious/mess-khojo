@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users, CalendarDays, ChevronRight, MessageSquareText } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
@@ -10,7 +10,6 @@ const popularAreas = [
 ];
 
 const BookRoomComingSoon = () => {
-    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const stepParam = parseInt(searchParams.get('step'));
     const step = !isNaN(stepParam) && stepParam >= 1 && stepParam <= 3 ? stepParam : 1;

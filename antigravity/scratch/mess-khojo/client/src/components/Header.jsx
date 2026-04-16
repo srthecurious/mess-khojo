@@ -73,7 +73,6 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
         }
     };
 
-    const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
     useEffect(() => {
         if (isMenuOpen || isNotificationModalOpen) {
@@ -97,15 +96,17 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
         const overlayOpen = isMenuOpen || isNotificationModalOpen || showInstallGuide;
         if (overlayOpen && !historyPushed) {
             window.history.pushState({ modalOpen: true }, '');
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setHistoryPushed(true);
         } else if (!overlayOpen && historyPushed) {
+             
             setHistoryPushed(false);
         }
     }, [isMenuOpen, isNotificationModalOpen, showInstallGuide, historyPushed]);
 
     // Handle back button for menu and notifications
     useEffect(() => {
-        const handlePopState = (e) => {
+        const handlePopState = () => {
             if (isMenuOpen || isNotificationModalOpen || showInstallGuide || isContactOpen) {
                 setIsMenuOpen(false);
                 setIsNotificationModalOpen(false);
@@ -132,10 +133,15 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
 
     // Close overlays on route change as fallback
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMenuOpen(false);
+         
         setIsNotificationModalOpen(false);
+         
         setShowInstallGuide(false);
+         
         setIsContactOpen(false);
+         
         setHistoryPushed(false);
     }, [location.pathname, location.search]);
 

@@ -34,7 +34,6 @@ const AdminDashboard = () => {
         try {
             const compressedFile = await imageCompression(file, options);
             return compressedFile;
-            return compressedFile;
         } catch (error) {
             console.error('Compression error:', error);
             return file; // Return original if compression fails

@@ -164,6 +164,11 @@ export const trackAvailabilityInquiry = (messId, roomId) => {
     trackEvent('ContactOwner', 'availability_inquiry_submitted', `mess_${messId}_room_${roomId}`);
 };
 
+// Track Hero Banner Click
+export const trackHeroAdClick = (adId, adTitle, isMobile) => {
+    trackEvent('HeroBanner', 'banner_clicked', `${adTitle || adId} (${isMobile ? 'Mobile' : 'Desktop'})`);
+};
+
 export default {
     initialize: initializeAnalytics,
     trackPageView,
@@ -187,4 +192,5 @@ export default {
     trackWishlistToggle,
     trackContactOwner,
     trackAvailabilityInquiry,
+    trackHeroAdClick,
 };

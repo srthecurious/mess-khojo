@@ -14,6 +14,7 @@ export const useInstallPrompt = () => {
         const standalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone === true;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsStandalone(standalone);
 
         if (standalone) return; // Already installed — skip everything

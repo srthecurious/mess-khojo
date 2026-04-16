@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { trackMessExplorer } from '../analytics';
 
 // Lazy-load the heavy Google Maps component (~200KB) — only downloaded when user opens the map
-const MessExplorerMap = React.lazy(() => import('./MessExplorerMap'));
+const MessExplorerMap = React.lazy(() => import('./MessExplorerMap.jsx'));
 
 const MessExplorer = ({ messes, rooms, userLocation }) => {
     const navigate = useNavigate();

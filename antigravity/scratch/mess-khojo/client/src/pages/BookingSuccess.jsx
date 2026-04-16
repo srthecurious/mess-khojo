@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, MessageCircle, Home, Calendar } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const BookingSuccess = () => {
     const navigate = useNavigate();

@@ -1,27 +1,38 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import Header from './components/Header';
 import Footer from './components/Footer';
-import Home from './pages/Home';
-import MessDetails from './pages/MessDetails';
-import RoomDetails from './pages/RoomDetails';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
 import { AuthProvider } from './context/AuthContext';
-import UserSignup from './pages/UserSignup';
-import UserLogin from './pages/UserLogin';
-import UserProfile from './pages/UserProfile';
-import OperationalLogin from './pages/OperationalLogin';
-import OperationalDashboard from './pages/OperationalDashboard';
-import BookingSuccess from './pages/BookingSuccess';
-import MessRegistration from './pages/MessRegistration';
-import BookRoomComingSoon from './pages/BookRoomComingSoon';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsAndConditions from './pages/TermsAndConditions';
-import AboutUs from './pages/AboutUs';
-import NotFound from './pages/NotFound';
-import Wishlist from './pages/Wishlist';
 import { trackPageView } from './analytics';
+
+// Route-level code splitting — only the visited page's code is downloaded
+const Home = React.lazy(() => import('./pages/Home'));
+const MessDetails = React.lazy(() => import('./pages/MessDetails'));
+const RoomDetails = React.lazy(() => import('./pages/RoomDetails'));
+const AdminLogin = React.lazy(() => import('./pages/AdminLogin'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const UserSignup = React.lazy(() => import('./pages/UserSignup'));
+const UserLogin = React.lazy(() => import('./pages/UserLogin'));
+const UserProfile = React.lazy(() => import('./pages/UserProfile'));
+const OperationalLogin = React.lazy(() => import('./pages/OperationalLogin'));
+const OperationalDashboard = React.lazy(() => import('./pages/OperationalDashboard'));
+const BookingSuccess = React.lazy(() => import('./pages/BookingSuccess'));
+const MessRegistration = React.lazy(() => import('./pages/MessRegistration'));
+const BookRoomComingSoon = React.lazy(() => import('./pages/BookRoomComingSoon'));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
+const TermsAndConditions = React.lazy(() => import('./pages/TermsAndConditions'));
+const AboutUs = React.lazy(() => import('./pages/AboutUs'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
+const Wishlist = React.lazy(() => import('./pages/Wishlist'));
+
+// Branded loading fallback for route transitions
+const RouteLoader = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid #e5e7eb', borderTopColor: '#7c3aed', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  </div>
+);
 
 // Scroll to top on every route change
 function ScrollToTop() {
@@ -51,8 +62,10 @@ function App() {
         <ScrollToTop />
         <AnalyticsTracker />
         <div className="min-h-screen bg-brand-secondary text-brand-text-dark font-sans flex flex-col">
-          <Routes>
+          <Suspense fallback={<RouteLoader />}>
+            <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/explorer" element={<Home />} />
             <Route path="/mess/:id" element={<MessDetails />} />
             <Route path="/room/:messId/:roomId" element={<RoomDetails />} />
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -81,7 +94,8 @@ function App() {
 
             {/* 404 Catch-all */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </Suspense>
           <Footer />
         </div>
       </Router>

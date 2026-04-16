@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "$typeName": "exa.cascade_plugins_pb.CascadePluginCommandTemplate",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "sonatype-guide": {
+      "$typeName": "exa.cascade_plugins_pb.CascadePluginCommandTemplate",
+      "command": "npx",
+      "args": [
+        "mcp-remote@latest",
+        "https://mcp.guide.sonatype.com/mcp",
+        "--header",
+        "Authorization: Bearer sonatype_pat_Pfv3MbnLqItsnDrDsy-cQ3iF2KzPz4p0cBUzJtOHUcBBmAyS"
+      ],
+      "env": {}
+    }
+  }
+}

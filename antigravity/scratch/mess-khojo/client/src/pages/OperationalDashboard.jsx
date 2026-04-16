@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth, secondaryAuth, storage } from '../firebase';
+import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc, getDocs } from 'firebase/firestore';
@@ -45,7 +45,6 @@ const OperationalDashboard = () => {
     const [heroAdUploading, setHeroAdUploading] = useState(false);
     const [heroAdForm, setHeroAdForm] = useState({ linkUrl: '', title: '' });
     const [heroAdFile, setHeroAdFile] = useState(null);
-    const [heroAdSection, setHeroAdSection] = useState('desktop'); // which section's upload form is active
 
     // Editing State
     const [editingItem, setEditingItem] = useState(null); // For mess/room edit modal
@@ -82,7 +81,6 @@ const OperationalDashboard = () => {
     // Fetch ALL Bookings
     useEffect(() => {
         const q = query(collection(db, "bookings"));
-        let isFirstLoad = true; // Prevent notifications on initial page load
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -105,7 +103,6 @@ const OperationalDashboard = () => {
             */
 
             setBookings(data);
-            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -113,7 +110,6 @@ const OperationalDashboard = () => {
     // Fetch ALL Claims
     useEffect(() => {
         const q = query(collection(db, "claims"));
-        let isFirstLoad = true;
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -135,7 +131,6 @@ const OperationalDashboard = () => {
             */
 
             setClaims(data);
-            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -143,7 +138,6 @@ const OperationalDashboard = () => {
     // Fetch ALL Inquiries
     useEffect(() => {
         const q = query(collection(db, "inquiries"));
-        let isFirstLoad = true;
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -164,7 +158,6 @@ const OperationalDashboard = () => {
             */
 
             setInquiries(data);
-            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -189,17 +182,15 @@ const OperationalDashboard = () => {
                 });
             }
 
-
             setRoomInquiries(data);
             isFirstLoad = false;
         });
         return () => unsubscribe();
-    }, []);
+    }, [roomInquiries]);
 
     // Fetch ALL Feedbacks
     useEffect(() => {
         const q = query(collection(db, "feedbacks"));
-        let isFirstLoad = true;
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -220,7 +211,6 @@ const OperationalDashboard = () => {
             */
 
             setFeedbacks(data);
-            isFirstLoad = false;
         });
         return () => unsubscribe();
     }, []);
@@ -250,7 +240,7 @@ const OperationalDashboard = () => {
             isFirstLoad = false;
         });
         return () => unsubscribe();
-    }, []);
+    }, [registrations]);
 
     // Fetch ALL Messes
     useEffect(() => {
@@ -532,6 +522,7 @@ const OperationalDashboard = () => {
 
         try {
             // Use secondaryAuth to avoid logging out the operator
+            const secondaryAuth = getSecondaryAuth();
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, partnerEmail, partnerPassword);
             const newUser = userCredential.user;
 

@@ -28,6 +28,13 @@ try {
 }
 export { analytics };
 
-// Initialize Secondary App for Admin Creation (so we don't logout the current user)
-const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-export const secondaryAuth = getAuth(secondaryApp);
+// Lazy-initialize Secondary App for Admin Creation (so we don't logout the current user)
+// Only created when actually needed, avoiding overhead for regular users
+let _secondaryAuth = null;
+export const getSecondaryAuth = () => {
+    if (!_secondaryAuth) {
+        const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        _secondaryAuth = getAuth(secondaryApp);
+    }
+    return _secondaryAuth;
+};

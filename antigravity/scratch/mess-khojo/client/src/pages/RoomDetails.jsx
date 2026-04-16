@@ -86,6 +86,7 @@ const RoomDetails = () => {
             newParams.delete('action');
             setSearchParams(newParams, { replace: true });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser, loading]);
 
     const handleBookClick = async () => {

@@ -49,9 +49,6 @@ const MapLocationModal = ({ initialLocation, onLocationSelect, onClose }) => {
         reverseGeocode(lat, lng);
     };
 
-    const handleConfirm = () => {
-        onLocationSelect({ ...selectedLocation, address: selectedLocation.address || 'Pinned Location' });
-    };
 
     return (
         <AnimatePresence>
