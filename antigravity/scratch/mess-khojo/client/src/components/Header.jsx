@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search, Info, Heart, Download } from 'lucide-react';
+import { Menu, MapPin, Bell, X, UserCircle, Phone, BedDouble, ChevronRight, LogIn, Home, Server, MessageSquare, Building2, Search, Info, Heart, Download, TrendingUp } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { db } from '../firebase';
@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
-const Header = ({ showSearch, searchTerm, onSearchChange }) => {
+const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const { currentUser } = useAuth();
@@ -21,6 +21,51 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
     const [hasUnread, setHasUnread] = useState(false);
     const [isContactOpen, setIsContactOpen] = useState(false);
     const [showInstallGuide, setShowInstallGuide] = useState(false);
+
+    // Memoize suggestions so we don't recalculate on every render
+    const allSuggestions = React.useMemo(() => {
+        const predefinedLandmarks = [
+            { name: 'Mansingh Bazar', type: 'landmark', icon: MapPin },
+            { name: 'Fakir Mohan Golei', type: 'landmark', icon: MapPin },
+            { name: 'Station Square', type: 'landmark', icon: MapPin },
+            { name: 'Remuna', type: 'landmark', icon: MapPin },
+            { name: 'Sahadev Khuntha', type: 'landmark', icon: MapPin },
+            { name: 'Azimabad', type: 'landmark', icon: MapPin },
+            { name: 'ITB', type: 'landmark', icon: MapPin },
+            { name: 'Balasore', type: 'landmark', icon: MapPin }
+        ];
+
+        const validLandmarks = predefinedLandmarks.filter(landmark => {
+            return messes.some(mess => {
+                const nm = mess.name || '';
+                const ad = mess.address || '';
+                const q = landmark.name.toLowerCase();
+                return nm.toLowerCase().includes(q) || ad.toLowerCase().includes(q);
+            });
+        });
+
+        const sponsoredMesses = messes.filter(m => m.isSponsored && m.name).map(m => ({
+            name: m.name,
+            type: 'mess',
+            icon: TrendingUp,
+            label: 'Sponsored'
+        }));
+        
+        const otherMesses = [...messes].filter(m => !m.isSponsored && m.name).sort((a, b) => {
+            const aScore = (a.galleryUrls?.length || 0) + (a.isUserSourced ? 0 : 5);
+            const bScore = (b.galleryUrls?.length || 0) + (b.isUserSourced ? 0 : 5);
+            return bScore - aScore;
+        });
+
+        const popularMesses = otherMesses.slice(0, 5).map(m => ({
+            name: m.name,
+            type: 'mess',
+            icon: TrendingUp,
+            label: 'Recommended'
+        }));
+
+        return [...sponsoredMesses, ...validLandmarks, ...popularMesses];
+    }, [messes]);
 
     // Fetch Notifications
     useEffect(() => {
@@ -176,10 +221,10 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                     >
                                         <input
                                             type="text"
-                                            placeholder="Search..."
+                                            placeholder="Search by landmark or mess name..."
                                             value={searchTerm}
                                             onFocus={() => setIsSearchFocused(true)}
-                                            onBlur={() => setIsSearchFocused(false)}
+                                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                                             onChange={(e) => onSearchChange(e.target.value)}
                                             className="w-full pl-9 pr-7 sm:pl-10 sm:pr-10 py-1.5 sm:py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
                                         />
@@ -198,6 +243,46 @@ const Header = ({ showSearch, searchTerm, onSearchChange }) => {
                                                 <X size={14} className="sm:w-4 sm:h-4" />
                                             </button>
                                         )}
+                                        {(() => {
+                                            if (!isSearchFocused) return null;
+
+                                            const filteredSuggestions = searchTerm 
+                                                ? allSuggestions.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                : allSuggestions;
+
+                                            if (filteredSuggestions.length === 0) return null;
+                                            return (
+                                                <div className="absolute z-50 w-full bg-white rounded-xl shadow-lg border border-gray-100 mt-2 overflow-hidden top-full left-0">
+                                                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                        <div className="text-xs font-semibold text-gray-500 uppercase px-4 py-3 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-50">
+                                                            <span>Suggestions</span>
+                                                        </div>
+                                                        <div className="p-2">
+                                                            {filteredSuggestions.map((item, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    onSearchChange(item.name);
+                                                                    setIsSearchFocused(false);
+                                                                }}
+                                                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 text-left transition-colors rounded-lg group"
+                                                            >
+                                                                <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
+                                                                    <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">{item.name}</span>
+                                                                    <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </motion.div>
                                 )}
                             </AnimatePresence>

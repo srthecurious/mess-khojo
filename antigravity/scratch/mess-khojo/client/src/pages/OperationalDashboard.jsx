@@ -4,7 +4,7 @@ import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification, telegramTemplates } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
@@ -409,6 +409,17 @@ const OperationalDashboard = () => {
             });
         } catch (error) {
             console.error("Toggle visibility failed:", error);
+            alert("Action failed");
+        }
+    };
+
+    const handleToggleSponsored = async (id, currentSponsored) => {
+        try {
+            await updateDoc(doc(db, "messes", id), {
+                isSponsored: !currentSponsored
+            });
+        } catch (error) {
+            console.error("Toggle sponsored failed:", error);
             alert("Action failed");
         }
     };
@@ -1557,6 +1568,18 @@ const OperationalDashboard = () => {
                                             >
                                                 {mess.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
                                                 {mess.hidden ? 'Private' : 'Public'}
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleToggleSponsored(mess.id, mess.isSponsored)}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${mess.isSponsored
+                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
+                                                    : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700'
+                                                    }`}
+                                                title={mess.isSponsored ? "Remove Sponsorship" : "Make Sponsored"}
+                                            >
+                                                {mess.isSponsored ? <CheckCircle size={16} /> : <TrendingUp size={16} />}
+                                                {mess.isSponsored ? 'Sponsored' : 'Sponsor'}
                                             </button>
 
                                             <button

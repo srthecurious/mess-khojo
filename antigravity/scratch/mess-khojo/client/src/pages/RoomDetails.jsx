@@ -78,13 +78,29 @@ const RoomDetails = () => {
 
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const handleNotifyClick = () => {
+        if (!currentUser) {
+            const returnUrl = `/room/${messId}/${roomId}?action=notify`;
+            console.log('🔗 Redirecting to login with return URL:', returnUrl);
+            navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
+            return;
+        }
+        setShowNotifyModal(true);
+    };
+
     useEffect(() => {
-        if (!loading && currentUser && searchParams.get('action') === 'book') {
-            handleBookClick();
-            // Clear the param to prevent re-triggering
-            const newParams = new URLSearchParams(searchParams);
-            newParams.delete('action');
-            setSearchParams(newParams, { replace: true });
+        if (!loading && currentUser) {
+            if (searchParams.get('action') === 'book') {
+                handleBookClick();
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('action');
+                setSearchParams(newParams, { replace: true });
+            } else if (searchParams.get('action') === 'notify') {
+                handleNotifyClick();
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('action');
+                setSearchParams(newParams, { replace: true });
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser, loading]);
@@ -438,7 +454,7 @@ const RoomDetails = () => {
                     <p className="text-2xl font-black text-brand-text-dark">₹{room.price}</p>
                 </div>
                 <button
-                    onClick={() => room.availableCount > 0 ? handleBookClick() : setShowNotifyModal(true)}
+                    onClick={() => room.availableCount > 0 ? handleBookClick() : handleNotifyClick()}
                     className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-all text-white ${room.availableCount > 0
                         ? 'bg-brand-primary hover:bg-brand-primary-hover'
                         : 'bg-indigo-500 hover:bg-indigo-600'
@@ -451,7 +467,7 @@ const RoomDetails = () => {
             {/* Desktop Action Button (Floating) */}
             <div className="hidden md:block fixed bottom-8 right-8 z-30">
                 <button
-                    onClick={() => room.availableCount > 0 ? handleBookClick() : setShowNotifyModal(true)}
+                    onClick={() => room.availableCount > 0 ? handleBookClick() : handleNotifyClick()}
                     className={`px-10 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-3 text-white ${room.availableCount > 0
                         ? 'bg-brand-primary hover:bg-brand-primary-hover'
                         : 'bg-indigo-500 hover:bg-indigo-600'

@@ -548,6 +548,21 @@ const Home = () => {
             // Get rooms for this mess
             const messRooms = rooms.filter(room => room.messId === mess.id);
 
+            // Calculate Total Images (Mess Gallery + Room Images)
+            let totalImages = 0;
+            if (Array.isArray(mess.galleryUrls)) {
+                totalImages += mess.galleryUrls.filter(url => url && typeof url === 'string' && url.length > 10 && !url.includes('placeholder')).length;
+            } else if (Array.isArray(mess.images)) {
+                totalImages += mess.images.filter(url => url && typeof url === 'string' && url.length > 10 && !url.includes('placeholder')).length;
+            }
+            messRooms.forEach(room => {
+                if (Array.isArray(room.imageUrls)) {
+                    totalImages += room.imageUrls.filter(url => url && typeof url === 'string' && url.length > 10 && !url.includes('placeholder')).length;
+                } else if (room.imageUrl && typeof room.imageUrl === 'string' && room.imageUrl.length > 10 && !room.imageUrl.includes('placeholder')) {
+                    totalImages += 1;
+                }
+            });
+
             // Calculate Price Range for display (Global for Mess)
             const prices = messRooms.map(r => Number(r.price || r.rent)).filter(p => !isNaN(p) && p > 0);
             const minPrice = prices.length ? Math.min(...prices) : null;
@@ -605,7 +620,8 @@ const Home = () => {
                 matchingBeds,
                 isFiltered,
                 minPrice,
-                maxPrice
+                maxPrice,
+                totalImages
             };
         }).filter(Boolean); // Remove nulls
 
@@ -643,21 +659,20 @@ const Home = () => {
         } else {
             // Default Sort: Priority to visual content -> Alphabetical
             result.sort((a, b) => {
-                // 1. Priority: Has Poster Image
+                // 1. Priority: Not User Sourced (verified properties first)
+                const isUserSourcedA = !!a.isUserSourced;
+                const isUserSourcedB = !!b.isUserSourced;
+                if (isUserSourcedA !== isUserSourcedB) return isUserSourcedA ? 1 : -1;
+
+                // 2. Priority: Has Poster Image
                 const hasPosterA = !!a.posterUrl && a.posterUrl.length > 5;
                 const hasPosterB = !!b.posterUrl && b.posterUrl.length > 5;
                 if (hasPosterA !== hasPosterB) return hasPosterB ? 1 : -1;
 
-                // 2. Priority: Total Images Available (excluding placeholders)
-                const countImages = (item) => {
-                    if (!Array.isArray(item.images)) return 0;
-                    return item.images.filter(url => url && typeof url === 'string' && url.length > 10 && !url.includes('placeholder')).length;
-                };
-                const countA = countImages(a);
-                const countB = countImages(b);
-                if (countA !== countB) return countB - countA;
+                // 3. Priority: Total Images Available (gallery + rooms)
+                if (a.totalImages !== b.totalImages) return b.totalImages - a.totalImages;
 
-                // 3. Priority: Alphabetical Order
+                // 4. Priority: Alphabetical Order
                 return (a.name || '').localeCompare(b.name || '');
             });
         }
@@ -759,6 +774,7 @@ const Home = () => {
                 showSearch={!isMainSearchVisible}
                 searchTerm={filters.location}
                 onSearchChange={(val) => setFilters(prev => ({ ...prev, location: val }))}
+                messes={messes}
             />
 
             {/* Filter Section - Moved to Top */}
@@ -769,6 +785,7 @@ const Home = () => {
                     onGps={carouselEnabled ? () => handleLocationSelect() : undefined}
                     loadingLocation={loadingLocation}
                     userLocation={userLocation}
+                    messes={messes}
                 />
             </div>
 
