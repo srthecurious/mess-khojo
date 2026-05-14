@@ -10,11 +10,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Simple fetch handler - network first, then cache
-    // This is just to satisfy the PWA requirement, not true offline mode
-    event.respondWith(
-        fetch(event.request).catch(function () {
-            return caches.match(event.request);
-        })
-    );
+    // Empty fetch handler to bypass service worker interception
+    // and let the browser handle requests normally.
 });

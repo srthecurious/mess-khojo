@@ -112,10 +112,19 @@ const MessExplorer = ({ messes, rooms, userLocation }) => {
             {/* Full-Screen Map Modal — lazy-loaded */}
             {isMapOpen && (
                 <Suspense fallback={
-                    <div className="fixed inset-0 z-[9999] bg-white flex items-center justify-center">
+                    <div className="fixed inset-0 z-[9999] bg-brand-secondary flex flex-col items-center justify-center gap-4">
+                        <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 flex items-center justify-center">
+                            <MapPin size={28} className="text-brand-primary animate-bounce" />
+                        </div>
                         <div className="text-center">
-                            <Loader2 size={36} className="animate-spin text-brand-primary mx-auto mb-3" />
-                            <p className="text-sm text-gray-500 font-medium">Loading Map...</p>
+                            <p className="font-bold text-brand-text-dark">Loading Map...</p>
+                            <p className="text-sm text-brand-text-gray mt-1">Hang tight, preparing the explorer</p>
+                        </div>
+                        <div className="flex gap-1.5 mt-2">
+                            {[0, 1, 2].map(i => (
+                                <div key={i} className="w-2 h-2 bg-brand-primary rounded-full animate-bounce"
+                                     style={{ animationDelay: `${i * 150}ms` }} />
+                            ))}
                         </div>
                     </div>
                 }>

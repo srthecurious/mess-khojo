@@ -9,7 +9,7 @@ import MessCard from '../components/MessCard';
 import RoomCard from '../components/RoomCard';
 
 const Wishlist = () => {
-    const { currentUser } = useAuth();
+    const { currentUser, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const {
         wishlistedMesses,
@@ -28,10 +28,11 @@ const Wishlist = () => {
 
     // Redirect to login if not authenticated
     useEffect(() => {
+        if (authLoading) return;
         if (!currentUser) {
             navigate('/user-login', { replace: true });
         }
-    }, [currentUser, navigate]);
+    }, [currentUser, authLoading, navigate]);
 
     // Fetch wishlisted messes from Firestore
     useEffect(() => {
@@ -124,6 +125,32 @@ const Wishlist = () => {
         };
         fetchRooms();
     }, [currentUser, wishlistedRooms]);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-brand-secondary pb-20">
+                {/* Header */}
+                <div className="bg-brand-primary p-4 sticky top-0 z-10 shadow-md animate-pulse">
+                    <div className="max-w-5xl mx-auto flex items-center gap-4">
+                        <div className="w-6 h-6 bg-white/20 rounded-full" />
+                        <div className="h-6 w-32 bg-white/20 rounded-lg" />
+                    </div>
+                </div>
+
+                <div className="max-w-5xl mx-auto px-4 py-6">
+                    {/* Tabs Skeleton */}
+                    <div className="h-14 bg-white rounded-2xl animate-pulse mb-6" />
+
+                    {/* Cards Skeleton Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="h-56 rounded-2xl bg-gray-200 animate-pulse" />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (!currentUser) return null;
 

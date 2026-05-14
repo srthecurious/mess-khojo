@@ -7,6 +7,7 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [isHovered, setIsHovered] = useState(false);
     const [isTouched, setIsTouched] = useState(false);
+    const [imagesLoaded, setImagesLoaded] = useState({});
     const intervalRef = useRef(null);
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
@@ -113,7 +114,7 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
                     className="flex h-full transition-transform duration-500 ease-in-out"
                     style={{ transform: `translateX(-${currentIndex * 100}%)` }}
                 >
-                    {ads.map((ad) => (
+                    {ads.map((ad, i) => (
                         <div
                             key={ad.id}
                             className={`w-full h-full flex-shrink-0 relative ${ad.linkUrl ? 'cursor-pointer' : ''}`}
@@ -122,8 +123,10 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
                             <img
                                 src={ad.imageUrl}
                                 alt={ad.title || 'Advertisement'}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
+                                className={`w-full h-full object-cover transition-opacity duration-500 ${imagesLoaded[ad.id] ? 'opacity-100' : 'opacity-0'}`}
+                                loading={i === 0 ? 'eager' : 'lazy'}
+                                fetchPriority={i === 0 ? 'high' : 'auto'}
+                                onLoad={() => setImagesLoaded(prev => ({ ...prev, [ad.id]: true }))}
                             />
                             {/* Optional title overlay */}
                             {ad.title && (

@@ -183,7 +183,7 @@ const Home = () => {
     const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
 
     const [loadingLocation, setLoadingLocation] = useState(false);
-    const [carouselEnabled, setCarouselEnabled] = useState(null); // null indicates loading state
+    const [carouselEnabled, setCarouselEnabled] = useState(false);
 
 
     const isScrolledRef = useRef(false);
@@ -659,6 +659,16 @@ const Home = () => {
         } else {
             // Default Sort: Priority to visual content -> Alphabetical
             result.sort((a, b) => {
+                // 0. Priority: Sponsored
+                const isSponsA = !!a.isSponsored;
+                const isSponsB = !!b.isSponsored;
+                if (isSponsA && isSponsB) {
+                    const rankA = a.sponsorRank || 999;
+                    const rankB = b.sponsorRank || 999;
+                    if (rankA !== rankB) return rankA - rankB;
+                }
+                if (isSponsA !== isSponsB) return isSponsA ? -1 : 1;
+
                 // 1. Priority: Not User Sourced (verified properties first)
                 const isUserSourcedA = !!a.isUserSourced;
                 const isUserSourcedB = !!b.isUserSourced;
@@ -796,25 +806,20 @@ const Home = () => {
                 userLocation={userLocation} 
             />
 
-            {/* Hero Section — Conditional */}
-            {carouselEnabled === null ? (
-                /* Loading Skeleton for Hero */
-                <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
-                    <div className="w-full h-[38vh] bg-gray-200 animate-pulse rounded-3xl" />
-                </div>
-            ) : carouselEnabled ? (
-                /* Dynamic Ad Carousel */
-                <HeroCarousel 
-                    onMap={handleOpenMap} 
-                    desktopAds={desktopAds}
-                    mobileAds={mobileAds}
-                    loadingDesktop={loadingAdsDesktop}
-                    loadingMobile={loadingAdsMobile}
-                />
-            ) : (
-            /* Spotlight Hero Section - Only show when no filters are active (except messType) */
-            !filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
-                <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
+            {/* Hero Sections - Only show when no filters are active (except messType) */}
+            {!filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
+                carouselEnabled ? (
+                    /* Dynamic Ad Carousel */
+                    <HeroCarousel 
+                        onMap={handleOpenMap} 
+                        desktopAds={desktopAds}
+                        mobileAds={mobileAds}
+                        loadingDesktop={loadingAdsDesktop}
+                        loadingMobile={loadingAdsMobile}
+                    />
+                ) : (
+                    /* Spotlight Hero Section */
+                    <div className="px-4 sm:px-6 lg:px-8 mb-8 max-w-7xl mx-auto">
                     <div
                         className="w-full h-[38vh] flex items-center justify-center overflow-hidden relative rounded-3xl shadow-lg"
                     >

@@ -30,6 +30,9 @@ const RoomDetails = () => {
     const [notifyMessage, setNotifyMessage] = useState(""); // User's custom message
     const [notifyPhone, setNotifyPhone] = useState(""); // Phone number for availability inquiry
     const [notifyConsent, setNotifyConsent] = useState(false);
+    const [notifyStep, setNotifyStep] = useState('form'); // 'form' | 'success'
+    const [similarRooms, setSimilarRooms] = useState([]);
+    const [loadingSimilar, setLoadingSimilar] = useState(false);
 
 
     useEffect(() => {
@@ -85,7 +88,124 @@ const RoomDetails = () => {
             navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
             return;
         }
+        setNotifyStep('form');
+        setSimilarRooms([]);
         setShowNotifyModal(true);
+    };
+
+    const handleCloseNotifyModal = () => {
+        setShowNotifyModal(false);
+        setNotifyStep('form');
+        setNotifyMessage("");
+        setNotifyPhone("");
+        setSimilarRooms([]);
+    };
+
+    const fetchSimilarRooms = async () => {
+        setLoadingSimilar(true);
+        try {
+            let results = [];
+            const existingIds = new Set();
+            
+            // 1 & 2. Same Mess, All Available Rooms
+            const q1 = query(
+                collection(db, "rooms"),
+                where("messId", "==", mess.id)
+            );
+            const snap1 = await getDocs(q1);
+            snap1.docs.forEach(d => {
+                if (d.id !== room.id) {
+                    const data = d.data();
+                    if (data.availableCount > 0) {
+                        results.push({ 
+                            id: d.id, 
+                            ...data, 
+                            _sortPriority: data.occupancy === room.occupancy ? 1 : 2 
+                        });
+                        existingIds.add(d.id);
+                    }
+                }
+            });
+
+            // 3. Same Landmark, Same Occupancy, Not User Sourced, Same Type (Boys/Girls)
+            if (results.length < 6 && mess.landmark) {
+                const messesQuery = query(
+                    collection(db, "messes"),
+                    where("landmark", "==", mess.landmark)
+                );
+                const messesSnap = await getDocs(messesQuery);
+                const currentTypes = Array.isArray(mess.messType) ? mess.messType : (mess.messType ? [mess.messType] : []);
+                const landmarkMessIds = messesSnap.docs
+                    .filter(d => {
+                        if (d.id === mess.id) return false;
+                        const data = d.data();
+                        if (data.isUserSourced === true || data.hidden === true) return false;
+                        const otherTypes = Array.isArray(data.messType) ? data.messType : (data.messType ? [data.messType] : []);
+                        return currentTypes.some(t => otherTypes.includes(t));
+                    })
+                    .map(d => d.id);
+                
+                if (landmarkMessIds.length > 0) {
+                    for (let i = 0; i < landmarkMessIds.length; i += 10) {
+                        const chunk = landmarkMessIds.slice(i, i + 10);
+                        const q3 = query(
+                            collection(db, "rooms"),
+                            where("messId", "in", chunk)
+                        );
+                        const snap3 = await getDocs(q3);
+                        snap3.docs.forEach(d => {
+                            if (!existingIds.has(d.id)) {
+                                const data = d.data();
+                                if (data.occupancy === room.occupancy && data.availableCount > 0) {
+                                    results.push({ id: d.id, ...data, _sortPriority: 3 });
+                                    existingIds.add(d.id);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            // 4. Other Messes, Same Occupancy, Not User Sourced
+            if (results.length < 6) {
+                const q4 = query(
+                    collection(db, "rooms"),
+                    where("occupancy", "==", room.occupancy)
+                );
+                const snap4 = await getDocs(q4);
+                
+                for (const d of snap4.docs) {
+                    if (results.length >= 6) break;
+                    if (!existingIds.has(d.id)) {
+                        const rData = d.data();
+                        if (rData.messId === mess.id) continue;
+                        
+                        if (rData.availableCount > 0) {
+                            const messDoc = await getDoc(doc(db, "messes", rData.messId));
+                            if (messDoc.exists()) {
+                                const data = messDoc.data();
+                                const currentTypes = Array.isArray(mess.messType) ? mess.messType : (mess.messType ? [mess.messType] : []);
+                                const otherTypes = Array.isArray(data.messType) ? data.messType : (data.messType ? [data.messType] : []);
+                                const hasMatchingType = currentTypes.some(t => otherTypes.includes(t));
+                                
+                                if (data.isUserSourced !== true && data.hidden !== true && hasMatchingType) {
+                                    results.push({ id: d.id, ...rData, _sortPriority: 4 });
+                                    existingIds.add(d.id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            results.sort((a, b) => a._sortPriority - b._sortPriority);
+            setSimilarRooms(results.slice(0, 6));
+        } catch (err) {
+            console.error("Failed to fetch similar rooms:", err);
+            setSimilarRooms([]);
+        } finally {
+            setLoadingSimilar(false);
+        }
     };
 
     useEffect(() => {
@@ -257,10 +377,8 @@ const RoomDetails = () => {
                 sendTelegramNotification(telegramTemplates.newInquiry(inquiryData));
             });
 
-            alert("Request sent! The owner will contact you if seats become available.");
-            setShowNotifyModal(false);
-            setNotifyMessage("");
-            setNotifyPhone("");
+            await fetchSimilarRooms();
+            setNotifyStep('success');
         } catch (error) {
             console.error("Error sending inquiry:", error);
             alert("Failed to send request. Please try again.");
@@ -279,7 +397,7 @@ const RoomDetails = () => {
         toggleRoomWishlist(roomId);
     };
 
-    if (loading) return <div className="p-10 text-center">Loading details...</div>;
+    if (loading) return <RoomDetailsSkeleton />;
     if (!mess || !room) return <div className="p-10 text-center">Details not found.</div>;
 
     return (
@@ -574,83 +692,155 @@ const RoomDetails = () => {
             {/* Availability Inquiry Modal */}
             <AnimatePresence>
                 {showNotifyModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className={`fixed inset-0 z-50 flex items-center justify-center ${notifyStep === 'success' ? 'p-0' : 'p-4'}`}>
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                            onClick={() => setShowNotifyModal(false)}
+                            onClick={handleCloseNotifyModal}
                         />
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl"
+                            className={`bg-white w-full ${notifyStep === 'success' ? 'h-full max-w-none rounded-none flex flex-col' : 'max-w-sm rounded-3xl p-6'} relative z-10 shadow-2xl overflow-y-auto scrollbar-hide`}
                         >
-                            <div className="text-center mb-6">
-                                <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-500">
-                                    <Bell size={32} />
-                                </div>
-                                <h3 className="text-2xl font-bold text-brand-text-dark">Unavailable?</h3>
-                                <p className="text-gray-500 mt-2 text-sm leading-relaxed">
-                                    This room is currently sold out. Send a request to know when seats become available.
-                                </p>
-                            </div>
+                            {notifyStep === 'form' ? (
+                                <>
+                                    <div className="text-center mb-6">
+                                        <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-500">
+                                            <Bell size={32} />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-brand-text-dark">Unavailable?</h3>
+                                        <p className="text-gray-500 mt-2 text-sm leading-relaxed">
+                                            This room is currently sold out. Send a request to know when seats become available.
+                                        </p>
+                                    </div>
 
-                            <form onSubmit={handleNotifySubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="tel"
-                                        value={notifyPhone}
-                                        onChange={(e) => setNotifyPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                        placeholder="10 digit mobile number"
-                                        required
-                                        maxLength="10"
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Custom Message (Optional)</label>
-                                    <textarea
-                                        value={notifyMessage}
-                                        onChange={(e) => setNotifyMessage(e.target.value)}
-                                        placeholder="Any specific requirements?"
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-24"
-                                    />
-                                </div>
+                                    <form onSubmit={handleNotifySubmit} className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number <span className="text-red-500">*</span></label>
+                                            <input
+                                                type="tel"
+                                                value={notifyPhone}
+                                                onChange={(e) => setNotifyPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                                placeholder="10 digit mobile number"
+                                                required
+                                                maxLength="10"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Custom Message (Optional)</label>
+                                            <textarea
+                                                value={notifyMessage}
+                                                onChange={(e) => setNotifyMessage(e.target.value)}
+                                                placeholder="Any specific requirements?"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-24"
+                                            />
+                                        </div>
 
-                                <div className="flex items-start gap-3 my-2">
-                                    <input
-                                        type="checkbox"
-                                        id="notify-consent"
-                                        checked={notifyConsent}
-                                        onChange={(e) => setNotifyConsent(e.target.checked)}
-                                        className="w-5 h-5 accent-indigo-500 mt-0.5 cursor-pointer shrink-0"
-                                    />
-                                    <label htmlFor="notify-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
-                                        I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-indigo-500 font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-500 font-bold hover:underline">Privacy Policy</a>.
-                                    </label>
-                                </div>
+                                        <div className="flex items-start gap-3 my-2">
+                                            <input
+                                                type="checkbox"
+                                                id="notify-consent"
+                                                checked={notifyConsent}
+                                                onChange={(e) => setNotifyConsent(e.target.checked)}
+                                                className="w-5 h-5 accent-indigo-500 mt-0.5 cursor-pointer shrink-0"
+                                            />
+                                            <label htmlFor="notify-consent" className="text-xs text-gray-500 cursor-pointer text-left leading-tight">
+                                                I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-indigo-500 font-bold hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-500 font-bold hover:underline">Privacy Policy</a>.
+                                            </label>
+                                        </div>
 
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNotifyModal(false)}
-                                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={notifyLoading || !notifyConsent}
-                                        className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed"
-                                    >
-                                        {notifyLoading ? 'Sending...' : 'Notify Owner'}
-                                    </button>
+                                        <div className="flex gap-3 pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleCloseNotifyModal}
+                                                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={notifyLoading || !notifyConsent}
+                                                className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                                            >
+                                                {notifyLoading ? 'Sending...' : 'Notify Owner'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </>
+                            ) : (
+                                <div className="flex flex-col min-h-screen bg-gray-50">
+                                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 px-6 pt-16 pb-12 text-white text-center relative shrink-0 shadow-lg">
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
+                                            className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"
+                                        >
+                                            <CheckCircle size={48} className="text-indigo-500" />
+                                        </motion.div>
+                                        
+                                        <h3 className="text-3xl font-bold mb-3">Request Received!</h3>
+                                        <p className="text-indigo-100 text-lg leading-relaxed max-w-md mx-auto">
+                                            You'll be notified when a seat becomes available in the{' '}
+                                            <span className="font-semibold text-white">
+                                                {room.occupancy} Seater
+                                            </span>{' '}
+                                            at <span className="font-semibold text-white">{mess.name}</span>.
+                                        </p>
+                                    </div>
+
+                                    <div className="px-6 pt-8 pb-8 -mt-6 bg-gray-50 rounded-t-3xl flex-1 flex flex-col relative z-10">
+                                        {(loadingSimilar || similarRooms.length > 0) && (
+                                            <div className="mb-8">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <h4 className="text-xl font-bold text-gray-800">
+                                                        🛏️ Available Rooms Nearby
+                                                    </h4>
+                                                    <button 
+                                                        onClick={() => { handleCloseNotifyModal(); navigate('/'); }}
+                                                        className="text-sm text-indigo-500 font-bold hover:underline"
+                                                    >
+                                                        Browse All →
+                                                    </button>
+                                                </div>
+
+                                                {loadingSimilar ? (
+                                                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
+                                                        {[1, 2, 3].map(i => (
+                                                            <div key={i} className="shrink-0 w-60 h-48 rounded-3xl skeleton-shimmer" />
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
+                                                        {similarRooms.map(sr => (
+                                                            <SimilarRoomCard
+                                                                key={sr.id}
+                                                                room={sr}
+                                                                currentMess={mess}
+                                                                onClose={handleCloseNotifyModal}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="mt-auto pt-6">
+                                            <button
+                                                onClick={handleCloseNotifyModal}
+                                                className="w-full py-4 bg-white border-2 border-gray-200 hover:bg-gray-100 text-gray-800 font-bold text-lg rounded-2xl transition-colors shadow-sm"
+                                            >
+                                                Close & Return
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </form>
+                            )}
                         </motion.div>
                     </div>
                 )
@@ -675,6 +865,110 @@ const RoomDetails = () => {
                 )
             }
         </div >
+    );
+};
+
+const RoomDetailsSkeleton = () => {
+    return (
+        <div className="min-h-screen bg-brand-secondary pb-20 font-sans">
+            {/* Header / Nav */}
+            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-brand-light-gray px-4 py-3 flex items-center gap-4">
+                <div className="w-8 h-8 rounded-full skeleton-shimmer" />
+                <div className="h-6 w-32 rounded-lg skeleton-shimmer" />
+            </div>
+
+            <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+                {/* Image Gallery */}
+                <div className="bg-white rounded-2xl p-2 border border-brand-light-gray">
+                    <div className="w-full h-64 rounded-xl skeleton-shimmer" />
+                </div>
+
+                {/* Title & Price */}
+                <div className="bg-white rounded-2xl p-6 border border-brand-light-gray flex flex-col md:flex-row justify-between md:items-start gap-4">
+                    <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-32 rounded-xl skeleton-shimmer" />
+                            <div className="h-5 w-16 rounded-full skeleton-shimmer" />
+                            <div className="w-8 h-8 rounded-full skeleton-shimmer" />
+                        </div>
+                        <div className="h-5 w-48 rounded-lg skeleton-shimmer" />
+                    </div>
+                    <div className="space-y-2 md:text-right">
+                        <div className="h-8 w-28 rounded-xl skeleton-shimmer" />
+                        <div className="h-5 w-24 rounded-lg skeleton-shimmer" />
+                    </div>
+                </div>
+
+                {/* Amenities */}
+                <div className="bg-white rounded-2xl p-6 border border-brand-light-gray">
+                    <div className="h-6 w-24 rounded-lg skeleton-shimmer mb-4" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[1, 2, 3, 4].map((index) => (
+                            <div key={index} className="h-20 rounded-xl skeleton-shimmer" />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Description */}
+                <div className="bg-white rounded-2xl p-6 border border-brand-light-gray space-y-4">
+                    <div className="h-6 w-28 rounded-lg skeleton-shimmer" />
+                    <div className="space-y-2">
+                        <div className="h-4 w-full rounded-md skeleton-shimmer" />
+                        <div className="h-4 w-11/12 rounded-md skeleton-shimmer" />
+                        <div className="h-4 w-4/5 rounded-md skeleton-shimmer" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SimilarRoomCard = ({ room, currentMess, onClose }) => {
+    const navigate = useNavigate();
+    
+    const occupancyMap = {
+        'Single': '1', 'Double': '2', 'Triple': '3',
+        'Four': '4', 'Five': '5', 'Six': '6'
+    };
+    const seats = occupancyMap[room.occupancy] || room.occupancy;
+    const displayImg = room.imageUrls?.[0] || room.imageUrl || '/default-room.jpg';
+    const isSameMess = room.messId === currentMess.id;
+    
+    return (
+        <button
+            onClick={() => {
+                import('../analytics').then(({ trackEvent }) => {
+                    trackEvent('SimilarRooms', 'similar_room_clicked', room.messId, room.id);
+                });
+                onClose();
+                navigate(`/room/${room.messId}/${room.id}`);
+            }}
+            className="shrink-0 w-60 sm:w-64 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden text-left hover:shadow-md hover:-translate-y-1 transition-all active:scale-95 flex flex-col"
+        >
+            <div className="relative h-32 bg-gray-100 shrink-0">
+                <img src={displayImg} alt="" className="w-full h-full object-cover" />
+                {isSameMess && (
+                    <div className="absolute top-3 left-3 bg-brand-primary text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                        Same Mess
+                    </div>
+                )}
+                <div className="absolute top-3 right-3 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                    Available
+                </div>
+            </div>
+
+            <div className="p-4 flex-1 flex flex-col justify-between">
+                <div>
+                    <p className="text-sm font-bold text-gray-900 truncate">{seats} Seater</p>
+                    <p className="text-xs text-gray-500 truncate mt-1">
+                        {room.messId !== currentMess.id ? room.messName || 'Other Mess' : currentMess.name}
+                    </p>
+                </div>
+                <p className="text-lg font-extrabold text-indigo-600 mt-2">
+                    ₹{room.price}<span className="text-xs font-normal text-gray-400">/mo</span>
+                </p>
+            </div>
+        </button>
     );
 };
 

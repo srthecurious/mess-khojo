@@ -7,7 +7,7 @@ import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X
 import { Link } from 'react-router-dom';
 
 const UserProfile = () => {
-    const { currentUser, logout, userRole, deleteAccount } = useAuth();
+    const { currentUser, logout, userRole, deleteAccount, loading: authLoading } = useAuth();
     const [userData, setUserData] = useState(null);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,6 +22,8 @@ const UserProfile = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        if (authLoading) return;
+
         const fetchData = async () => {
             if (!currentUser) {
                 navigate('/user-login');
@@ -59,7 +61,7 @@ const UserProfile = () => {
         };
 
         fetchData();
-    }, [currentUser, navigate]);
+    }, [currentUser, authLoading, navigate]);
 
     const handleEditPhone = () => {
         setEditedPhone(userData?.phone || '');
@@ -135,7 +137,51 @@ const UserProfile = () => {
         }
     };
 
-    if (loading) return <div className="p-10 text-center">Loading profile...</div>;
+    if (loading) return (
+        <div className="min-h-screen bg-brand-secondary p-4 md:p-8 flex flex-col">
+            <div className="max-w-4xl mx-auto space-y-8 flex-grow w-full animate-pulse">
+                {/* Skeleton Profile Header */}
+                <div className="bg-gray-100 rounded-3xl shadow-xl p-6 md:p-10 border border-gray-200 relative overflow-hidden">
+                    <div className="relative space-y-8">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="w-24 h-24 md:w-28 md:h-28 bg-gray-200 rounded-3xl"></div>
+                            <div className="space-y-3">
+                                <div className="h-8 w-40 bg-gray-200 rounded-lg mx-auto"></div>
+                                <div className="h-5 w-28 bg-gray-200 rounded-full mx-auto"></div>
+                            </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-stretch justify-center gap-3 max-w-2xl mx-auto">
+                            <div className="flex-1 h-12 bg-gray-200 rounded-2xl"></div>
+                            <div className="flex-1 h-12 bg-gray-200 rounded-2xl"></div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-stretch justify-center gap-3 pt-4">
+                            <div className="h-12 w-40 bg-gray-200 rounded-2xl"></div>
+                            <div className="h-12 w-40 bg-gray-200 rounded-2xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Skeleton Bookings Section */}
+                <div className="space-y-4">
+                    <div className="h-6 w-40 bg-gray-200 rounded-lg mb-4"></div>
+                    <div className="space-y-4">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="bg-gray-100 rounded-xl p-5 border border-gray-200">
+                                <div className="flex flex-col md:flex-row justify-between gap-4">
+                                    <div className="space-y-3 w-full">
+                                        <div className="h-5 w-48 bg-gray-200 rounded"></div>
+                                        <div className="h-4 w-36 bg-gray-200 rounded"></div>
+                                        <div className="h-3 w-32 bg-gray-200 rounded"></div>
+                                    </div>
+                                    <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
     if (!currentUser) return null;
 
     return (
@@ -162,108 +208,134 @@ const UserProfile = () => {
                 )}
 
                 {/* Profile Header Card */}
-                <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8 border border-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                <div className="bg-gradient-to-br from-white via-white to-brand-primary/5 rounded-3xl shadow-2xl p-6 md:p-10 border border-brand-primary/10 relative overflow-hidden backdrop-blur-sm">
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-brand-primary/10 to-transparent rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-purple-400/5 to-transparent rounded-full -ml-16 -mb-16 blur-2xl"></div>
 
-                    <div className="relative flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="flex flex-col md:flex-row items-center md:items-start gap-5 md:gap-6 w-full md:w-auto">
-                            <div className="w-20 h-20 md:w-24 md:h-24 bg-brand-primary/10 rounded-[24px] md:rounded-3xl flex items-center justify-center text-brand-primary border border-white/20 shadow-inner overflow-hidden shrink-0">
-                                {currentUser && currentUser.photoURL ? (
-                                    <img
-                                        src={currentUser.photoURL}
-                                        alt="User profile"
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.nextElementSibling.style.display = 'block';
-                                        }}
-                                    />
-                                ) : null}
-                                <User 
-                                    size={40} 
-                                    strokeWidth={1.5} 
-                                    style={{ display: (currentUser && currentUser.photoURL) ? 'none' : 'block' }}
-                                />
+                    <div className="relative space-y-8">
+                        {/* Avatar and Name Section - Centered */}
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            {/* Avatar with enhanced styling */}
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-brand-primary to-purple-500 rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                                <div className="relative w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-brand-primary/20 to-purple-400/10 rounded-3xl flex items-center justify-center text-brand-primary border-2 border-white shadow-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300">
+                                    {currentUser && currentUser.photoURL ? (
+                                        <img
+                                            src={currentUser.photoURL}
+                                            alt="User profile"
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.nextElementSibling.style.display = 'flex';
+                                            }}
+                                        />
+                                    ) : null}
+                                    <div 
+                                        className="w-full h-full flex items-center justify-center"
+                                        style={{ display: (currentUser && currentUser.photoURL) ? 'none' : 'flex' }}
+                                    >
+                                        <User size={48} strokeWidth={1.5} />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="text-center md:text-left space-y-3 w-full">
-                                <div>
-                                    <h1 className="text-2xl md:text-3xl font-black text-brand-text-dark leading-tight tracking-tight">{userData?.name || "User"}</h1>
-                                    <p className="text-brand-text-gray text-[10px] md:text-xs font-bold uppercase tracking-widest flex items-center justify-center md:justify-start gap-1.5 mt-1">
-                                        <Calendar size={10} className="text-brand-primary" />
+
+                            {/* Name and Member Since */}
+                            <div className="space-y-2">
+                                <h1 className="text-3xl md:text-4xl font-black text-brand-text-dark leading-tight tracking-tight bg-gradient-to-r from-brand-text-dark to-brand-primary bg-clip-text">
+                                    {userData?.name || "User"}
+                                </h1>
+                                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-primary/10 rounded-full border border-brand-primary/20">
+                                    <Calendar size={14} className="text-brand-primary" />
+                                    <p className="text-brand-text-gray text-xs font-bold uppercase tracking-wider">
                                         Member since {userData?.createdAt ? new Date(userData.createdAt.seconds * 1000).getFullYear() : '2024'}
                                     </p>
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-2 md:gap-4 pt-1">
-                                    <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-brand-text-dark bg-gray-50/50 px-3 py-2 rounded-xl border border-gray-100 w-full sm:w-auto justify-center md:justify-start overflow-hidden">
-                                        <Mail size={14} className="text-blue-500 shrink-0" />
-                                        <span className="truncate">{currentUser.email}</span>
-                                    </div>
-                                    {/* Phone Section - Editable */}
-                                    {!isEditingPhone ? (
-                                        <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-brand-text-dark bg-gray-50/50 px-3 py-2 rounded-xl border border-gray-100 w-full sm:w-auto justify-between group">
-                                            <div className="flex items-center gap-2">
-                                                <Phone size={14} className="text-green-500 shrink-0" />
-                                                <span>{userData?.phone || "Phone Not Set"}</span>
-                                            </div>
-                                            <button
-                                                onClick={handleEditPhone}
-                                                className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors opacity-0 group-hover:opacity-100"
-                                                title="Edit phone number"
-                                            >
-                                                <Edit2 size={12} className="text-brand-primary" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="tel"
-                                                    value={editedPhone}
-                                                    onChange={(e) => setEditedPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                                    className="px-3 py-2 text-xs md:text-sm border border-brand-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary w-full"
-                                                    placeholder="10 digit mobile number"
-                                                    maxLength="10"
-                                                />
-                                                <button
-                                                    onClick={handleSavePhone}
-                                                    disabled={savingPhone}
-                                                    className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg disabled:opacity-50 transition-colors"
-                                                    title="Save"
-                                                >
-                                                    <Check size={14} />
-                                                </button>
-                                                <button
-                                                    onClick={handleCancelEditPhone}
-                                                    disabled={savingPhone}
-                                                    className="p-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg disabled:opacity-50 transition-colors"
-                                                    title="Cancel"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                            {phoneError && (
-                                                <p className="text-xs text-red-600">{phoneError}</p>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3 mt-4 md:mt-0">
+                        {/* Contact Info Section - Improved cards */}
+                        <div className="flex flex-col sm:flex-row items-stretch justify-center gap-3 max-w-2xl mx-auto">
+                            {/* Email Card */}
+                            <div className="flex-1 flex items-center gap-3 text-sm font-semibold text-brand-text-dark bg-gradient-to-br from-blue-50 to-white px-4 py-3.5 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="p-2 bg-blue-500/10 rounded-xl">
+                                    <Mail size={18} className="text-blue-600" />
+                                </div>
+                                <span className="truncate text-xs md:text-sm">{currentUser.email}</span>
+                            </div>
+                            
+                            {/* Phone Card - Editable */}
+                            {!isEditingPhone ? (
+                                <div className="flex-1 flex items-center justify-between gap-3 text-sm font-semibold text-brand-text-dark bg-gradient-to-br from-green-50 to-white px-4 py-3.5 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-green-500/10 rounded-xl">
+                                            <Phone size={18} className="text-green-600" />
+                                        </div>
+                                        <span className="text-xs md:text-sm">{userData?.phone || "Phone Not Set"}</span>
+                                    </div>
+                                    <button
+                                        onClick={handleEditPhone}
+                                        className="p-1.5 hover:bg-green-100 rounded-lg transition-all opacity-0 group-hover:opacity-100 transform group-hover:scale-110"
+                                        title="Edit phone number"
+                                    >
+                                        <Edit2 size={14} className="text-green-600" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="tel"
+                                            value={editedPhone}
+                                            onChange={(e) => setEditedPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                            className="flex-1 px-4 py-3 text-sm border-2 border-brand-primary/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent shadow-sm"
+                                            placeholder="10 digit mobile"
+                                            maxLength="10"
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={handleSavePhone}
+                                            disabled={savingPhone}
+                                            className="p-3 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl disabled:opacity-50 transition-all shadow-lg active:scale-95"
+                                            title="Save"
+                                        >
+                                            <Check size={18} strokeWidth={3} />
+                                        </button>
+                                        <button
+                                            onClick={handleCancelEditPhone}
+                                            disabled={savingPhone}
+                                            className="p-3 bg-gradient-to-br from-gray-300 to-gray-400 hover:from-gray-400 hover:to-gray-500 text-gray-700 rounded-xl disabled:opacity-50 transition-all shadow-lg active:scale-95"
+                                            title="Cancel"
+                                        >
+                                            <X size={18} strokeWidth={3} />
+                                        </button>
+                                    </div>
+                                    {phoneError && (
+                                        <p className="text-xs text-red-600 font-semibold px-2 flex items-center gap-1">
+                                            <AlertTriangle size={12} />
+                                            {phoneError}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action Buttons - Enhanced */}
+                        <div className="flex flex-col sm:flex-row items-stretch justify-center gap-3 pt-4">
                             <Link
                                 to="/wishlist"
-                                className="w-full sm:w-auto px-6 py-3 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl transition-all font-bold text-sm flex items-center justify-center gap-2 border border-red-100 shadow-sm active:scale-95 group"
+                                className="group relative px-8 py-4 bg-gradient-to-br from-red-50 to-pink-50 text-red-600 hover:from-red-500 hover:to-pink-500 hover:text-white rounded-2xl transition-all duration-300 font-bold text-sm flex items-center justify-center gap-3 border border-red-100 shadow-lg hover:shadow-xl active:scale-95 overflow-hidden"
                             >
-                                <Heart size={18} className="fill-current group-hover:scale-110 transition-transform" />
-                                My Wishlist
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                                <Heart size={20} className="fill-current group-hover:scale-125 transition-transform duration-300 relative z-10" />
+                                <span className="relative z-10">My Wishlist</span>
                             </Link>
                             <button
                                 onClick={() => navigate('/')}
-                                className="w-full sm:w-auto px-6 py-3 bg-brand-secondary text-brand-primary rounded-2xl hover:bg-brand-primary/10 transition-all font-bold text-sm flex items-center justify-center gap-2 border border-brand-primary/10 active:scale-95 shadow-sm"
+                                className="group px-8 py-4 bg-gradient-to-br from-brand-secondary to-brand-primary/5 text-brand-primary hover:from-brand-primary hover:to-brand-primary-hover hover:text-white rounded-2xl transition-all duration-300 font-bold text-sm flex items-center justify-center gap-3 border border-brand-primary/20 shadow-lg hover:shadow-xl active:scale-95"
                             >
-                                <span>←</span> Back to Home
+                                <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
+                                <span>Back to Home</span>
                             </button>
                         </div>
                     </div>

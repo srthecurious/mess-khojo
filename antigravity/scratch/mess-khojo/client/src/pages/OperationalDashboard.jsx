@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
@@ -58,6 +59,11 @@ const OperationalDashboard = () => {
     const [partnerEmail, setPartnerEmail] = useState('');
     const [partnerPassword, setPartnerPassword] = useState('');
     const [partnerStatus, setPartnerStatus] = useState({ type: '', msg: '' });
+    
+    const [updatePartnerEmail, setUpdatePartnerEmail] = useState('');
+    const [updatePartnerPassword, setUpdatePartnerPassword] = useState('');
+    const [updatePasswordStatus, setUpdatePasswordStatus] = useState({ loading: false, msg: '', type: '' });
+    
     const [migrationStatus, setMigrationStatus] = useState({ loading: false, msg: '', type: '' });
 
     const navigate = useNavigate();
@@ -444,7 +450,8 @@ const OperationalDashboard = () => {
                 posterUrl: item.posterUrl || '',
                 galleryUrls: item.galleryUrls || [],
                 amenities: item.amenities || { food: false, wifi: false, inverter: false },
-                description: item.description || ''
+                description: item.description || '',
+                sponsorRank: item.sponsorRank || ''
             });
         } else {
             setEditForm({
@@ -505,8 +512,12 @@ const OperationalDashboard = () => {
                     return;
                 }
 
+                const { sponsorRank, ...restEditForm } = editForm;
+                const finalSponsorRank = sponsorRank ? Number(sponsorRank) : null;
+
                 await updateDoc(doc(db, "messes", editingItem.id), {
-                    ...editForm,
+                    ...restEditForm,
+                    sponsorRank: finalSponsorRank,
                     posterUrl,
                     galleryUrls: downloadURLs,
                     lastUpdatedDate: editForm.isUserSourced ? editForm.lastUpdatedDate : null
@@ -556,6 +567,27 @@ const OperationalDashboard = () => {
         } catch (error) {
             console.error("Partner creation failed:", error);
             setPartnerStatus({ type: 'error', msg: error.message });
+        }
+    };
+
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        setUpdatePasswordStatus({ loading: true, msg: '', type: '' });
+        try {
+            const functions = getFunctions(auth.app);
+            const updatePasswordFn = httpsCallable(functions, 'updatePartnerPassword');
+            
+            const result = await updatePasswordFn({
+                targetEmail: updatePartnerEmail,
+                newPassword: updatePartnerPassword
+            });
+            
+            setUpdatePasswordStatus({ loading: false, msg: result.data.message || 'Password updated successfully.', type: 'success' });
+            setUpdatePartnerEmail('');
+            setUpdatePartnerPassword('');
+        } catch (error) {
+            console.error("Update Password Error:", error);
+            setUpdatePasswordStatus({ loading: false, msg: error.message || 'Failed to update password.', type: 'error' });
         }
     };
 
@@ -937,6 +969,50 @@ const OperationalDashboard = () => {
                                         Create Account
                                     </button>
                                 </form>
+
+                                {/* Update Password Section */}
+                                <div className="mt-8 pt-8 border-t border-slate-700">
+                                    <h3 className="text-lg font-bold text-white mb-2">Update Partner Password</h3>
+                                    <p className="text-sm text-slate-400 mb-4">Instantly reset a partner's password if they are locked out.</p>
+                                    
+                                    {updatePasswordStatus.msg && (
+                                        <div className={`p-4 rounded-xl mb-4 text-sm border ${updatePasswordStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                            {updatePasswordStatus.msg}
+                                        </div>
+                                    )}
+
+                                    <form onSubmit={handleUpdatePassword} className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <input
+                                                    type="email"
+                                                    required
+                                                    className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-amber-500 outline-none"
+                                                    value={updatePartnerEmail}
+                                                    onChange={(e) => setUpdatePartnerEmail(e.target.value)}
+                                                    placeholder="Partner Email"
+                                                />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-amber-500 outline-none"
+                                                    value={updatePartnerPassword}
+                                                    onChange={(e) => setUpdatePartnerPassword(e.target.value)}
+                                                    placeholder="New Password (Min 6 chars)"
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={updatePasswordStatus.loading}
+                                            className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 disabled:opacity-50"
+                                        >
+                                            {updatePasswordStatus.loading ? 'Updating...' : 'Force Update Password'}
+                                        </button>
+                                    </form>
+                                </div>
 
                                 {/* Migration Tool Section */}
                                 <div className="mt-8 pt-8 border-t border-slate-700">
@@ -1523,7 +1599,8 @@ const OperationalDashboard = () => {
                             <div className="grid grid-cols-1 gap-4">
                                 {messes.filter(m =>
                                     m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    m.address.toLowerCase().includes(searchQuery.toLowerCase())
+                                    m.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    m.id.toLowerCase().includes(searchQuery.toLowerCase())
                                 ).map(mess => (
                                     <div key={mess.id} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6 group hover:border-indigo-500/50 transition-all shadow-lg hover:shadow-indigo-500/5">
                                         <div className="flex items-center gap-5 w-full md:w-auto">
@@ -1851,7 +1928,7 @@ const OperationalDashboard = () => {
                         <form onSubmit={handleEditSubmit} className="p-6 space-y-6">
                             {editingItem.type === 'mess' ? (
                                 <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Mess Name</label>
                                             <input
@@ -1873,6 +1950,16 @@ const OperationalDashboard = () => {
                                                 <option value="Girls">Girls Mess</option>
                                                 <option value="Co-ed">Co-ed Mess</option>
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-amber-500 uppercase mb-2">Sponsor Rank</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-amber-500"
+                                                value={editForm.sponsorRank || ''}
+                                                onChange={e => setEditForm({ ...editForm, sponsorRank: e.target.value })}
+                                                placeholder="1 = Top Rank"
+                                            />
                                         </div>
                                     </div>
 

@@ -7,6 +7,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
 
 const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
     const [imageUrl, setImageUrl] = useState(null);
+    const [imgLoading, setImgLoading] = useState(true);
 
     useEffect(() => {
         const resolveImageUrl = async () => {
@@ -22,36 +23,17 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
                 return;
             }
 
-            const extractPathFromUrl = (url) => {
-                try {
-                    if (url.includes('/o/')) {
-                        const pathSection = url.split('/o/')[1].split('?')[0];
-                        return decodeURIComponent(pathSection);
-                    }
-                } catch { return null; }
-                return null;
-            };
-
-            let finalUrl = mess.posterUrl;
+            // If already a full HTTP URL, use it directly — no SDK call needed
+            if (mess.posterUrl.startsWith('https://') || mess.posterUrl.startsWith('http://')) {
+                setImageUrl(mess.posterUrl);
+                return;
+            }
 
             try {
-                // 2. If it's already a Firebase URL, try to refresh the token by verifying the path exists
-                const storagePath = extractPathFromUrl(mess.posterUrl);
-
-                if (storagePath) {
-                    finalUrl = await getDownloadURL(ref(storage, storagePath));
-                }
-                // 3. If it's a raw path (not a URL), fetch the URL
-                else if (!mess.posterUrl.startsWith('http')) {
-                    finalUrl = await getDownloadURL(ref(storage, mess.posterUrl));
-                }
-
-                // If we got here, we have a potentially valid URL
+                const finalUrl = await getDownloadURL(ref(storage, mess.posterUrl));
                 setImageUrl(finalUrl);
-
             } catch (error) { // eslint-disable-line no-unused-vars
-                // If SDK fails (object not found), fallback gracefully without setting broken src
-
+                // If SDK fails (object not found), fallback gracefully
                 setImageUrl(null);
             }
         };
@@ -82,10 +64,12 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
                             <img
                                 src={imageUrl}
                                 alt={mess.name}
-                                className="w-full h-full object-cover"
+                                className={`w-full h-full object-cover transition-opacity duration-500 ${imgLoading ? 'opacity-0' : 'opacity-100'}`}
                                 loading="lazy"
+                                onLoad={() => setImgLoading(false)}
                                 onError={() => setImageUrl(null)}
                             />
+                            {imgLoading && <div className="absolute inset-0 skeleton-shimmer"></div>}
                             {/* Gradient Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none"></div>
                         </>

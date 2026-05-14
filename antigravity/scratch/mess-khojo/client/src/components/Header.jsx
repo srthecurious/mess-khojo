@@ -13,6 +13,7 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt';
 const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const headerJustFocused = React.useRef(false);
     const { currentUser } = useAuth();
     const { totalCount: wishlistCount } = useWishlist();
     const { isInstallable, promptInstall, isIOS, isStandalone } = useInstallPrompt();
@@ -199,13 +200,16 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                         {/* Left Section: Logo */}
                         <div className="flex items-center justify-start">
                             {/* App Logo */}
-                            <div className="h-14 w-auto flex items-center">
+                            <Link to="/" className="flex items-center gap-1 sm:gap-1.5 py-1">
                                 <img
                                     src="/logo.png"
-                                    alt="Mess Khojo"
-                                    className="h-full w-auto object-contain scale-[1.9]"
+                                    alt="Mess Khojo Logo"
+                                    className="h-11 sm:h-12 w-auto object-contain drop-shadow-sm"
                                 />
-                            </div>
+                                <span className="text-[22px] sm:text-[26px] font-bold text-white tracking-normal leading-none" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                                    MessKhojo
+                                </span>
+                            </Link>
                         </div>
 
                         {/* Center Section: Sticky Search Bar */}
@@ -223,9 +227,22 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                                             type="text"
                                             placeholder="Search by landmark or mess name..."
                                             value={searchTerm}
-                                            onFocus={() => setIsSearchFocused(true)}
-                                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                                            onFocus={() => {
+                                                setIsSearchFocused(true);
+                                                headerJustFocused.current = true;
+                                            }}
+                                            onBlur={() => setTimeout(() => {
+                                                setIsSearchFocused(false);
+                                                headerJustFocused.current = false;
+                                            }, 200)}
                                             onChange={(e) => onSearchChange(e.target.value)}
+                                            onClick={() => {
+                                                if (headerJustFocused.current) {
+                                                    headerJustFocused.current = false;
+                                                } else {
+                                                    setIsSearchFocused(prev => !prev);
+                                                }
+                                            }}
                                             className="w-full pl-9 pr-7 sm:pl-10 sm:pr-10 py-1.5 sm:py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-white placeholder:text-white/70 focus:outline-none focus:bg-white/30 transition-all font-medium text-sm"
                                         />
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/90 pointer-events-none" size={16} />

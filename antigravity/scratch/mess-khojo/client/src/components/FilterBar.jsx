@@ -6,6 +6,10 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
     const [isOpen, setIsOpen] = useState(false);
     const [showSuggestionsMobile, setShowSuggestionsMobile] = useState(false);
     const [showSuggestionsDesktop, setShowSuggestionsDesktop] = useState(false);
+    const mobileInputRef = React.useRef(null);
+    const desktopInputRef = React.useRef(null);
+    const mobileJustFocused = React.useRef(false);
+    const desktopJustFocused = React.useRef(false);
 
     // Memoize suggestions so we don't recalculate on every render
     const allSuggestions = useMemo(() => {
@@ -29,27 +33,17 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
             });
         });
 
-        const sponsoredMesses = messes.filter(m => m.isSponsored && m.name).map(m => ({
+        const sponsoredMesses = messes
+            .filter(m => m.isSponsored && m.name)
+            .sort((a, b) => (a.sponsorRank || 999) - (b.sponsorRank || 999))
+            .map(m => ({
             name: m.name,
             type: 'mess',
             icon: TrendingUp,
             label: 'Sponsored'
         }));
         
-        const otherMesses = [...messes].filter(m => !m.isSponsored && m.name).sort((a, b) => {
-            const aScore = (a.galleryUrls?.length || 0) + (a.isUserSourced ? 0 : 5);
-            const bScore = (b.galleryUrls?.length || 0) + (b.isUserSourced ? 0 : 5);
-            return bScore - aScore;
-        });
-
-        const popularMesses = otherMesses.slice(0, 5).map(m => ({
-            name: m.name,
-            type: 'mess',
-            icon: TrendingUp,
-            label: 'Recommended'
-        }));
-
-        return [...sponsoredMesses, ...validLandmarks, ...popularMesses];
+        return [...sponsoredMesses, ...validLandmarks];
     }, [messes]);
 
     const filters = currentFilters || {
@@ -73,6 +67,135 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
         } else {
             onFilterChange(newFiltersOrFn);
         }
+    };
+
+    // Enhanced Search State & Utilities
+    // Enhanced Search State & Utilities
+    const [recentSearches, setRecentSearches] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('messkhojo_recent_searches') || '[]');
+            return saved.slice(0, 2);
+        } catch {
+            return [];
+        }
+    });
+
+    const handleSelectSuggestion = (name) => {
+        setFilters({ ...filters, location: name });
+        setShowSuggestionsMobile(false);
+        setShowSuggestionsDesktop(false);
+        const newRecents = [name, ...recentSearches.filter(r => r !== name)].slice(0, 2);
+        setRecentSearches(newRecents);
+        localStorage.setItem('messkhojo_recent_searches', JSON.stringify(newRecents));
+    };
+
+    const isFuzzyMatch = (str, query) => {
+        if (!query) return true;
+        const s = str.toLowerCase();
+        const q = query.toLowerCase();
+        if (s.includes(q)) return true;
+        
+        let qIdx = 0;
+        for (let i = 0; i < s.length; i++) {
+            if (s[i] === q[qIdx]) qIdx++;
+            if (qIdx === q.length) return true;
+        }
+        return false;
+    };
+
+    const renderHighlightedText = (text, highlight) => {
+        if (!highlight || !highlight.trim()) return <span>{text}</span>;
+        
+        if (text.toLowerCase().includes(highlight.toLowerCase())) {
+            const regex = new RegExp(`(${highlight})`, 'gi');
+            const parts = text.split(regex);
+            return (
+                <span>
+                    {parts.map((part, i) => 
+                        regex.test(part) ? <strong key={i} className="text-brand-primary font-bold bg-purple-100 px-0.5 rounded">{part}</strong> : part
+                    )}
+                </span>
+            );
+        }
+        
+        return <span>{text}</span>;
+    };
+
+    const renderSuggestionsDropdown = (show) => {
+        if (!show) return null;
+        const searchTerm = filters.location;
+        const fuzzyMatched = searchTerm 
+            ? allSuggestions.filter(s => isFuzzyMatch(s.name, searchTerm))
+            : allSuggestions;
+
+        const activeRecents = recentSearches
+            .filter(r => !searchTerm || isFuzzyMatch(r, searchTerm))
+            .slice(0, 2)
+            .map(name => ({ name, type: 'recent', label: 'Recent Search', icon: Search }));
+
+        const sponsored = fuzzyMatched.filter(s => s.label === 'Sponsored');
+        const landmarks = fuzzyMatched.filter(s => s.type === 'landmark');
+
+        const totalResults = activeRecents.length + sponsored.length + landmarks.length;
+
+        if (searchTerm && totalResults === 0) {
+            return null;
+        }
+
+        if (totalResults === 0) return null;
+
+        const renderSuggestion = (item, idxPrefix) => (
+            <button
+                key={`${idxPrefix}-${item.name}`}
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectSuggestion(item.name);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 text-left transition-colors rounded-lg group"
+            >
+                <div className={`p-1.5 rounded-full transition-colors ${item.type === 'recent' ? 'bg-gray-50 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600' : 'bg-gray-100 group-hover:bg-purple-100 group-hover:text-purple-600'}`}>
+                    <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : (item.type === 'recent' ? '' : 'text-blue-500 group-hover:text-purple-600')} />
+                </div>
+                <div>
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">
+                        {renderHighlightedText(item.name, searchTerm)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>
+                </div>
+            </button>
+        );
+
+        return (
+            <div className="absolute z-50 w-full bg-white rounded-xl shadow-lg border border-gray-100 mt-2 overflow-hidden top-full left-0">
+                <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
+                    
+                    {sponsored.length > 0 && (
+                        <div className="p-2 border-b border-gray-50 bg-gradient-to-r from-amber-50/30 to-transparent">
+                            <div className="text-[10px] font-bold text-amber-600 uppercase px-3 py-1.5 tracking-wider flex items-center gap-1.5">
+                                <TrendingUp size={12} strokeWidth={3} /> Sponsored
+                            </div>
+                            {sponsored.map((item, idx) => renderSuggestion(item, `spons-${idx}`))}
+                        </div>
+                    )}
+
+                    {activeRecents.length > 0 && (
+                        <div className="p-2 border-b border-gray-50">
+                            <div className="text-[10px] font-bold text-gray-400 uppercase px-3 py-1.5 tracking-wider">Recent Searches</div>
+                            {activeRecents.map((item, idx) => renderSuggestion(item, `recent-${idx}`))}
+                        </div>
+                    )}
+
+                    {landmarks.length > 0 && (
+                        <div className="p-2 border-b border-gray-50">
+                            <div className="text-[10px] font-bold text-gray-400 uppercase px-3 py-1.5 tracking-wider">Popular Landmarks</div>
+                            {landmarks.map((item, idx) => renderSuggestion(item, `land-${idx}`))}
+                        </div>
+                    )}
+
+                </div>
+            </div>
+        );
     };
 
 
@@ -128,13 +251,27 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                     <div className="flex items-center gap-2 w-full">
                         <div className="relative flex-1">
                                 <input
+                                    ref={mobileInputRef}
                                     type="text"
                                     placeholder="Search by landmark or mess name..."
                                     className="w-full px-4 py-2.5 bg-white rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-300 outline-none transition-all shadow-sm placeholder:text-gray-400"
                                     value={filters.location}
                                     onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                                    onFocus={() => setShowSuggestionsMobile(true)}
-                                    onBlur={() => setTimeout(() => setShowSuggestionsMobile(false), 200)}
+                                    onFocus={() => {
+                                        setShowSuggestionsMobile(true);
+                                        mobileJustFocused.current = true;
+                                    }}
+                                    onBlur={() => setTimeout(() => {
+                                        setShowSuggestionsMobile(false);
+                                        mobileJustFocused.current = false;
+                                    }, 200)}
+                                    onClick={() => {
+                                        if (mobileJustFocused.current) {
+                                            mobileJustFocused.current = false;
+                                        } else {
+                                            setShowSuggestionsMobile(prev => !prev);
+                                        }
+                                    }}
                                 />
                             {filters.location && (
                                 <button
@@ -148,50 +285,7 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                                     <X size={14} />
                                 </button>
                             )}
-                            {(() => {
-                                const show = showSuggestionsMobile;
-                                if (!show) return null;
-                                const renderSuggestions = () => {
-                                    const filteredSuggestions = filters.location 
-                                        ? allSuggestions.filter(s => s.name.toLowerCase().includes(filters.location.toLowerCase()))
-                                        : allSuggestions;
-                                    if (filteredSuggestions.length === 0) return null;
-                                    return (
-                                        <div className={`absolute z-50 w-full bg-white rounded-xl shadow-lg border border-gray-100 mt-2 overflow-hidden top-full left-0`}>
-                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                                <div className="text-xs font-semibold text-gray-500 uppercase px-4 py-3 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-50">
-                                                    <span>Suggestions</span>
-                                                    <span className="text-[10px] font-normal lowercase bg-gray-100 px-2 py-0.5 rounded-full">by landmark & most viewed</span>
-                                                </div>
-                                                <div className="p-2">
-                                                    {filteredSuggestions.map((item, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        onMouseDown={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setFilters({ ...filters, location: item.name });
-                                                            setShowSuggestionsMobile(false);
-                                                            setShowSuggestionsDesktop(false);
-                                                        }}
-                                                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 text-left transition-colors rounded-lg group"
-                                                    >
-                                                        <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
-                                                            <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">{item.name}</span>
-                                                            <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                };
-                                return renderSuggestions();
-                            })()}
+                            {renderSuggestionsDropdown(showSuggestionsMobile)}
                         </div>
 
                         {/* GPS Button — between search and filter */}
@@ -236,13 +330,27 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                                 <div className="relative flex-1">
                                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <input
+                                        ref={desktopInputRef}
                                         type="text"
                                         placeholder="Search by landmark or mess name..."
                                         className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
                                         value={filters.location}
                                         onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                                        onFocus={() => setShowSuggestionsDesktop(true)}
-                                        onBlur={() => setTimeout(() => setShowSuggestionsDesktop(false), 200)}
+                                        onFocus={() => {
+                                            setShowSuggestionsDesktop(true);
+                                            desktopJustFocused.current = true;
+                                        }}
+                                        onBlur={() => setTimeout(() => {
+                                            setShowSuggestionsDesktop(false);
+                                            desktopJustFocused.current = false;
+                                        }, 200)}
+                                        onClick={() => {
+                                            if (desktopJustFocused.current) {
+                                                desktopJustFocused.current = false;
+                                            } else {
+                                                setShowSuggestionsDesktop(prev => !prev);
+                                            }
+                                        }}
                                     />
                                     {filters.location && (
                                         <button
@@ -256,47 +364,7 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                                             <X size={16} />
                                         </button>
                                     )}
-                                    {(() => {
-                                        const show = showSuggestionsDesktop;
-                                        if (!show) return null;
-                                        const filteredSuggestions = filters.location 
-                                            ? allSuggestions.filter(s => s.name.toLowerCase().includes(filters.location.toLowerCase()))
-                                            : allSuggestions;
-                                        if (filteredSuggestions.length === 0) return null;
-                                        return (
-                                            <div className={`absolute z-50 w-full bg-white rounded-xl shadow-lg border border-gray-100 mt-2 overflow-hidden top-full left-0`}>
-                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                                    <div className="text-xs font-semibold text-gray-500 uppercase px-4 py-3 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-50">
-                                                        <span>Suggestions</span>
-                                                        <span className="text-[10px] font-normal lowercase bg-gray-100 px-2 py-0.5 rounded-full">by landmark & most viewed</span>
-                                                    </div>
-                                                    <div className="p-2">
-                                                        {filteredSuggestions.map((item, idx) => (
-                                                        <button
-                                                            key={idx}
-                                                            onMouseDown={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                setFilters({ ...filters, location: item.name });
-                                                                setShowSuggestionsMobile(false);
-                                                                setShowSuggestionsDesktop(false);
-                                                            }}
-                                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 text-left transition-colors rounded-lg group"
-                                                        >
-                                                            <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
-                                                                <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">{item.name}</span>
-                                                                <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
+                                    {renderSuggestionsDropdown(showSuggestionsDesktop)}
                                 </div>
                                 {/* Desktop GPS Button */}
                                 {onGps && (

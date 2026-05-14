@@ -264,7 +264,7 @@ const MessDetails = () => {
         };
     }, [mess, messId]);
 
-    if (loading) return <div className="p-10 text-center">Loading...</div>;
+    if (loading) return <MessDetailsSkeleton />;
     if (!mess) return <div className="p-10 text-center text-red-500 font-bold">Mess not found</div>;
 
     // Handle hidden messes for regular users
@@ -946,6 +946,85 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
                         />
                     </div>
                 ))}
+            </div>
+        </div>
+    );
+};
+
+const MessDetailsSkeleton = () => {
+    return (
+        <div className="min-h-screen bg-brand-secondary pb-20 font-sans">
+            {/* Header Area — Full-width Shimmer Banner */}
+            <div className="relative h-56 sm:h-72 md:h-80 bg-brand-light-gray overflow-hidden">
+                <div className="absolute inset-0 skeleton-shimmer" />
+                
+                {/* FLOATING TOP BAR: Back + Share */}
+                <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
+                    <div className="w-16 h-8 rounded-full skeleton-shimmer opacity-80" />
+                    <div className="w-9 h-9 rounded-full skeleton-shimmer opacity-80" />
+                </div>
+
+                {/* BOTTOM OVERLAY: Name + Address + Amenity Pills */}
+                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 z-20">
+                    <div className="flex items-end justify-between gap-4">
+                        <div className="flex-1 space-y-3">
+                            <div className="h-8 w-2/3 sm:w-1/2 rounded-xl skeleton-shimmer" />
+                            <div className="h-4 w-1/3 sm:w-1/4 rounded-lg skeleton-shimmer" />
+                            <div className="flex gap-2">
+                                <div className="w-16 h-6 rounded-full skeleton-shimmer" />
+                                <div className="w-16 h-6 rounded-full skeleton-shimmer" />
+                                <div className="w-16 h-6 rounded-full skeleton-shimmer" />
+                            </div>
+                        </div>
+                        <div className="w-24 h-10 rounded-xl skeleton-shimmer shrink-0" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Rooms Grid Skeleton */}
+            <div className="max-w-7xl mx-auto px-4 py-12">
+                <div className="flex items-center mb-8">
+                    <div className="h-7 w-56 rounded-xl skeleton-shimmer" />
+                    <div className="ml-4 h-px flex-grow bg-brand-light-gray" />
+                </div>
+
+                {/* Shimmering Room Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map((index) => (
+                        <div key={index} className="bg-white rounded-3xl p-4 border border-brand-light-gray space-y-4">
+                            <div className="aspect-[16/10] w-full rounded-2xl skeleton-shimmer" />
+                            <div className="space-y-2">
+                                <div className="h-5 w-2/3 rounded-lg skeleton-shimmer" />
+                                <div className="h-4 w-1/2 rounded-lg skeleton-shimmer" />
+                            </div>
+                            <div className="flex justify-between items-center pt-2">
+                                <div className="h-6 w-20 rounded-md skeleton-shimmer" />
+                                <div className="h-9 w-24 rounded-xl skeleton-shimmer" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* About & Facilities Skeleton */}
+                <div className="mt-12">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 border border-brand-light-gray space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl skeleton-shimmer" />
+                            <div className="h-6 w-48 rounded-lg skeleton-shimmer" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <div className="h-4 w-full rounded-md skeleton-shimmer" />
+                                <div className="h-4 w-11/12 rounded-md skeleton-shimmer" />
+                                <div className="h-4 w-4/5 rounded-md skeleton-shimmer" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="h-12 rounded-xl skeleton-shimmer" />
+                                <div className="h-12 rounded-xl skeleton-shimmer" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
