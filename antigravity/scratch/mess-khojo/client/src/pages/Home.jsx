@@ -659,16 +659,6 @@ const Home = () => {
         } else {
             // Default Sort: Priority to visual content -> Alphabetical
             result.sort((a, b) => {
-                // 0. Priority: Sponsored
-                const isSponsA = !!a.isSponsored;
-                const isSponsB = !!b.isSponsored;
-                if (isSponsA && isSponsB) {
-                    const rankA = a.sponsorRank || 999;
-                    const rankB = b.sponsorRank || 999;
-                    if (rankA !== rankB) return rankA - rankB;
-                }
-                if (isSponsA !== isSponsB) return isSponsA ? -1 : 1;
-
                 // 1. Priority: Not User Sourced (verified properties first)
                 const isUserSourcedA = !!a.isUserSourced;
                 const isUserSourcedB = !!b.isUserSourced;

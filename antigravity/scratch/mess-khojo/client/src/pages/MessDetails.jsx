@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2 } from 'lucide-react';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
@@ -575,7 +575,7 @@ const MessDetails = () => {
                     )
                 }
 
-                {/* About & Facilities Section (Moved) */}
+                {/* About & Facilities Section */}
                 <div className="mt-12">
                     <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
                         <div className="flex items-center gap-3 mb-6">
@@ -586,44 +586,138 @@ const MessDetails = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Left Column: Description & Basic Info */}
-                            <div className="space-y-6">
+                            {/* Left Column: Description, Type, Managed By, Financials, Inclusions */}
+                            <div className="space-y-5">
                                 {mess.description && (
                                     <div className="prose prose-sm max-w-none text-gray-600 whitespace-pre-wrap">
                                         {mess.description}
                                     </div>
                                 )}
+
+                                {/* Property Type */}
                                 {mess.messType && (
                                     <div>
                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</h4>
-                                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${mess.messType === 'Boys' ? 'bg-blue-100 text-blue-700' : mess.messType === 'Girls' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
+                                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${
+                                            Array.isArray(mess.messType)
+                                                ? mess.messType.includes('Boys') && mess.messType.includes('Girls') ? 'bg-purple-100 text-purple-700'
+                                                    : mess.messType.includes('Girls') ? 'bg-pink-100 text-pink-700'
+                                                    : 'bg-blue-100 text-blue-700'
+                                                : mess.messType === 'Boys' ? 'bg-blue-100 text-blue-700'
+                                                    : mess.messType === 'Girls' ? 'bg-pink-100 text-pink-700'
+                                                    : 'bg-purple-100 text-purple-700'
+                                        }`}>
                                             <Briefcase size={16} />
-                                            {mess.messType} Mess
+                                            {Array.isArray(mess.messType) ? mess.messType.join(' & ') : mess.messType} Mess
                                         </span>
                                     </div>
                                 )}
 
-                                {mess.advanceDeposit && (
+                                {/* Managed By */}
+                                {mess.managedBy && (
                                     <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Financials</h4>
-                                        <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                            <div className="bg-green-100 text-green-700 p-2 rounded-lg">
-                                                <span className="font-bold text-lg">₹</span>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Managed By</h4>
+                                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${
+                                            mess.managedBy === 'Students' ? 'bg-emerald-100 text-emerald-700'
+                                                : mess.managedBy === 'Warden' ? 'bg-purple-100 text-purple-700'
+                                                : 'bg-blue-100 text-blue-700'
+                                        }`}>
+                                            {mess.managedBy === 'Students' ? '👥' : mess.managedBy === 'Warden' ? '🛡️' : '🏢'} {mess.managedBy} Managed
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Financials — new schema (advancePayment + maintenanceCharge) or old (advanceDeposit string) */}
+                                {(() => {
+                                    let advanceLabel = null;
+                                    if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                                        const adv = mess.advancePayment;
+                                        const maint = mess.maintenanceCharge;
+                                        const advStr = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
+                                        const maintStr = maint?.taken && maint?.amount
+                                            ? ` + ₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`
+                                            : '';
+                                        advanceLabel = advStr + maintStr;
+                                    } else if (mess.advanceDeposit) {
+                                        advanceLabel = mess.advanceDeposit;
+                                    }
+                                    return advanceLabel ? (
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Advance &amp; Deposit</h4>
+                                            <div className="flex items-start gap-3 bg-green-50 p-4 rounded-2xl border border-green-100">
+                                                <div className="bg-green-100 text-green-700 p-2 rounded-lg shrink-0">
+                                                    <span className="font-bold text-base">₹</span>
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-gray-800 text-sm">Security Deposit Required</p>
+                                                    <p className="text-sm text-green-700 font-semibold mt-0.5">{advanceLabel}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-gray-800">Advance / Deposit Information</p>
-                                                <p className="text-sm text-gray-600 mt-1">{mess.advanceDeposit}</p>
-                                            </div>
+                                        </div>
+                                    ) : null;
+                                })()}
+
+                                {/* Included in Rent */}
+                                {mess.includedInRent !== undefined && (
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Included in Rent</h4>
+                                        <div className="flex flex-col gap-2">
+                                            {[
+                                                { key: 'Food Charges', label: 'Food Charges', icon: '🍽️' },
+                                                { key: 'Electricity Bills', label: 'Electricity Bill', icon: '⚡' },
+                                                { key: 'Cleaning Charges', label: 'Cleaning', icon: '🧹' }
+                                            ].map(({ key, label, icon }) => {
+                                                const included = Array.isArray(mess.includedInRent) && mess.includedInRent.includes(key);
+                                                return (
+                                                    <div key={key} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold border ${
+                                                        included
+                                                            ? 'bg-green-50 text-green-700 border-green-200'
+                                                            : 'bg-red-50 text-red-600 border-red-100'
+                                                    }`}>
+                                                        <span>{icon}</span>
+                                                        <span className="flex-1">{label}</span>
+                                                        <span className="text-xs font-bold">{included ? '✓ Included' : '✗ Extra'}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Right Column: Facilities Grid */}
+                            {/* Right Column: Facilities */}
                             <div className="space-y-6">
+                                {/* New: facilities array from registration */}
+                                {mess.facilities && mess.facilities.length > 0 && (() => {
+                                    const facilityMap = {
+                                        'Wifi': { Icon: Wifi, bg: 'bg-blue-50 border-blue-100', ic: 'text-blue-600', label: 'WiFi' },
+                                        'AC': { Icon: Wind, bg: 'bg-cyan-50 border-cyan-100', ic: 'text-cyan-600', label: 'Air Conditioning' },
+                                        'Food Facility': { Icon: Utensils, bg: 'bg-orange-50 border-orange-100', ic: 'text-orange-500', label: 'Food Available' },
+                                        'InverterPower': { Icon: Zap, bg: 'bg-yellow-50 border-yellow-100', ic: 'text-yellow-600', label: 'Power Backup' },
+                                        'CCTV': { Icon: Camera, bg: 'bg-purple-50 border-purple-100', ic: 'text-purple-600', label: 'CCTV Security' },
+                                    };
+                                    return (
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Available Facilities</h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                {mess.facilities.map(f => {
+                                                    const cfg = facilityMap[f] || { Icon: null, bg: 'bg-gray-50 border-gray-100', ic: 'text-gray-500', label: f };
+                                                    return (
+                                                        <div key={f} className={`${cfg.bg} p-3 rounded-xl border flex items-center gap-2.5`}>
+                                                            {cfg.Icon && <cfg.Icon size={16} className={`${cfg.ic} shrink-0`} />}
+                                                            <span className="text-sm font-semibold text-gray-700">{cfg.label}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Legacy: old text-based fields for backward compatibility */}
                                 {(mess.foodFacility || mess.security || mess.extraAppliances) && (
                                     <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities & Features</h4>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities &amp; Features</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {mess.foodFacility && (
                                                 <div className="bg-orange-50 p-3 rounded-xl border border-orange-100/50 flex items-center gap-3">

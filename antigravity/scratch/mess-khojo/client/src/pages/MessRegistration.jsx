@@ -12,16 +12,20 @@ const MessRegistration = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [gpsLoading, setGpsLoading] = useState(false);
     const [formData, setFormData] = useState({
         messName: '',
         messType: [],
+        managedBy: '',
         roomTypes: [],
-        rentInfo: {},
+        roomVariants: {},
         includedInRent: [],
         advancePayment: { type: '', customAmount: '' },
         maintenanceCharge: { taken: false, amount: '', frequency: 'Per Year' },
-        vacantRooms: [],
         landmark: '',
+        gpsLatitude: null,
+        gpsLongitude: null,
+        gpsAccuracy: null,
         facilities: [],
         phoneNumber: '',
         consent: false
@@ -58,8 +62,81 @@ const MessRegistration = () => {
         });
     };
 
+    const handleRoomTypeToggle = (type) => {
+        setFormData(prev => {
+            const isSelected = prev.roomTypes.includes(type);
+            const newRoomTypes = isSelected
+                ? prev.roomTypes.filter(t => t !== type)
+                : [...prev.roomTypes, type];
+            const newRoomVariants = { ...prev.roomVariants };
+            if (isSelected) {
+                delete newRoomVariants[type];
+            } else {
+                newRoomVariants[type] = [{ label: '', price: '', isVacant: false }];
+            }
+            return { ...prev, roomTypes: newRoomTypes, roomVariants: newRoomVariants };
+        });
+    };
+
+    const updateVariant = (room, vIdx, field, value) => {
+        setFormData(prev => {
+            const variants = [...(prev.roomVariants[room] || [])];
+            variants[vIdx] = { ...variants[vIdx], [field]: value };
+            return { ...prev, roomVariants: { ...prev.roomVariants, [room]: variants } };
+        });
+    };
+
+    const addVariant = (room) => {
+        setFormData(prev => ({
+            ...prev,
+            roomVariants: {
+                ...prev.roomVariants,
+                [room]: [...(prev.roomVariants[room] || []), { label: '', price: '', isVacant: false }]
+            }
+        }));
+    };
+
+    const removeVariant = (room, vIdx) => {
+        setFormData(prev => {
+            const variants = [...(prev.roomVariants[room] || [])].filter((_, i) => i !== vIdx);
+            return { ...prev, roomVariants: { ...prev.roomVariants, [room]: variants } };
+        });
+    };
+
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleGetGPS = () => {
+        if (!navigator.geolocation) {
+            alert("GPS location is not supported by your browser.");
+            return;
+        }
+        setGpsLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setFormData(prev => ({
+                    ...prev,
+                    gpsLatitude: position.coords.latitude,
+                    gpsLongitude: position.coords.longitude,
+                    gpsAccuracy: position.coords.accuracy,
+                }));
+                setGpsLoading(false);
+            },
+            (error) => {
+                let errorMsg = "Unable to retrieve your location.";
+                if (error.code === error.PERMISSION_DENIED) {
+                    errorMsg = "Location access was denied. Please enable location permission for this website.";
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    errorMsg = "Location information is unavailable.";
+                } else if (error.code === error.TIMEOUT) {
+                    errorMsg = "The request to get user location timed out.";
+                }
+                alert(`${errorMsg} You can still manually specify the landmark and submit.`);
+                setGpsLoading(false);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
     };
 
     const handleSubmit = async () => {
@@ -151,6 +228,26 @@ const MessRegistration = () => {
                                 </button>
                             ))}
                         </div>
+                        <div className="pt-4 border-t border-gray-100 space-y-3">
+                            <h3 className="font-bold text-gray-700 text-center text-sm">Who manages the mess?</h3>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[{ v: 'Owner', e: '🏢', s: 'Manager' }, { v: 'Students', e: '👥', s: 'Self-managed' }, { v: 'Warden', e: '🛡️', s: 'Supervised' }].map(({ v, e, s }) => (
+                                    <button
+                                        key={v}
+                                        onClick={() => handleChange('managedBy', formData.managedBy === v ? '' : v)}
+                                        className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
+                                            formData.managedBy === v
+                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                                : 'border-gray-100 bg-white hover:border-blue-200 text-gray-600'
+                                        }`}
+                                    >
+                                        <span className="text-xl">{e}</span>
+                                        <span className="font-bold text-xs">{v}</span>
+                                        <span className="text-[10px] text-gray-400">{s}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 );
             case 3:
@@ -167,7 +264,7 @@ const MessRegistration = () => {
                             {['1 Seater', '2 Seater', '3 Seater', '4 Seater', '5 Seater', '6 Seater', '7 Seater'].map(type => (
                                 <button
                                     key={type}
-                                    onClick={() => handleCheckboxChange('roomTypes', type)}
+                                    onClick={() => handleRoomTypeToggle(type)}
                                     className={`p-4 rounded-xl border-2 transition-all text-sm font-bold ${formData.roomTypes.includes(type)
                                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                                         : 'border-gray-100 bg-white hover:border-emerald-200 text-gray-600'
@@ -181,45 +278,67 @@ const MessRegistration = () => {
                 );
             case 4:
                 return (
-                    <div className="space-y-6">
+                    <div className="space-y-5 max-h-[62vh] overflow-y-auto px-1 pb-2">
                         <div className="text-center space-y-2">
                             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Building2 size={32} className="text-blue-600" />
                             </div>
                             <h2 className="text-2xl font-bold text-gray-800">Rooms & Rent Details</h2>
-                            <p className="text-gray-500">How much is the monthly rent?</p>
+                            <p className="text-gray-500 text-sm">Add variants if same room type has different prices (e.g. AC vs Non-AC)</p>
                         </div>
                         <div className="space-y-4">
-                            {formData.roomTypes.map(room => (
-                                <div key={room} className="flex flex-col gap-2 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                    <label className="font-bold text-gray-700">{room} Rent (₹/month)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.rentInfo[room] || ''}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, rentInfo: { ...prev.rentInfo, [room]: e.target.value } }))}
-                                        placeholder={`e.g. ${room.includes('1') ? '5000' : '3000'}`}
-                                        className="w-full text-lg p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="pt-4 border-t border-gray-100">
-                            <h3 className="font-bold text-gray-800 mb-3">Which rooms are currently vacant? <span className="text-xs text-gray-400 font-normal">(Optional)</span></h3>
-                            <div className="flex flex-wrap gap-2">
-                                {formData.roomTypes.map(room => (
-                                    <button
-                                        key={room}
-                                        onClick={() => handleCheckboxChange('vacantRooms', room)}
-                                        className={`px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${formData.vacantRooms.includes(room)
-                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                            : 'border-gray-100 bg-white hover:border-blue-200 text-gray-600'
-                                            }`}
-                                    >
-                                        {room}
-                                    </button>
-                                ))}
-                            </div>
+                            {formData.roomTypes.map(room => {
+                                const variants = formData.roomVariants[room] || [];
+                                return (
+                                    <div key={room} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-gray-800">{room}</span>
+                                            <button
+                                                onClick={() => addVariant(room)}
+                                                className="text-xs font-bold text-blue-600 hover:text-blue-800 border border-blue-200 bg-blue-50 px-2.5 py-1 rounded-lg transition-all"
+                                            >
+                                                + Add Variant
+                                            </button>
+                                        </div>
+                                        {variants.map((variant, vIdx) => (
+                                            <div key={vIdx} className="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-2">
+                                                {variants.length > 1 && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-gray-400">Variant {vIdx + 1}</span>
+                                                        <button onClick={() => removeVariant(room, vIdx)} className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="text"
+                                                    value={variant.label}
+                                                    onChange={(e) => updateVariant(room, vIdx, 'label', e.target.value)}
+                                                    placeholder={variants.length > 1 ? 'Label, e.g. AC Room, Standard' : 'Label (optional, e.g. AC)'}
+                                                    className="w-full text-sm p-2.5 border-2 border-gray-100 rounded-xl focus:border-blue-500 outline-none transition-all"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="number"
+                                                        value={variant.price}
+                                                        onChange={(e) => updateVariant(room, vIdx, 'price', e.target.value)}
+                                                        placeholder="Rent ₹/month"
+                                                        className="flex-1 text-base p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 outline-none transition-all"
+                                                    />
+                                                    <button
+                                                        onClick={() => updateVariant(room, vIdx, 'isVacant', !variant.isVacant)}
+                                                        className={`px-3 py-2 rounded-xl border-2 text-xs font-bold whitespace-nowrap transition-all ${
+                                                            variant.isVacant
+                                                                ? 'border-green-500 bg-green-50 text-green-700'
+                                                                : 'border-gray-100 bg-white text-gray-500 hover:border-gray-300'
+                                                        }`}
+                                                    >
+                                                        {variant.isVacant ? '✓ Vacant' : 'Vacant?'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 );
@@ -323,22 +442,62 @@ const MessRegistration = () => {
                 );
             case 6:
                 return (
-                    <div className="space-y-6">
+                    <div className="space-y-6 max-h-[60vh] overflow-y-auto px-1 pb-4">
                         <div className="text-center space-y-2">
                             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <MapPin size={32} className="text-amber-600" />
                             </div>
                             <h2 className="text-2xl font-bold text-gray-800">Where is it located?</h2>
-                            <p className="text-gray-500">Provide a nearby landmark</p>
+                            <p className="text-gray-500">Provide a nearby landmark and capture GPS location</p>
                         </div>
-                        <input
-                            type="text"
-                            value={formData.landmark}
-                            onChange={(e) => handleChange('landmark', e.target.value)}
-                            placeholder="e.g., Near City College Main Gate"
-                            className="w-full text-lg p-4 border-2 border-amber-100 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all text-center placeholder:text-gray-300"
-                            autoFocus
-                        />
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nearby Landmark</label>
+                                <input
+                                    type="text"
+                                    value={formData.landmark}
+                                    onChange={(e) => handleChange('landmark', e.target.value)}
+                                    placeholder="e.g., Near City College Main Gate"
+                                    className="w-full text-lg p-4 border-2 border-amber-100 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all text-center placeholder:text-gray-300"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-2xl space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-amber-100 p-2 rounded-xl text-amber-700 mt-0.5">
+                                        <MapPin size={18} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-amber-900 text-sm">Capture GPS Location (Highly Recommended)</h4>
+                                        <p className="text-xs text-amber-700/80 mt-0.5">
+                                            This captures the exact coordinates of your mess, allowing students to check the distance. Please stand at the mess location when tapping this.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleGetGPS}
+                                    disabled={gpsLoading}
+                                    className="w-full py-3 bg-amber-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600 transition-all disabled:opacity-50 shadow-md shadow-amber-500/10"
+                                >
+                                    {gpsLoading ? 'Acquiring GPS Signal...' : '📍 Get My Current Location'}
+                                </button>
+
+                                {formData.gpsLatitude && (
+                                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                                        <p className="text-xs font-bold text-emerald-800 flex items-center justify-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                            ✓ Coordinates Captured Successfully!
+                                        </p>
+                                        <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
+                                            Latitude: {formData.gpsLatitude.toFixed(6)} | Longitude: {formData.gpsLongitude.toFixed(6)}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 );
             case 7:
@@ -352,7 +511,7 @@ const MessRegistration = () => {
                             <p className="text-gray-500">Select all amenities properly</p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            {['Wifi', 'AC', 'Food Facility', 'InverterPower'].map(facility => (
+                            {['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].map(facility => (
                                 <button
                                     key={facility}
                                     onClick={() => handleCheckboxChange('facilities', facility)}
@@ -364,7 +523,7 @@ const MessRegistration = () => {
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${formData.facilities.includes(facility) ? 'bg-indigo-500 text-white' : 'bg-gray-100'}`}>
                                         {formData.facilities.includes(facility) && <Check size={12} />}
                                     </div>
-                                    <span className="font-bold">{facility === 'InverterPower' ? 'Inverter' : facility}</span>
+                                    <span className="font-bold">{facility === 'InverterPower' ? 'Inverter' : facility === 'Food Facility' ? 'Food' : facility}</span>
                                 </button>
                             ))}
                         </div>
@@ -436,7 +595,10 @@ const MessRegistration = () => {
             case 2: return formData.messType.length > 0;
             case 3: return formData.roomTypes.length > 0;
             case 4:
-                return formData.roomTypes.length > 0 && formData.roomTypes.every(room => formData.rentInfo[room] && formData.rentInfo[room].trim().length > 0);
+                return formData.roomTypes.length > 0 && formData.roomTypes.every(room => {
+                    const variants = formData.roomVariants[room] || [];
+                    return variants.length > 0 && variants.every(v => v.price && String(v.price).trim().length > 0);
+                });
             case 5:
                 if (!formData.advancePayment.type) return false;
                 if (formData.advancePayment.type === 'Custom Amount' && (!formData.advancePayment.customAmount || formData.advancePayment.customAmount.trim().length === 0)) return false;

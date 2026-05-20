@@ -3,7 +3,7 @@ import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc, getDocs, GeoPoint } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -65,6 +65,15 @@ const OperationalDashboard = () => {
     const [updatePasswordStatus, setUpdatePasswordStatus] = useState({ loading: false, msg: '', type: '' });
     
     const [migrationStatus, setMigrationStatus] = useState({ loading: false, msg: '', type: '' });
+
+    // Approval Modal State
+    const [approveModal, setApproveModal] = useState({
+        isOpen: false,
+        reg: null,
+        email: '',
+        password: '',
+        loading: false
+    });
 
     const navigate = useNavigate();
 
@@ -253,7 +262,7 @@ const OperationalDashboard = () => {
         const q = query(collection(db, "messes"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => a.name.localeCompare(b.name));
+            data.sort((a, b) => (a.name || a.messName || '').localeCompare(b.name || b.messName || ''));
             setMesses(data);
         });
         return () => unsubscribe();
@@ -628,6 +637,187 @@ const OperationalDashboard = () => {
         } catch (error) {
             console.error("Migration failed:", error);
             setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
+    const generatePartnerId = () => {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let rand = '';
+        for (let i = 0; i < 4; i++) {
+            rand += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return `MK-${yy}${mm}-${rand}`;
+    };
+
+    const handleApproveRegistration = (reg) => {
+        setApproveModal({
+            isOpen: true,
+            reg: reg,
+            email: (reg.phoneNumber || "owner") + "@messkhojo.com",
+            password: "MK" + Math.floor(100000 + Math.random() * 900000),
+            loading: false
+        });
+    };
+
+    const confirmApproveRegistration = async (e) => {
+        e.preventDefault();
+        const { reg, email, password } = approveModal;
+        
+        if (!email.trim() || password.length < 6) {
+            alert("Valid email and password (min 6 chars) are required.");
+            return;
+        }
+
+        setApproveModal(prev => ({ ...prev, loading: true }));
+
+        try {
+            const secondaryAuth = getSecondaryAuth();
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            const newUser = userCredential.user;
+            await signOut(secondaryAuth);
+
+            const partnerId = generatePartnerId();
+
+            await setDoc(doc(db, "users", newUser.uid), {
+                uid: newUser.uid,
+                email: email,
+                role: 'admin',
+                partnerId: partnerId,
+                createdAt: serverTimestamp()
+            });
+
+            const roomTypes = reg.roomTypes || [];
+            const rentInfo = reg.rentInfo || {};
+            const facilities = reg.facilities || [];
+            const includedInRent = reg.includedInRent || [];
+
+            let locationGeopoint = null;
+            if (reg.gpsLatitude !== undefined && reg.gpsLatitude !== null &&
+                reg.gpsLongitude !== undefined && reg.gpsLongitude !== null) {
+                locationGeopoint = new GeoPoint(Number(reg.gpsLatitude), Number(reg.gpsLongitude));
+            }
+
+            // Build amenities object from new facilities array (backward compat with old amenities field)
+            const amenitiesObj = {
+                food: facilities.includes('Food Facility') || false,
+                wifi: facilities.includes('Wifi') || false,
+                inverter: facilities.includes('InverterPower') || false,
+            };
+
+            // 'name' is the correct field used by AdminDashboard and Home page
+            const messDocData = {
+                adminId: newUser.uid,
+                partnerId: partnerId,
+                name: reg.messName,
+                address: reg.landmark || '',
+                contact: reg.phoneNumber || '',
+                email: email,
+                messType: reg.messType || [],
+                gender: reg.gender || 'Any',
+                managedBy: reg.managedBy || '',
+                facilities: facilities,
+                amenities: amenitiesObj,
+                includedInRent: includedInRent,
+                advancePayment: reg.advancePayment || { type: 'None' },
+                maintenanceCharge: reg.maintenanceCharge || { taken: false },
+                location: locationGeopoint,
+                latitude: reg.gpsLatitude ? Number(reg.gpsLatitude) : null,
+                longitude: reg.gpsLongitude ? Number(reg.gpsLongitude) : null,
+                gpsAccuracy: reg.gpsAccuracy || null,
+                landmark: reg.landmark || '',
+                isVerified: true,
+                isUserSourced: false,
+                createdAt: serverTimestamp()
+            };
+
+            const messDocRef = await addDoc(collection(db, "messes"), messDocData);
+
+            // Create room docs — supports new roomVariants schema and falls back to old rentInfo+vacantRooms
+            const getOccupancyNum = (roomType) => {
+                const s = roomType.toLowerCase();
+                if (s.includes('1') || s.includes('single')) return 1;
+                if (s.includes('2') || s.includes('double')) return 2;
+                if (s.includes('3') || s.includes('triple')) return 3;
+                if (s.includes('4')) return 4;
+                if (s.includes('5')) return 5;
+                if (s.includes('6')) return 6;
+                if (s.includes('7')) return 7;
+                return 2;
+            };
+
+            const roomCreatePromises = roomTypes.flatMap(roomType => {
+                const occupancyNum = getOccupancyNum(roomType);
+                // New schema: roomVariants
+                if (reg.roomVariants && reg.roomVariants[roomType] && reg.roomVariants[roomType].length > 0) {
+                    return reg.roomVariants[roomType].map(variant => {
+                        const label = variant.label ? variant.label.trim() : '';
+                        const category = label ? `${roomType} (${label})` : roomType;
+                        return addDoc(collection(db, "rooms"), {
+                            messId: messDocRef.id,
+                            messName: reg.messName,
+                            occupancy: String(occupancyNum),
+                            category,
+                            price: Number(variant.price) || 0,
+                            totalInventory: 1,
+                            availableCount: variant.isVacant ? 1 : 0,
+                            amenities: { ac: label.toLowerCase().includes('ac'), attachedBathroom: false },
+                            imageUrls: [],
+                            imageUrl: '',
+                            createdAt: serverTimestamp()
+                        });
+                    });
+                }
+                // Old schema fallback: rentInfo + vacantRooms
+                const isVacant = reg.vacantRooms?.includes(roomType) || false;
+                return [addDoc(collection(db, "rooms"), {
+                    messId: messDocRef.id,
+                    messName: reg.messName,
+                    occupancy: String(occupancyNum),
+                    category: roomType,
+                    price: Number(rentInfo[roomType]) || 0,
+                    totalInventory: 1,
+                    availableCount: isVacant ? 1 : 0,
+                    amenities: { ac: false, attachedBathroom: false },
+                    imageUrls: [],
+                    imageUrl: '',
+                    createdAt: serverTimestamp()
+                })];
+            });
+            await Promise.all(roomCreatePromises);
+
+            await updateDoc(doc(db, "mess_registrations", reg.id), {
+                status: 'approved',
+                approvedAt: serverTimestamp(),
+                partnerId: partnerId,
+                messId: messDocRef.id,
+                ownerUid: newUser.uid,
+                ownerEmail: email
+            });
+
+            try {
+                const message = `🎉 <b>MESS REGISTRATION APPROVED!</b>\n\n` +
+                    `🏢 <b>Mess:</b> ${reg.messName}\n` +
+                    `👤 <b>Partner ID:</b> <code>${partnerId}</code>\n` +
+                    `📧 <b>Owner Email:</b> ${email}\n` +
+                    `🔑 <b>Password:</b> <code>${password}</code>\n` +
+                    `📍 <b>GPS:</b> ${locationGeopoint ? `${reg.gpsLatitude}, ${reg.gpsLongitude}` : 'Not provided'}\n` +
+                    `🆔 <b>Mess ID:</b> <code>${messDocRef.id}</code>\n\n` +
+                    `<i>Mess listing and owner dashboard are now fully active!</i>`;
+                await sendTelegramNotification(message);
+            } catch (telegramErr) {
+                console.error("Telegram notification failed:", telegramErr);
+            }
+
+            setApproveModal({ isOpen: false, reg: null, email: '', password: '', loading: false });
+            alert(`Successfully approved and registered!\nPartner ID: ${partnerId}\nEmail: ${email}\nPassword: ${password}`);
+
+        } catch (error) {
+            console.error("Approve & Register failed:", error);
+            setApproveModal(prev => ({ ...prev, loading: false }));
+            alert("Approve & Register failed: " + error.message);
         }
     };
 
@@ -1266,10 +1456,35 @@ const OperationalDashboard = () => {
                                             </div>
 
                                             <div>
-                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Landmark</p>
-                                                <div className="flex items-start gap-1 text-slate-300 text-sm">
-                                                    <MapPin size={14} className="mt-0.5 shrink-0 text-slate-500" />
-                                                    {reg.landmark}
+                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Location Details</p>
+                                                <div className="space-y-2">
+                                                    <div className="flex items-start gap-2 text-slate-300 text-sm bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/30">
+                                                        <MapPin size={16} className="mt-0.5 shrink-0 text-amber-500" />
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-slate-400 uppercase">Landmark / Address</p>
+                                                            <p className="text-slate-200 mt-0.5">{reg.landmark || "Not provided"}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-start gap-2 text-slate-300 text-sm bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/30">
+                                                        <Monitor size={16} className="mt-0.5 shrink-0 text-blue-500" />
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-slate-400 uppercase">GPS Coordinates</p>
+                                                            {reg.gpsLatitude !== undefined && reg.gpsLatitude !== null && reg.gpsLongitude !== undefined && reg.gpsLongitude !== null ? (
+                                                                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                                                    <span className="font-mono text-slate-200 bg-slate-950 px-2 py-0.5 rounded text-xs">
+                                                                        {Number(reg.gpsLatitude).toFixed(6)}, {Number(reg.gpsLongitude).toFixed(6)}
+                                                                    </span>
+                                                                    {reg.gpsAccuracy !== undefined && reg.gpsAccuracy !== null && (
+                                                                        <span className="text-[10px] text-slate-500">
+                                                                            (Accuracy: ±{Number(reg.gpsAccuracy).toFixed(1)}m)
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-slate-500 italic mt-0.5">No GPS coordinates captured</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -1328,6 +1543,27 @@ const OperationalDashboard = () => {
                                                     ))}
                                                 </div>
                                             </div>
+
+                                            {reg.status === 'pending' ? (
+                                                <div className="mt-4 pt-4 border-t border-slate-700/50 flex gap-3">
+                                                    <button
+                                                        onClick={() => handleApproveRegistration(reg)}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all text-sm"
+                                                    >
+                                                        <CheckCircle size={16} /> Approve & Register (1-Click)
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-2 text-xs">
+                                                    <div className="flex items-center gap-2 text-green-400 bg-green-500/10 px-3 py-2.5 rounded-lg border border-green-500/20">
+                                                        <CheckCircle size={16} className="shrink-0" />
+                                                        <div>
+                                                            <p className="font-bold">Approved & Mess Registered</p>
+                                                            {reg.partnerId && <p className="text-[10px] text-slate-400 mt-0.5">Partner ID: <code className="text-green-300 bg-slate-950 px-1.5 py-0.5 rounded font-mono">{reg.partnerId}</code></p>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -1598,10 +1834,10 @@ const OperationalDashboard = () => {
 
                             <div className="grid grid-cols-1 gap-4">
                                 {messes.filter(m =>
-                                    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    m.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    m.id.toLowerCase().includes(searchQuery.toLowerCase())
-                                ).map(mess => (
+                                    (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    (m.address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    (m.id || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                ).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(mess => (
                                     <div key={mess.id} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6 group hover:border-indigo-500/50 transition-all shadow-lg hover:shadow-indigo-500/5">
                                         <div className="flex items-center gap-5 w-full md:w-auto">
                                             <div className="relative">
@@ -1620,7 +1856,7 @@ const OperationalDashboard = () => {
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                                    {mess.name}
+                                                    {mess.name || mess.messName || '(No Name)'}
                                                     {mess.isUserSourced && (
                                                         <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase font-black">
                                                             Sourced
@@ -1628,7 +1864,7 @@ const OperationalDashboard = () => {
                                                     )}
                                                 </h3>
                                                 <p className="text-slate-400 text-sm line-clamp-1 flex items-center gap-1.5">
-                                                    <MapPin size={12} className="opacity-50" /> {mess.address}
+                                                    <MapPin size={12} className="opacity-50" /> {mess.address || mess.landmark || '—'}
                                                 </p>
                                                 <p className="text-slate-500 text-[11px] mt-1 font-mono">{mess.id}</p>
                                             </div>
@@ -2241,6 +2477,58 @@ const OperationalDashboard = () => {
                 </div>
             )}
 
+            {approveModal.isOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-md border border-slate-700 shadow-2xl overflow-y-auto max-h-[90vh]">
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <CheckCircle className="text-emerald-500" /> Approve & Register
+                        </h3>
+                        <p className="text-slate-400 text-sm mb-6">Set up owner account for <span className="text-emerald-400 font-bold">{approveModal.reg?.messName}</span>.</p>
+                        
+                        <form onSubmit={confirmApproveRegistration} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Owner Email</label>
+                                <input
+                                    type="email"
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                                    value={approveModal.email}
+                                    onChange={e => setApproveModal(prev => ({ ...prev, email: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Temporary Password</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                    value={approveModal.password}
+                                    onChange={e => setApproveModal(prev => ({ ...prev, password: e.target.value }))}
+                                    required
+                                    minLength={6}
+                                />
+                                <p className="text-xs text-slate-500 mt-2">Pass this securely to the mess owner.</p>
+                            </div>
+
+                            <div className="pt-6 flex flex-col md:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setApproveModal({ ...approveModal, isOpen: false })}
+                                    className="order-2 md:order-1 px-6 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold py-3 rounded-2xl transition-all border border-slate-600 w-full md:w-auto"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={approveModal.loading}
+                                    className="order-1 md:order-2 flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 text-white font-bold py-3 rounded-2xl transition-all shadow-lg shadow-emerald-950/20 active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    {approveModal.loading ? 'Registering...' : 'Approve & Register'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
         </div >
     );

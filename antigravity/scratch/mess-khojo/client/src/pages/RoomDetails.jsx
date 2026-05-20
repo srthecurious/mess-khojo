@@ -549,7 +549,18 @@ const RoomDetails = () => {
                         <div>
                             <h4 className="font-bold text-gray-900 mb-2">Mess Rules</h4>
                             <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                                <li>Deposit: {mess.advanceDeposit || 'Contact Owner'}</li>
+                                <li>Deposit: {(() => {
+                                    if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                                        const adv = mess.advancePayment;
+                                        const maint = mess.maintenanceCharge;
+                                        const advStr = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
+                                        const maintStr = maint?.taken && maint?.amount
+                                            ? ` + ₹${maint.amount} maintenance`
+                                            : '';
+                                        return advStr + maintStr;
+                                    }
+                                    return mess.advanceDeposit || 'Contact Owner';
+                                })()}</li>
                                 <li>Type: {mess.messType}</li>
                             </ul>
                         </div>

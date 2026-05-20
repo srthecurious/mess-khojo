@@ -128,6 +128,14 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
                                 fetchPriority={i === 0 ? 'high' : 'auto'}
                                 onLoad={() => setImagesLoaded(prev => ({ ...prev, [ad.id]: true }))}
                             />
+                            
+                            {/* Sponsored tag overlay */}
+                            <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded border border-white/20 z-10 pointer-events-none shadow-sm">
+                                <p className="text-[10px] sm:text-xs font-bold text-white/90 uppercase tracking-wider flex items-center gap-1.5">
+                                    Sponsored
+                                </p>
+                            </div>
+
                             {/* Optional title overlay */}
                             {ad.title && (
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 pb-14">

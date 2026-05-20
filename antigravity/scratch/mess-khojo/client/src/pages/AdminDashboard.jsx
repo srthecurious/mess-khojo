@@ -46,11 +46,16 @@ const AdminDashboard = () => {
         address: '',
         contact: '',
         locationUrl: '',
-        messType: 'Boys', // Default
+        messType: 'Boys',
+        managedBy: 'Owner',
+        facilities: [],
+        includedInRent: [],
         extraAppliances: '',
         foodFacility: '',
         security: '',
         advanceDeposit: '',
+        advancePayment: { type: 'None', customAmount: '' },
+        maintenanceCharge: { taken: false, amount: '', frequency: 'Per Year' },
         isUserSourced: false,
         lastUpdatedDate: '',
         amenities: {
@@ -313,35 +318,40 @@ const AdminDashboard = () => {
                 return;
             }
 
+            // Derive amenities from facilities for backward compat
+            const derivedAmenities = {
+                food: messForm.facilities.includes('Food Facility'),
+                wifi: messForm.facilities.includes('Wifi'),
+                inverter: messForm.facilities.includes('InverterPower'),
+            };
+
+            const saveData = {
+                ...messForm,
+                amenities: derivedAmenities,
+                latitude: messForm.latitude ? Number(messForm.latitude) : null,
+                longitude: messForm.longitude ? Number(messForm.longitude) : null,
+                posterUrl,
+                galleryUrls: downloadURLs,
+                isUserSourced: messForm.isUserSourced || false,
+                lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null,
+                isVerified: true,
+            };
+
             if (isEditingMess && messProfile) {
                 // Update existing profile
                 const messRef = doc(db, "messes", messProfile.id);
-                await updateDoc(messRef, {
-                    ...messForm,
-                    latitude: messForm.latitude ? Number(messForm.latitude) : null,
-                    longitude: messForm.longitude ? Number(messForm.longitude) : null,
-                    posterUrl,
-                    galleryUrls: downloadURLs,
-                    isUserSourced: messForm.isUserSourced || false,
-                    lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null
-                });
-                setMessProfile({ ...messProfile, ...messForm, posterUrl, galleryUrls: downloadURLs });
+                await updateDoc(messRef, saveData);
+                setMessProfile({ ...messProfile, ...saveData });
                 setIsEditingMess(false);
                 alert("Mess Profile updated successfully!");
             } else {
                 // Create new profile
                 const docRef = await addDoc(collection(db, "messes"), {
-                    ...messForm,
-                    latitude: messForm.latitude ? Number(messForm.latitude) : null,
-                    longitude: messForm.longitude ? Number(messForm.longitude) : null,
-                    posterUrl,
-                    galleryUrls: downloadURLs,
-                    isUserSourced: messForm.isUserSourced || false,
-                    lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null,
+                    ...saveData,
                     adminId: user.uid,
                     createdAt: new Date()
                 });
-                setMessProfile({ id: docRef.id, ...messForm, posterUrl, galleryUrls: downloadURLs, adminId: user.uid });
+                setMessProfile({ id: docRef.id, ...saveData, adminId: user.uid });
                 alert("Mess Profile created successfully!");
             }
         } catch (error) {
@@ -363,10 +373,15 @@ const AdminDashboard = () => {
             latitude: messProfile.latitude || '',
             longitude: messProfile.longitude || '',
             messType: messProfile.messType || 'Boys',
+            managedBy: messProfile.managedBy || 'Owner',
+            facilities: messProfile.facilities || [],
+            includedInRent: messProfile.includedInRent || [],
             extraAppliances: messProfile.extraAppliances || '',
             foodFacility: messProfile.foodFacility || '',
             security: messProfile.security || '',
             advanceDeposit: messProfile.advanceDeposit || '',
+            advancePayment: messProfile.advancePayment || { type: 'None', customAmount: '' },
+            maintenanceCharge: messProfile.maintenanceCharge || { taken: false, amount: '', frequency: 'Per Year' },
             isUserSourced: messProfile.isUserSourced || false,
             lastUpdatedDate: messProfile.lastUpdatedDate || '',
             amenities: messProfile.amenities || {
@@ -383,7 +398,10 @@ const AdminDashboard = () => {
         setIsEditingMess(false);
         setMessForm({
             name: '', address: '', contact: '', locationUrl: '', messType: 'Boys',
+            managedBy: 'Owner', facilities: [], includedInRent: [],
             extraAppliances: '', foodFacility: '', security: '', advanceDeposit: '',
+            advancePayment: { type: 'None', customAmount: '' },
+            maintenanceCharge: { taken: false, amount: '', frequency: 'Per Year' },
             isUserSourced: false, lastUpdatedDate: '',
             amenities: { food: false, wifi: false, inverter: false },
             description: ''
@@ -734,17 +752,124 @@ const AdminDashboard = () => {
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Advance Deposit Policy</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. 1 Month Rent"
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.advanceDeposit}
-                                        onChange={(e) => setMessForm({ ...messForm, advanceDeposit: e.target.value })}
-                                    />
+                            {/* Managed By */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Managed By</label>
+                                <select
+                                    className="w-full p-2 border rounded"
+                                    value={messForm.managedBy}
+                                    onChange={(e) => setMessForm({ ...messForm, managedBy: e.target.value })}
+                                >
+                                    <option value="Owner">Owner</option>
+                                    <option value="Students">Students</option>
+                                    <option value="Warden">Warden</option>
+                                </select>
+                            </div>
+
+                            {/* Facilities */}
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Facilities Available</label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    {['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].map(f => (
+                                        <label key={f} className="flex items-center gap-2 cursor-pointer text-sm">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 accent-brand-primary"
+                                                checked={messForm.facilities.includes(f)}
+                                                onChange={(e) => {
+                                                    const updated = e.target.checked
+                                                        ? [...messForm.facilities, f]
+                                                        : messForm.facilities.filter(x => x !== f);
+                                                    setMessForm({ ...messForm, facilities: updated });
+                                                }}
+                                            />
+                                            {f === 'InverterPower' ? 'Inverter/Backup' : f}
+                                        </label>
+                                    ))}
                                 </div>
+                            </div>
+
+                            {/* Included in Rent */}
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Included in Rent</label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    {['electricity', 'food', 'water'].map(item => (
+                                        <label key={item} className="flex items-center gap-2 cursor-pointer text-sm capitalize">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 accent-brand-primary"
+                                                checked={messForm.includedInRent.includes(item)}
+                                                onChange={(e) => {
+                                                    const updated = e.target.checked
+                                                        ? [...messForm.includedInRent, item]
+                                                        : messForm.includedInRent.filter(x => x !== item);
+                                                    setMessForm({ ...messForm, includedInRent: updated });
+                                                }}
+                                            />
+                                            {item} bill included
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Advance Payment */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Advance / Security Deposit</label>
+                                <select
+                                    className="w-full p-2 border rounded mb-2"
+                                    value={messForm.advancePayment.type}
+                                    onChange={(e) => setMessForm({ ...messForm, advancePayment: { ...messForm.advancePayment, type: e.target.value } })}
+                                >
+                                    <option value="None">None</option>
+                                    <option value="1 Month Rent">1 Month Rent</option>
+                                    <option value="2 Month Rent">2 Month Rent</option>
+                                    <option value="Custom Amount">Custom Amount</option>
+                                </select>
+                                {messForm.advancePayment.type === 'Custom Amount' && (
+                                    <input
+                                        type="number"
+                                        placeholder="Enter amount (₹)"
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.advancePayment.customAmount}
+                                        onChange={(e) => setMessForm({ ...messForm, advancePayment: { ...messForm.advancePayment, customAmount: e.target.value } })}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Maintenance Charge */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-medium mb-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 accent-brand-primary"
+                                        checked={messForm.maintenanceCharge.taken}
+                                        onChange={(e) => setMessForm({ ...messForm, maintenanceCharge: { ...messForm.maintenanceCharge, taken: e.target.checked } })}
+                                    />
+                                    Maintenance Charge Applicable?
+                                </label>
+                                {messForm.maintenanceCharge.taken && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount (₹)"
+                                            className="p-2 border rounded"
+                                            value={messForm.maintenanceCharge.amount}
+                                            onChange={(e) => setMessForm({ ...messForm, maintenanceCharge: { ...messForm.maintenanceCharge, amount: e.target.value } })}
+                                        />
+                                        <select
+                                            className="p-2 border rounded"
+                                            value={messForm.maintenanceCharge.frequency}
+                                            onChange={(e) => setMessForm({ ...messForm, maintenanceCharge: { ...messForm.maintenanceCharge, frequency: e.target.value } })}
+                                        >
+                                            <option value="Per Month">Per Month</option>
+                                            <option value="Per Year">Per Year</option>
+                                            <option value="Per Semester">Per Semester</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Extra Electric Appliances</label>
                                     <input
