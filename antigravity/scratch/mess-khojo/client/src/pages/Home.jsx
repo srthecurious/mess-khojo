@@ -5,17 +5,22 @@ import { db } from '../firebase';
 import MessCard from '../components/MessCard';
 import SkeletonCard from '../components/SkeletonCard';
 import FilterBar from '../components/FilterBar';
-import Header from '../components/Header'; // Import new Header
+import Header from '../components/Header';
 import FeedbackForm from '../components/FeedbackForm';
 import MessExplorer from '../components/MessExplorer';
 import MapLocationModal from '../components/MapLocationModal';
 import HeroCarousel from '../components/HeroCarousel';
-import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown } from 'lucide-react';
+import DistrictSwitcher from '../components/DistrictSwitcher';
+import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { trackLocationUsage, trackSearch, trackViewMore } from '../analytics';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
 // eslint-disable-next-line no-unused-vars
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useDistrict } from '../context/DistrictContext';
+import { useToast } from '../context/ToastContext';
+import { usePageSEO } from '../hooks/usePageSEO';
+import useMesses from '../hooks/useMesses';
 
 // Helper functions moved outside component
 const deg2rad = (deg) => {
@@ -125,6 +130,27 @@ const Home = () => {
     const navigate = useNavigate();
     const { isMessWishlisted, toggleMessWishlist } = useWishlist();
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const { selectedDistrict, districtConfig } = useDistrict();
+    const { error: toastError } = useToast();
+    const [showBackToTop, setShowBackToTop] = useState(false);
+
+    // Back-to-top scroll listener
+    useEffect(() => {
+        const onScroll = () => setShowBackToTop(window.scrollY > 400);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    // District-aware SEO
+    usePageSEO({
+        title: districtConfig ? `Find Messes in ${districtConfig.name} | MessKhojo` : 'MessKhojo — Find Messes & Hostels',
+        description: districtConfig
+            ? `Browse verified messes, PGs and hostels in ${districtConfig.name}. Filter by price, amenities, availability and location. No broker, direct contact.`
+            : 'Find the best messes, PGs and hostels near you. Filter by price, amenities, and availability.',
+        keywords: districtConfig
+            ? `mess in ${districtConfig.name}, hostel ${districtConfig.name}, PG ${districtConfig.name}, student accommodation ${districtConfig.name}, mess khojo`
+            : 'mess, hostel, PG, student accommodation, mess khojo',
+    });
 
     const handleMessWishlistToggle = async (messId) => {
         if (!currentUser) {
@@ -133,9 +159,7 @@ const Home = () => {
         }
         await toggleMessWishlist(messId);
     };
-    const [messes, setMesses] = useState([]);
-    const [rooms, setRooms] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { messes, rooms, loading } = useMesses(selectedDistrict);
     const [userLocation, setUserLocation] = useState(() => {
         try {
             const stored = sessionStorage.getItem('messkhojo_userLocation');
@@ -344,12 +368,13 @@ const Home = () => {
                 let { latitude, longitude } = position.coords;
 
 
-                // AUTO-CORRECT: If GPS places user in Bhubaneswar/Cuttack region (Lat ~19.8 - 20.8), override to Baleshwar center
-                // This ensures testers in the capital see meaningful Baleshwar distances
+                // AUTO-CORRECT: If GPS places user in Bhubaneswar/Cuttack region (Lat ~19.8 - 20.8), override to district center
+                // This ensures testers in the capital see meaningful distances
                 if (latitude > 19.8 && latitude < 20.9) {
-
-                    latitude = 21.4934;
-                    longitude = 86.9294;
+                    if (districtConfig?.gpsCenter) {
+                        latitude = districtConfig.gpsCenter.lat;
+                        longitude = districtConfig.gpsCenter.lng;
+                    }
                 }
 
                 setUserLocation({
@@ -381,29 +406,27 @@ const Home = () => {
 
                 // Final Failure Handling
                 setLoadingLocation(false); // Stop Loading on Error
-                let errorMessage = "Unable to get your location.\n\n";
+                // errorMessage variable was removed because it was unused
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
-                        errorMessage += "❌ Location permission denied.\n\nPlease:\n1. Click the location icon in your browser's address bar\n2. Allow location access\n3. Try again";
+                        toastError('Location permission denied. Allow access in your browser settings and try again.');
                         console.error("User denied location permission");
                         break;
                     case error.POSITION_UNAVAILABLE:
-                        errorMessage += "📍 Location unavailable.\n\nPlease use 'Select on Map' instead.";
+                        toastError('Location unavailable. Please use \'Select on Map\' instead.');
                         console.error("Position unavailable");
                         break;
                     case error.TIMEOUT:
-                        errorMessage += "⏱️ Request timed out.\n\nPlease:\n1. Check your GPS/location services\n2. Try 'Select on Map' instead";
+                        toastError('Location request timed out. Check your GPS and try again.');
                         console.error("Geolocation timeout");
                         break;
                     default:
-                        errorMessage += "Please use 'Select on Map' to choose your location.";
+                        toastError('Unable to get your location. Please use \'Select on Map\'.');
                         console.error("Unknown geolocation error:", error);
                 }
-                alert(errorMessage);
             };
 
             // 1. Try High Accuracy first
-            console.log("📍 Attempting high accuracy GPS...");
             navigator.geolocation.getCurrentPosition(
                 successCallback,
                 (err) => errorCallback(err, false),
@@ -413,44 +436,15 @@ const Home = () => {
         } else {
             console.error("❌ Geolocation not supported by browser");
             setLoadingLocation(false);
-            alert("Your browser doesn't support location services.\n\nPlease use 'Select on Map' instead.");
+            toastError("Your browser doesn't support location services. Please use 'Select on Map' instead.");
         }
     };
 
     // Auto-detect location on load (optional, better UX to ask first or just button)
     // useEffect(() => { handleLocationSelect(); }, []);
 
-    useEffect(() => {
-        // Fetch Messes
-        const unsubscribeMesses = onSnapshot(collection(db, "messes"), (snapshot) => {
-            const messesData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setMesses(messesData);
-        }, (error) => {
-            console.error("Error fetching messes:", error);
-            setLoading(false);
-        });
+    // Data is now managed by useMesses hook above
 
-        // Fetch Rooms
-        const unsubscribeRooms = onSnapshot(collection(db, "rooms"), (snapshot) => {
-            const roomsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setRooms(roomsData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching rooms:", error);
-            setLoading(false);
-        });
-
-        return () => {
-            unsubscribeMesses();
-            unsubscribeRooms();
-        };
-    }, []);
 
     // Listen to carousel toggle
     useEffect(() => {
@@ -469,18 +463,33 @@ const Home = () => {
     const [mobileAds, setMobileAds] = useState([]);
     const [loadingAdsDesktop, setLoadingAdsDesktop] = useState(true);
     const [loadingAdsMobile, setLoadingAdsMobile] = useState(true);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const qDesktop = query(collection(db, 'hero_ads_desktop'), where('active', '==', true), orderBy('order', 'asc'));
         const qMobile = query(collection(db, 'hero_ads_mobile'), where('active', '==', true), orderBy('order', 'asc'));
 
         const unsubDesktop = onSnapshot(qDesktop, (snap) => {
-            setDesktopAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            if (selectedDistrict) {
+                data = data.filter(d => d.district === selectedDistrict || d.district === 'all' || (!d.district && selectedDistrict === 'balasore'));
+            }
+            setDesktopAds(data);
             setLoadingAdsDesktop(false);
         }, () => setLoadingAdsDesktop(false));
 
         const unsubMobile = onSnapshot(qMobile, (snap) => {
-            setMobileAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            if (selectedDistrict) {
+                data = data.filter(d => d.district === selectedDistrict || d.district === 'all' || (!d.district && selectedDistrict === 'balasore'));
+            }
+            setMobileAds(data);
             setLoadingAdsMobile(false);
         }, () => setLoadingAdsMobile(false));
 
@@ -488,7 +497,7 @@ const Home = () => {
             unsubDesktop();
             unsubMobile();
         };
-    }, []);
+    }, [selectedDistrict]);
 
     const handleFilterChange = React.useCallback((newFilters) => {
         setFilters(newFilters);
@@ -733,6 +742,23 @@ const Home = () => {
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
 
+            {/* Back to Top Button */}
+            <AnimatePresence>
+                {showBackToTop && (
+                    <motion.button
+                        initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="fixed bottom-24 right-4 z-50 w-11 h-11 bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-brand-primary-hover transition-colors"
+                        aria-label="Back to top"
+                    >
+                        <ChevronUp size={20} />
+                    </motion.button>
+                )}
+            </AnimatePresence>
+
             {/* Login Prompt Modal - slides down from top */}
             {showLoginPrompt && (
                 <div className="fixed inset-0 z-[200] flex flex-col items-center pointer-events-none">
@@ -798,7 +824,7 @@ const Home = () => {
 
             {/* Hero Sections - Only show when no filters are active (except messType) */}
             {!filters.location && !filters.minPrice && !filters.maxPrice && !filters.availableOnly && !Object.values(filters.amenities).some(Boolean) && (
-                carouselEnabled ? (
+                (carouselEnabled && (isMobile ? mobileAds.length > 0 : desktopAds.length > 0)) ? (
                     /* Dynamic Ad Carousel */
                     <HeroCarousel 
                         onMap={handleOpenMap} 
@@ -819,10 +845,19 @@ const Home = () => {
                         {/* Content positioned below spotlights */}
                         <div className="relative z-10 text-center px-6 max-w-2xl">
                             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
-                                Find Your Comfortable <span className="text-brand-accent-green">Stay</span>
+                                {(() => {
+                                    const titleStr = districtConfig?.heroTitle || "Find Your Comfortable Stay";
+                                    const parts = titleStr.split(' ');
+                                    const lastWord = parts.pop();
+                                    return (
+                                        <>
+                                            {parts.join(' ')} <span className="text-brand-accent-green">{lastWord}</span>
+                                        </>
+                                    );
+                                })()}
                             </h1>
                             <p className="text-white/90 font-medium mb-6 text-base">
-                                Mess Dhundo, Ghar Baithe
+                                {districtConfig?.heroSubtitle || "Mess Dhundo, Ghar Baithe"}
                             </p>
 
 
@@ -907,9 +942,7 @@ const Home = () => {
                     </div>
 
                     <div className="flex flex-col items-end">
-                        <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-lg border border-gray-100">
-                            {searchResults.length} results
-                        </span>
+                        <DistrictSwitcher theme="light" />
                         {filters.location && !userLocation && (
                             <span className="text-[10px] text-gray-400 mt-1 italic">
                                 Enable "Current Location" for distances
@@ -1094,13 +1127,15 @@ const Home = () => {
             {!loading && hasMore && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
                     <div className="flex justify-center my-8">
-                        <button
+                        <motion.button
                             onClick={loadMore}
-                            className="group px-6 py-2.5 bg-brand-primary text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg hover:bg-brand-primary/90 hover:scale-105 active:scale-95 flex items-center gap-2"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="group px-6 py-2.5 bg-brand-primary text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg hover:bg-brand-primary/90 flex items-center gap-2"
                         >
                             View More
                             <ChevronDown size={20} className="group-hover:translate-y-1 transition-transform duration-300" />
-                        </button>
+                        </motion.button>
                     </div>
                 </div>
             )}

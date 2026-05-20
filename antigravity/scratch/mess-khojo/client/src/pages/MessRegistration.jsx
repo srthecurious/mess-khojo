@@ -7,13 +7,16 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { trackMessRegistration } from '../analytics';
 import usePageSEO from '../hooks/usePageSEO';
+import { useToast } from '../context/ToastContext';
 
 const MessRegistration = () => {
     const navigate = useNavigate();
+    const { error: toastError } = useToast();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [gpsLoading, setGpsLoading] = useState(false);
     const [formData, setFormData] = useState({
+        district: '',
         messName: '',
         messType: [],
         managedBy: '',
@@ -31,7 +34,7 @@ const MessRegistration = () => {
         consent: false
     });
 
-    const totalSteps = 8;
+    const totalSteps = 9;
 
     usePageSEO({
         title: 'Register Your Mess | MessKhojo',
@@ -109,7 +112,7 @@ const MessRegistration = () => {
 
     const handleGetGPS = () => {
         if (!navigator.geolocation) {
-            alert("GPS location is not supported by your browser.");
+            toastError('GPS location is not supported by your browser.');
             return;
         }
         setGpsLoading(true);
@@ -132,7 +135,7 @@ const MessRegistration = () => {
                 } else if (error.code === error.TIMEOUT) {
                     errorMsg = "The request to get user location timed out.";
                 }
-                alert(`${errorMsg} You can still manually specify the landmark and submit.`);
+                toastError(`${errorMsg} You can still manually specify the landmark and submit.`);
                 setGpsLoading(false);
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -141,7 +144,7 @@ const MessRegistration = () => {
 
     const handleSubmit = async () => {
         if (!formData.phoneNumber) {
-            alert("Phone number is mandatory!");
+            toastError('Phone number is mandatory!');
             return;
         }
 
@@ -163,10 +166,10 @@ const MessRegistration = () => {
             // Track successful registration
             trackMessRegistration(false, docRef.id);
 
-            setStep(9); // Success step
+            setStep(10); // Success step
         } catch (error) {
             console.error("Error submitting registration:", error);
-            alert("Failed to submit. Please try again.");
+            toastError('Failed to submit. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -532,6 +535,34 @@ const MessRegistration = () => {
             case 8:
                 return (
                     <div className="space-y-6">
+                        <div className="text-center space-y-3">
+                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-[28px] shadow-inner flex items-center justify-center mx-auto mb-2 relative group">
+                                <MapPin size={36} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 leading-tight">
+                                Select District
+                            </h2>
+                            <p className="text-gray-500 font-medium">Which district is your mess located in?</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {['balasore', 'bhadrak'].map(dist => (
+                                <button
+                                    key={dist}
+                                    onClick={() => handleChange('district', dist)}
+                                    className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${formData.district === dist
+                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-lg shadow-indigo-500/10'
+                                        : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
+                                        }`}
+                                >
+                                    <span className="font-bold text-lg capitalize">{dist}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 9:
+                return (
+                    <div className="space-y-6">
                         <div className="text-center space-y-2">
                             <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Phone size={32} className="text-rose-600" />
@@ -566,7 +597,7 @@ const MessRegistration = () => {
                         </div>
                     </div>
                 );
-            case 9:
+            case 10:
                 return (
                     <div className="text-center py-12 px-6">
                         <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
@@ -606,7 +637,8 @@ const MessRegistration = () => {
                 return true;
             case 6: return formData.landmark.trim().length > 0;
             case 7: return formData.facilities.length > 0;
-            case 8: return formData.phoneNumber.length === 10 && formData.consent;
+            case 8: return formData.district !== '';
+            case 9: return formData.phoneNumber.length === 10 && formData.consent;
             default: return true;
         }
     };
@@ -616,17 +648,17 @@ const MessRegistration = () => {
             <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden min-h-[500px] flex flex-col relative">
 
                 {/* Progress Bar */}
-                {step < 9 && (
+                {step < 10 && (
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100">
                         <div
                             className="h-full bg-brand-primary transition-all duration-300 ease-out"
-                            style={{ width: `${(step / 8) * 100}%` }}
+                            style={{ width: `${(step / 9) * 100}%` }}
                         />
                     </div>
                 )}
 
                 {/* Back to Home Button */}
-                {step < 9 && (
+                {step < 10 && (
                     <button
                         onClick={() => navigate('/')}
                         className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-gray-100/50 hover:bg-gray-100 text-gray-500 hover:text-gray-800 rounded-full transition-all"
@@ -653,7 +685,7 @@ const MessRegistration = () => {
                 </div>
 
                 {/* Navigation Buttons */}
-                {step < 9 && (
+                {step < 10 && (
                     <div className="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
                         <button
                             onClick={handleBack}
@@ -663,7 +695,7 @@ const MessRegistration = () => {
                             <ChevronLeft size={20} /> Back
                         </button>
 
-                        {step < 8 ? (
+                        {step < 9 ? (
                             <button
                                 onClick={handleNext}
                                 disabled={!isStepValid()}

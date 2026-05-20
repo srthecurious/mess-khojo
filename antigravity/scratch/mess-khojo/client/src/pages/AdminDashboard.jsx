@@ -43,6 +43,7 @@ const AdminDashboard = () => {
     // Mess Profile Form State
     const [messForm, setMessForm] = useState({
         name: '',
+        district: 'balasore', // Default for legacy/new
         address: '',
         contact: '',
         locationUrl: '',
@@ -637,6 +638,17 @@ const AdminDashboard = () => {
                                     onChange={(e) => setMessForm({ ...messForm, name: e.target.value })}
                                     required
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">District</label>
+                                <select
+                                    className="w-full p-2 border rounded capitalize"
+                                    value={messForm.district}
+                                    onChange={(e) => setMessForm({ ...messForm, district: e.target.value })}
+                                >
+                                    <option value="balasore">Balasore</option>
+                                    <option value="bhadrak">Bhadrak</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Mess Type</label>

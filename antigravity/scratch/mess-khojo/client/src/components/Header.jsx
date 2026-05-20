@@ -9,8 +9,11 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
+import { useDistrict } from '../context/DistrictContext';
+
 
 const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
+    const { districtConfig } = useDistrict();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const headerJustFocused = React.useRef(false);
@@ -25,16 +28,10 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
 
     // Memoize suggestions so we don't recalculate on every render
     const allSuggestions = React.useMemo(() => {
-        const predefinedLandmarks = [
-            { name: 'Mansingh Bazar', type: 'landmark', icon: MapPin },
-            { name: 'Fakir Mohan Golei', type: 'landmark', icon: MapPin },
-            { name: 'Station Square', type: 'landmark', icon: MapPin },
-            { name: 'Remuna', type: 'landmark', icon: MapPin },
-            { name: 'Sahadev Khuntha', type: 'landmark', icon: MapPin },
-            { name: 'Azimabad', type: 'landmark', icon: MapPin },
-            { name: 'ITB', type: 'landmark', icon: MapPin },
-            { name: 'Balasore', type: 'landmark', icon: MapPin }
-        ];
+        const predefinedLandmarks = (districtConfig?.landmarks || []).map(l => ({
+            ...l,
+            icon: MapPin
+        }));
 
         const validLandmarks = predefinedLandmarks.filter(landmark => {
             return messes.some(mess => {
@@ -66,7 +63,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
         }));
 
         return [...sponsoredMesses, ...validLandmarks, ...popularMesses];
-    }, [messes]);
+    }, [messes, districtConfig]);
 
     // Fetch Notifications
     useEffect(() => {
@@ -212,15 +209,16 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                             </Link>
                         </div>
 
+
                         {/* Center Section: Sticky Search Bar */}
                         <div className="flex-1 flex justify-center ml-6 mr-1.5 sm:mx-4">
                             <AnimatePresence>
                                 {(showSearch || isSearchFocused) && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: -20 }}
+                                        initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        transition={{ duration: 0.2 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.15, ease: "easeOut" }}
                                         className="relative block w-full max-w-xs"
                                     >
                                         <input

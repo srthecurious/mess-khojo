@@ -22,7 +22,24 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
     }, []);
 
     const isLoading = isMobile ? loadingMobile : loadingDesktop;
-    const ads = isMobile ? mobileAds : desktopAds;
+    const rawAds = isMobile ? mobileAds : desktopAds;
+    const [ads, setAds] = useState([]);
+
+    // Shuffle ads so multiple sponsors get a fair chance to be seen first
+    useEffect(() => {
+        if (!rawAds || rawAds.length <= 1) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setAds(rawAds || []);
+            return;
+        }
+        const shuffled = [...rawAds];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAds(shuffled);
+    }, [rawAds]);
 
     // Reset index when ads change or screen switches
     useEffect(() => {

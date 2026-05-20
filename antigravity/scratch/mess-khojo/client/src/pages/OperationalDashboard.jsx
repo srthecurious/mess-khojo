@@ -27,15 +27,16 @@ const compressImage = async (file) => {
 
 const OperationalDashboard = () => {
     const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
-    const [bookings, setBookings] = useState([]);
-    const [claims, setClaims] = useState([]);
-    const [inquiries, setInquiries] = useState([]);
-    const [roomInquiries, setRoomInquiries] = useState([]);
+    const [allBookings, setBookings] = useState([]);
+    const [allClaims, setClaims] = useState([]);
+    const [allInquiries, setInquiries] = useState([]);
+    const [allRoomInquiries, setRoomInquiries] = useState([]);
     const [feedbacks, setFeedbacks] = useState([]);
     const [feedbackReplies, setFeedbackReplies] = useState({}); // { feedbackId: replyText }
-    const [registrations, setRegistrations] = useState([]);
-    const [messes, setMesses] = useState([]);
-    const [rooms, setRooms] = useState([]);
+    const [allRegistrations, setRegistrations] = useState([]);
+    const [allMesses, setMesses] = useState([]);
+    const [allRooms, setRooms] = useState([]);
+    const [opFilterDistrict, setOpFilterDistrict] = useState('all');
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,7 +45,7 @@ const OperationalDashboard = () => {
     const [desktopAds, setDesktopAds] = useState([]);
     const [mobileAds, setMobileAds] = useState([]);
     const [heroAdUploading, setHeroAdUploading] = useState(false);
-    const [heroAdForm, setHeroAdForm] = useState({ linkUrl: '', title: '' });
+    const [heroAdForm, setHeroAdForm] = useState({ linkUrl: '', title: '', district: 'all' });
     const [heroAdFile, setHeroAdFile] = useState(null);
 
     // Editing State
@@ -189,7 +190,7 @@ const OperationalDashboard = () => {
             // Send notification for new room inquiries
             if (!isFirstLoad) {
                 const newInquiries = data.filter(inquiry =>
-                    !roomInquiries.some(old => old.id === inquiry.id)
+                    !allRoomInquiries.some(old => old.id === inquiry.id)
                 );
 
                 newInquiries.forEach(inquiry => {
@@ -201,7 +202,7 @@ const OperationalDashboard = () => {
             isFirstLoad = false;
         });
         return () => unsubscribe();
-    }, [roomInquiries]);
+    }, [allRoomInquiries]);
 
     // Fetch ALL Feedbacks
     useEffect(() => {
@@ -243,7 +244,7 @@ const OperationalDashboard = () => {
             if (!isFirstLoad) {
                 const newPendingRegistrations = data.filter(registration =>
                     registration.status === 'pending' &&
-                    !registrations.some(old => old.id === registration.id)
+                    !allRegistrations.some(old => old.id === registration.id)
                 );
 
                 newPendingRegistrations.forEach(registration => {
@@ -255,7 +256,7 @@ const OperationalDashboard = () => {
             isFirstLoad = false;
         });
         return () => unsubscribe();
-    }, [registrations]);
+    }, [allRegistrations]);
 
     // Fetch ALL Messes
     useEffect(() => {
@@ -340,13 +341,14 @@ const OperationalDashboard = () => {
                 imageUrl,
                 linkUrl: heroAdForm.linkUrl || '',
                 title: heroAdForm.title || '',
+                district: heroAdForm.district || 'balasore',
                 order: currentAds.length,
                 active: true,
                 createdAt: serverTimestamp()
             });
 
             setHeroAdFile(null);
-            setHeroAdForm({ linkUrl: '', title: '' });
+            setHeroAdForm({ linkUrl: '', title: '', district: 'balasore' });
             // Reset file input
             const fileInput = document.getElementById(`hero-ad-file-${section}`);
             if (fileInput) fileInput.value = '';
@@ -640,6 +642,30 @@ const OperationalDashboard = () => {
         }
     };
 
+    const handleBackfillDistricts = async () => {
+        if (!window.confirm("Are you sure you want to backfill district field to 'balasore' for all existing messes?")) return;
+        
+        setMigrationStatus({ loading: true, msg: 'Starting backfill...', type: 'info' });
+        try {
+            let backfilledCount = 0;
+            const messesSnapshot = await getDocs(collection(db, "messes"));
+            
+            for (const messDoc of messesSnapshot.docs) {
+                const messData = messDoc.data();
+                if (!messData.district) {
+                    await updateDoc(doc(db, "messes", messDoc.id), {
+                        district: 'balasore'
+                    });
+                    backfilledCount++;
+                }
+            }
+            setMigrationStatus({ loading: false, msg: `Successfully backfilled district for ${backfilledCount} messes.`, type: 'success' });
+        } catch (error) {
+            console.error("Backfill failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
     const generatePartnerId = () => {
         const now = new Date();
         const yy = String(now.getFullYear()).slice(-2);
@@ -712,6 +738,7 @@ const OperationalDashboard = () => {
                 adminId: newUser.uid,
                 partnerId: partnerId,
                 name: reg.messName,
+                district: reg.district || 'balasore',
                 address: reg.landmark || '',
                 contact: reg.phoneNumber || '',
                 email: email,
@@ -826,6 +853,20 @@ const OperationalDashboard = () => {
         navigate('/');
     };
 
+    const getMessDistrict = (messId) => {
+        if (!messId) return 'balasore';
+        const mess = allMesses.find(m => m.id === messId);
+        return mess?.district || 'balasore';
+    };
+
+    const registrations = allRegistrations.filter(r => opFilterDistrict === 'all' || (r.district || 'balasore') === opFilterDistrict);
+    const bookings = allBookings.filter(b => opFilterDistrict === 'all' || getMessDistrict(b.messId) === opFilterDistrict);
+    const inquiries = allInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId) === opFilterDistrict);
+    const roomInquiries = allRoomInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId) === opFilterDistrict);
+    const claims = allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId) === opFilterDistrict);
+    const messes = allMesses.filter(m => opFilterDistrict === 'all' || (m.district || 'balasore') === opFilterDistrict);
+    const rooms = allRooms.filter(r => opFilterDistrict === 'all' || getMessDistrict(r.messId) === opFilterDistrict);
+
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100">
             {/* Top Bar */}
@@ -839,6 +880,15 @@ const OperationalDashboard = () => {
                     </h1>
                 </div>
                 <div className="flex items-center gap-4">
+                    <select
+                        value={opFilterDistrict}
+                        onChange={(e) => setOpFilterDistrict(e.target.value)}
+                        className="bg-slate-700 text-slate-200 border border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 capitalize"
+                    >
+                        <option value="all">All Districts</option>
+                        <option value="balasore">Balasore</option>
+                        <option value="bhadrak">Bhadrak</option>
+                    </select>
                     <span className="text-sm text-slate-400 hidden md:block">
                         Operator: {auth.currentUser?.email}
                     </span>
@@ -1222,6 +1272,21 @@ const OperationalDashboard = () => {
                                         className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all border border-slate-600 disabled:opacity-50"
                                     >
                                         {migrationStatus.loading ? 'Migrating...' : 'Migrate Existing Partners'}
+                                    </button>
+                                </div>
+
+                                {/* District Backfill Tool Section */}
+                                <div className="mt-8 pt-8 border-t border-slate-700">
+                                    <h3 className="text-lg font-bold text-white mb-2">Backfill Districts for Legacy Messes</h3>
+                                    <p className="text-sm text-slate-400 mb-4">Click this button to assign the default district ('Balasore') to all existing messes that don't have a district field yet.</p>
+                                    
+                                    <button
+                                        onClick={handleBackfillDistricts}
+                                        disabled={migrationStatus.loading}
+                                        type="button"
+                                        className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all border border-slate-600 disabled:opacity-50"
+                                    >
+                                        {migrationStatus.loading ? 'Processing...' : 'Backfill Districts'}
                                     </button>
                                 </div>
                             </div>
@@ -2047,7 +2112,16 @@ const OperationalDashboard = () => {
                                                         className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-pink-500/10 file:text-pink-400 hover:file:bg-pink-500/20 disabled:opacity-40"
                                                     />
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-3 gap-3">
+                                                    <select
+                                                        value={heroAdForm.district}
+                                                        onChange={(e) => setHeroAdForm({ ...heroAdForm, district: e.target.value })}
+                                                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none capitalize"
+                                                    >
+                                                        <option value="all">Any District</option>
+                                                        <option value="balasore">Balasore</option>
+                                                        <option value="bhadrak">Bhadrak</option>
+                                                    </select>
                                                     <input
                                                         type="text"
                                                         placeholder="Link URL (optional)"
@@ -2095,6 +2169,9 @@ const OperationalDashboard = () => {
                                                             {ad.linkUrl && <p className="text-slate-500 text-xs truncate">{ad.linkUrl}</p>}
                                                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold mt-1 inline-block ${ad.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
                                                                 {ad.active ? 'ACTIVE' : 'HIDDEN'}
+                                                            </span>
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold mt-1 ml-1 inline-block bg-blue-500/20 text-blue-400 capitalize">
+                                                                {ad.district || 'balasore'}
                                                             </span>
                                                         </div>
 

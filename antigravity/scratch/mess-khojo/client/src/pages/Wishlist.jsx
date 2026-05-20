@@ -26,13 +26,8 @@ const Wishlist = () => {
     const [loadingMesses, setLoadingMesses] = useState(false);
     const [loadingRooms, setLoadingRooms] = useState(false);
 
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (authLoading) return;
-        if (!currentUser) {
-            navigate('/user-login', { replace: true });
-        }
-    }, [currentUser, authLoading, navigate]);
+    // Show login CTA if not authenticated (don't redirect — let user see what they're missing)
+    // useEffect removed — handled inline below
 
     // Fetch wishlisted messes from Firestore
     useEffect(() => {
@@ -152,7 +147,46 @@ const Wishlist = () => {
         );
     }
 
-    if (!currentUser) return null;
+    if (!currentUser) {
+        return (
+            <div className="min-h-screen bg-brand-secondary pb-20">
+                {/* Header */}
+                <div className="bg-brand-primary p-4 sticky top-0 z-10 shadow-md">
+                    <div className="max-w-5xl mx-auto flex items-center gap-4">
+                        <button onClick={() => navigate(-1)} className="text-white/80 hover:text-white transition-colors">
+                            <ArrowLeft size={24} />
+                        </button>
+                        <div className="flex items-center gap-2">
+                            <Heart size={20} className="text-red-300 fill-red-300" />
+                            <h1 className="text-xl font-bold text-white">My Wishlist</h1>
+                        </div>
+                    </div>
+                </div>
+                {/* Logged-out state */}
+                <div className="max-w-md mx-auto px-4 py-20 flex flex-col items-center text-center">
+                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
+                        <Heart size={40} className="text-red-300" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-brand-text-dark mb-2">Your Wishlist Awaits</h2>
+                    <p className="text-brand-text-gray mb-8 leading-relaxed">
+                        Login to save your favourite messes and rooms so you can revisit them anytime.
+                    </p>
+                    <button
+                        onClick={() => navigate('/user-login', { state: { redirect: '/wishlist' } })}
+                        className="w-full max-w-xs py-3.5 bg-brand-primary text-white font-bold rounded-2xl hover:bg-brand-primary-hover transition-all shadow-lg shadow-brand-primary/25 text-base"
+                    >
+                        Login / Sign Up
+                    </button>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="mt-3 text-sm text-brand-text-gray hover:text-brand-text-dark transition-colors"
+                    >
+                        Browse messes first
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const totalMesses = wishlistedMesses.size;
     const totalRooms = wishlistedRooms.size;

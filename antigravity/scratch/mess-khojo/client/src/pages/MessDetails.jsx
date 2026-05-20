@@ -4,17 +4,30 @@ import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, 
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import RoomCard from '../components/RoomCard';
+import ClaimModal from '../components/ClaimModal';
 import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView } from '../analytics';
 import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MessDetails = () => {
     const { id: messId } = useParams();
     const navigate = useNavigate();
     const { currentUser } = useAuth();
+    const { success: toastSuccess, error: toastError } = useToast();
     const { isRoomWishlisted, toggleRoomWishlist, isMessWishlisted, toggleMessWishlist } = useWishlist();
     const [loginPromptConfig, setLoginPromptConfig] = useState({ show: false, title: '', message: '', icon: '' });
+    const [showClaimModal, setShowClaimModal] = useState(false);
+    const [showBackToTop, setShowBackToTop] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setShowBackToTop(window.scrollY > 400);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     const handleRoomWishlistToggle = async (roomId) => {
         if (!currentUser) { 
@@ -60,57 +73,44 @@ const MessDetails = () => {
         }
     };
 
-    const handleClaimListing = async () => {
+    const handleClaimListing = () => {
         if (!auth.currentUser) {
-            alert("Please login to claim this listing.");
+            setLoginPromptConfig({
+                show: true,
+                title: 'Login Required',
+                message: 'Please login to claim this listing.',
+                icon: '🔒'
+            });
             return;
         }
+        setShowClaimModal(true);
+    };
 
-        // Always ask for phone number
-        const phoneNumber = prompt("Please enter your mobile number for verification:");
-
-        if (!phoneNumber) {
-            // User cancelled or didn't provide phone
-            return;
-        }
-
-        // Validate phone number (at least 10 digits)
-        const cleanPhone = phoneNumber.replace(/\D/g, '');
-        if (cleanPhone.length < 10) {
-            alert("Please enter a valid 10-digit phone number.");
-            return;
-        }
-
+    const handleClaimSubmit = async (phoneNumber) => {
         try {
             setClaiming(true);
             const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", auth.currentUser.uid)));
             let userData = {};
-            if (!userDoc.empty) {
-                userData = userDoc.docs[0].data();
-            }
+            if (!userDoc.empty) userData = userDoc.docs[0].data();
 
             const claimData = {
-                messId,
-                messName: mess.name,
+                messId, messName: mess.name,
                 userId: auth.currentUser.uid,
                 userName: userData.name || auth.currentUser.displayName || "Registered User",
                 userEmail: auth.currentUser.email,
-                userPhone: phoneNumber, // Use the phone number provided by user
+                userPhone: phoneNumber,
                 status: 'pending',
                 createdAt: serverTimestamp()
             };
-
             await addDoc(collection(db, "claims"), claimData);
-
-            // Send Telegram Notification
             import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
                 sendTelegramNotification(telegramTemplates.newClaim(claimData));
             });
-
-            alert("Claim request sent! Our team will contact you for verification.");
-        } catch (error) {
-            console.error("Claim error:", error);
-            alert("Failed to send claim request.");
+            setShowClaimModal(false);
+            toastSuccess('Claim request sent! Our team will contact you for verification.');
+        } catch (err) {
+            console.error("Claim error:", err);
+            toastError('Failed to send claim request. Please try again.');
         } finally {
             setClaiming(false);
         }
@@ -143,13 +143,12 @@ const MessDetails = () => {
             const encodedMessage = encodeURIComponent(message);
             const whatsappUrl = `https://wa.me/+919692819621?text=${encodedMessage}`;
 
-            // 3. Close modal and redirect
             setShowInquiryModal(false);
-            window.location.href = whatsappUrl;
+            window.open(whatsappUrl, '_blank');
 
         } catch (error) {
             console.error("Inquiry failed:", error);
-            alert("Could not process inquiry. Please try again.");
+            toastError('Could not process inquiry. Please try again.');
         } finally {
             setSubmittingInquiry(false);
         }
@@ -219,7 +218,7 @@ const MessDetails = () => {
 
     // Dynamic SEO for mess detail pages
     usePageSEO({
-        title: mess ? `${mess.name} - ${mess.messType || 'Mess'} in Balasore | MessKhojo` : 'Loading... | MessKhojo',
+        title: mess ? `${mess.name} - ${mess.messType || 'Mess'} in ${mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore'} | MessKhojo` : 'Loading... | MessKhojo',
         description: mess ? `${mess.name} offers ${mess.messType || 'quality'} accommodation in ${mess.address || 'Balasore'}. ${mess.description ? mess.description.substring(0, 120) + '...' : `Check amenities, pricing & availability. ${mess.amenities?.food ? 'Food available. ' : ''}${mess.amenities?.wifi ? 'WiFi included. ' : ''}`}` : 'Find mess accommodation on MessKhojo',
         keywords: mess ? `${mess.name}, ${mess.name} balasore, ${mess.name} ${mess.address || ''}, ${mess.messType} mess balasore, mess near ${mess.address || 'fm college'}, ${mess.name} hostel, student accommodation balasore` : undefined,
         canonicalUrl: mess ? `https://messkhojo.com/mess/${messId}` : undefined,
@@ -354,6 +353,33 @@ const MessDetails = () => {
 
     return (
         <div className="min-h-screen bg-brand-secondary font-sans text-brand-text-dark pb-20">
+
+            {/* Claim Modal */}
+            {showClaimModal && (
+                <ClaimModal
+                    messName={mess.name}
+                    onSubmit={handleClaimSubmit}
+                    onClose={() => setShowClaimModal(false)}
+                    loading={claiming}
+                />
+            )}
+
+            {/* Back to Top Button */}
+            <AnimatePresence>
+                {showBackToTop && (
+                    <motion.button
+                        initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="fixed bottom-24 right-4 z-50 w-11 h-11 bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-brand-primary-hover transition-colors"
+                        aria-label="Back to top"
+                    >
+                        <ChevronUp size={20} />
+                    </motion.button>
+                )}
+            </AnimatePresence>
 
             {/* Login Prompt Modal - slides down from top */}
             {loginPromptConfig.show && (

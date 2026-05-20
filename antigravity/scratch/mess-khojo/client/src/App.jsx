@@ -2,7 +2,10 @@ import React, { useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Footer from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
+import { DistrictProvider } from './context/DistrictContext';
+import { ToastProvider } from './context/ToastContext';
 import { trackPageView } from './analytics';
+import DistrictSelector from './components/DistrictSelector';
 
 // Route-level code splitting — only the visited page's code is downloaded
 const Home = React.lazy(() => import('./pages/Home'));
@@ -61,6 +64,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-brand-secondary text-brand-text-dark font-sans flex flex-col">
+      <DistrictSelector />
       <Suspense fallback={<RouteLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -100,11 +104,15 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <ScrollToTop />
-        <AnalyticsTracker />
-        <AppContent />
-      </Router>
+      <DistrictProvider>
+        <ToastProvider>
+          <Router>
+            <ScrollToTop />
+            <AnalyticsTracker />
+            <AppContent />
+          </Router>
+        </ToastProvider>
+      </DistrictProvider>
     </AuthProvider>
   );
 }

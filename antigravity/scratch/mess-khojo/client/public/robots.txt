@@ -1,12 +1,8 @@
-# robots.txt for messkhojo.com
 User-agent: *
 Allow: /
 
-# Disallow admin and operational pages
+# Disallow admin and operational routes
 Disallow: /admin/
 Disallow: /operational/
-Disallow: /profile
-Disallow: /booking-success
 
-# Sitemap location
 Sitemap: https://messkhojo.com/sitemap.xml
