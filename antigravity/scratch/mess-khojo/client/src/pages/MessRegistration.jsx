@@ -31,7 +31,9 @@ const MessRegistration = () => {
         gpsAccuracy: null,
         facilities: [],
         phoneNumber: '',
-        consent: false
+        consent: false,
+        rentCycle: 'monthly',
+        minStayDuration: 1
     });
 
     const totalSteps = 9;
@@ -232,7 +234,7 @@ const MessRegistration = () => {
                             ))}
                         </div>
                         <div className="pt-4 border-t border-gray-100 space-y-3">
-                            <h3 className="font-bold text-gray-700 text-center text-sm">Who manages the mess?</h3>
+                            <h3 className="font-bold text-gray-700 text-center text-sm">Who manages the food facility ?</h3>
                             <div className="grid grid-cols-3 gap-2">
                                 {[{ v: 'Owner', e: '🏢', s: 'Manager' }, { v: 'Students', e: '👥', s: 'Self-managed' }, { v: 'Warden', e: '🛡️', s: 'Supervised' }].map(({ v, e, s }) => (
                                     <button
@@ -351,6 +353,65 @@ const MessRegistration = () => {
                         <div className="text-center space-y-2">
                             <h2 className="text-2xl font-bold text-gray-800">Payment & Inclusions</h2>
                             <p className="text-gray-500">What extra charges apply?</p>
+                        </div>
+
+                        {/* Billing Cycle & Stay Commitment */}
+                        <div className="space-y-4 bg-purple-50/50 p-4 rounded-2xl border border-purple-100/50">
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-gray-800 text-sm">Rent Billing Cycle</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('rentCycle', 'monthly')}
+                                        className={`py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                                            formData.rentCycle === 'monthly'
+                                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                : 'border-gray-100 bg-white text-gray-500 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        📅 Monthly Basis
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('rentCycle', 'yearly')}
+                                        className={`py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                                            formData.rentCycle === 'yearly'
+                                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                : 'border-gray-100 bg-white text-gray-500 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        📆 Yearly Basis
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-purple-100/40">
+                                <h3 className="font-bold text-gray-800 text-sm">Minimum Stay Duration</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('minStayDuration', 1)}
+                                        className={`py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                                            formData.minStayDuration === 1
+                                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                : 'border-gray-100 bg-white text-gray-500 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        🟢 Flexible (Monthly)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('minStayDuration', 12)}
+                                        className={`py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                                            formData.minStayDuration === 12
+                                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                : 'border-gray-100 bg-white text-gray-500 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        🔒 Mandatory 1-Year Stay
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Included in Rent */}
@@ -660,7 +721,11 @@ const MessRegistration = () => {
                 {/* Back to Home Button */}
                 {step < 10 && (
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => {
+                            if (window.confirm("Are you sure you want to exit registration? Any unsaved progress will be lost.")) {
+                                navigate('/');
+                            }
+                        }}
                         className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-gray-100/50 hover:bg-gray-100 text-gray-500 hover:text-gray-800 rounded-full transition-all"
                         title="Cancel Registration and Return to Home"
                     >

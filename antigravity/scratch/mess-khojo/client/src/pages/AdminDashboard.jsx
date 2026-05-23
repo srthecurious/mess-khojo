@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, storage } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 import RoomCard from '../components/RoomCard';
@@ -64,7 +64,9 @@ const AdminDashboard = () => {
             wifi: false,
             inverter: false
         },
-        description: ''
+        description: '',
+        rentCycle: 'monthly',
+        minStayDuration: 1
     });
     const [posterFile, setPosterFile] = useState(null);
     const [galleryFiles, setGalleryFiles] = useState([]);
@@ -119,36 +121,45 @@ const AdminDashboard = () => {
     // Booking State
     const [bookings, setBookings] = useState([]);
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
+    const [bookingActionLoading, setBookingActionLoading] = useState({}); // { bookingId: true }
 
     const navigate = useNavigate();
 
+    // Real-time mess profile listener (replaces one-shot getDocs)
     useEffect(() => {
-        const unsubscribeAuth = auth.onAuthStateChanged(async (currentUser) => {
+        let unsubscribeMess = null;
+
+        const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                // Check for existing Mess Profile
+                // Real-time listener so profile stays fresh even if operator edits it
                 const q = query(collection(db, "messes"), where("adminId", "==", currentUser.uid));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const profile = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() };
-                    setMessProfile(profile);
-                }
-                setLoadingProfile(false);
+                unsubscribeMess = onSnapshot(q, (snapshot) => {
+                    if (!snapshot.empty) {
+                        const profile = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+                        setMessProfile(profile);
+                    } else {
+                        setMessProfile(null);
+                    }
+                    setLoadingProfile(false);
+                });
             } else {
                 navigate('/admin/login');
             }
         });
 
-        return () => unsubscribeAuth();
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeMess) unsubscribeMess();
+        };
     }, [navigate]);
 
     // Security Check: Ensure user is NOT a student
     useEffect(() => {
         if (user && userRole) {
             if (userRole !== 'admin' && userRole !== 'operator') {
-                alert("Access Denied: Student accounts cannot access the Partner Dashboard.");
                 signOut(auth).then(() => {
-                    navigate('/');
+                    navigate('/?error=access_denied');
                 });
             }
         }
@@ -210,18 +221,18 @@ const AdminDashboard = () => {
 
             if (data.status === 'OK' && data.results && data.results.length > 0) {
                 const { lat, lng } = data.results[0].geometry.location;
-                setMessForm({
-                    ...messForm,
+                setMessForm(prev => ({
+                    ...prev,
                     latitude: parseFloat(lat),
                     longitude: parseFloat(lng)
-                });
-                alert(`Coordinates found!\nLatitude: ${lat}\nLongitude: ${lng}`);
+                }));
+                showToast(`✓ Coordinates found: ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`);
             } else {
-                alert("Could not find coordinates for this address. Please try a more specific address or enter coordinates manually.");
+                showToast('Could not find coordinates. Try a more specific address or pick on map.', 'error');
             }
         } catch (error) {
             console.error("Geocoding error:", error);
-            alert("Error geocoding address. Please enter coordinates manually.");
+            showToast('Geocoding failed. Please enter coordinates manually.', 'error');
         } finally {
             setGeocoding(false);
         }
@@ -276,17 +287,14 @@ const AdminDashboard = () => {
                 latitude: coords.lat,
                 longitude: coords.lng
             }));
-            // Show success feedback
-            setTimeout(() => {
-                alert(`✓ Coordinates extracted from URL!\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}`);
-            }, 100);
+            showToast(`✓ Coordinates extracted: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
         }
     };
 
     const handleMessSubmit = async (e) => {
         e.preventDefault();
         if (!messForm.name || !messForm.address || !messForm.contact) {
-            alert("Please fill all mess details");
+            showToast('Please fill all mess details', 'error');
             return;
         }
 
@@ -294,7 +302,6 @@ const AdminDashboard = () => {
         try {
             let posterUrl = messProfile?.posterUrl || "";
             if (posterFile) {
-                // Compress image before upload
                 const compressedFile = await compressImage(posterFile);
                 const storageRef = ref(storage, `posters/${Date.now()}_${posterFile.name}`);
                 const snapshot = await uploadBytes(storageRef, compressedFile);
@@ -314,7 +321,7 @@ const AdminDashboard = () => {
             }
 
             if (downloadURLs.length > 15) {
-                alert(`You have ${downloadURLs.length} gallery images. Maximum allowed is 15. Please remove some.`);
+                showToast(`Too many images (${downloadURLs.length}/15). Please remove some first.`, 'error');
                 setUploading(false);
                 return;
             }
@@ -326,8 +333,20 @@ const AdminDashboard = () => {
                 inverter: messForm.facilities.includes('InverterPower'),
             };
 
+            const adv = messForm.advancePayment;
+            const maint = messForm.maintenanceCharge;
+            let derivedDeposit = '';
+            if (adv && adv.type && adv.type !== 'None') {
+                derivedDeposit = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
+            }
+            if (maint && maint.taken && maint.amount) {
+                const maintStr = ` + ₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`;
+                derivedDeposit = derivedDeposit ? `${derivedDeposit}${maintStr}` : `₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`;
+            }
+
             const saveData = {
                 ...messForm,
+                advanceDeposit: derivedDeposit,
                 amenities: derivedAmenities,
                 latitude: messForm.latitude ? Number(messForm.latitude) : null,
                 longitude: messForm.longitude ? Number(messForm.longitude) : null,
@@ -335,16 +354,17 @@ const AdminDashboard = () => {
                 galleryUrls: downloadURLs,
                 isUserSourced: messForm.isUserSourced || false,
                 lastUpdatedDate: messForm.isUserSourced ? messForm.lastUpdatedDate : null,
-                isVerified: true,
+                // Only mark verified if not user-sourced
+                isVerified: !messForm.isUserSourced,
             };
 
             if (isEditingMess && messProfile) {
-                // Update existing profile
+                // Preserve the district set by the operator — partners cannot change it
+                delete saveData.district;
                 const messRef = doc(db, "messes", messProfile.id);
                 await updateDoc(messRef, saveData);
-                setMessProfile({ ...messProfile, ...saveData });
                 setIsEditingMess(false);
-                alert("Mess Profile updated successfully!");
+                showToast('✅ Mess Profile updated successfully!');
             } else {
                 // Create new profile
                 const docRef = await addDoc(collection(db, "messes"), {
@@ -353,11 +373,11 @@ const AdminDashboard = () => {
                     createdAt: new Date()
                 });
                 setMessProfile({ id: docRef.id, ...saveData, adminId: user.uid });
-                alert("Mess Profile created successfully!");
+                showToast('✅ Mess Profile created successfully!');
             }
         } catch (error) {
             console.error("Error saving mess profile:", error);
-            alert("Error saving mess profile");
+            showToast(`❌ Error saving mess profile: ${error.message}`, 'error');
         } finally {
             setUploading(false);
             setPosterFile(null);
@@ -368,6 +388,7 @@ const AdminDashboard = () => {
     const handleEditMessClick = () => {
         setMessForm({
             name: messProfile.name,
+            district: messProfile.district || 'balasore', // Kept in state but NOT editable by admin
             address: messProfile.address,
             contact: messProfile.contact,
             locationUrl: messProfile.locationUrl || '',
@@ -390,7 +411,9 @@ const AdminDashboard = () => {
                 wifi: false,
                 inverter: false
             },
-            description: messProfile.description || ''
+            description: messProfile.description || '',
+            rentCycle: messProfile.rentCycle || 'monthly',
+            minStayDuration: messProfile.minStayDuration || 1
         });
         setIsEditingMess(true);
     };
@@ -398,14 +421,18 @@ const AdminDashboard = () => {
     const handleCancelEditMess = () => {
         setIsEditingMess(false);
         setMessForm({
-            name: '', address: '', contact: '', locationUrl: '', messType: 'Boys',
+            name: '', district: 'balasore', address: '', contact: '', locationUrl: '',
+            latitude: '', longitude: '',
+            messType: 'Boys',
             managedBy: 'Owner', facilities: [], includedInRent: [],
             extraAppliances: '', foodFacility: '', security: '', advanceDeposit: '',
             advancePayment: { type: 'None', customAmount: '' },
             maintenanceCharge: { taken: false, amount: '', frequency: 'Per Year' },
             isUserSourced: false, lastUpdatedDate: '',
             amenities: { food: false, wifi: false, inverter: false },
-            description: ''
+            description: '',
+            rentCycle: 'monthly',
+            minStayDuration: 1
         });
         setPosterFile(null);
         setGalleryFiles([]);
@@ -463,7 +490,9 @@ const AdminDashboard = () => {
                 imageUrl: downloadURLs[0] || "", // Backward compat
                 messId: messProfile.id,
                 messName: messProfile.name,
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                rentCycle: messProfile.rentCycle || 'monthly',
+                minStayDuration: messProfile.minStayDuration || 1
             };
 
             if (editingRoomId) {
@@ -479,7 +508,7 @@ const AdminDashboard = () => {
 
             // Reset form
             setFormData({
-                occupancy: '2',
+                occupancy: '1',
                 category: '',
                 totalInventory: 1,
                 price: '',
@@ -503,7 +532,7 @@ const AdminDashboard = () => {
     const handleEditRoomClick = (room) => {
         setEditingRoomId(room.id);
         setFormData({
-            occupancy: room.occupancy || '2',
+            occupancy: room.occupancy || '1',
             category: room.category || '',
             totalInventory: room.totalInventory || 1,
             price: room.price || room.rent || '', // Fallback for old data
@@ -520,7 +549,7 @@ const AdminDashboard = () => {
     const handleCancelEditRoom = () => {
         setEditingRoomId(null);
         setFormData({
-            occupancy: '2',
+            occupancy: '1',
             category: '',
             totalInventory: 1,
             price: '',
@@ -561,6 +590,7 @@ const AdminDashboard = () => {
     };
 
     const handleUpdateBookingStatus = async (bookingId, newStatus) => {
+        setBookingActionLoading(prev => ({ ...prev, [bookingId]: true }));
         try {
             const remark = bookingRemarks[bookingId] || "";
             await updateDoc(doc(db, "bookings", bookingId), {
@@ -574,9 +604,16 @@ const AdminDashboard = () => {
                 delete updated[bookingId];
                 return updated;
             });
+            showToast(newStatus === 'confirmed' ? '✅ Booking confirmed' : '❌ Booking rejected');
         } catch (error) {
             console.error("Error updating booking:", error);
-            alert("Failed to update booking status");
+            showToast('Failed to update booking status', 'error');
+        } finally {
+            setBookingActionLoading(prev => {
+                const updated = { ...prev };
+                delete updated[bookingId];
+                return updated;
+            });
         }
     };
 
@@ -641,14 +678,12 @@ const AdminDashboard = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">District</label>
-                                <select
-                                    className="w-full p-2 border rounded capitalize"
-                                    value={messForm.district}
-                                    onChange={(e) => setMessForm({ ...messForm, district: e.target.value })}
-                                >
-                                    <option value="balasore">Balasore</option>
-                                    <option value="bhadrak">Bhadrak</option>
-                                </select>
+                                {/* District is READ-ONLY for partners — only operator can change it */}
+                                <div className="w-full p-2 border border-dashed border-gray-300 rounded bg-gray-50 text-gray-600 capitalize flex items-center gap-2">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                    {messForm.district || 'balasore'}
+                                    <span className="ml-auto text-[10px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded font-medium">Managed by Operator</span>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Mess Type</label>
@@ -833,8 +868,14 @@ const AdminDashboard = () => {
                                     onChange={(e) => setMessForm({ ...messForm, advancePayment: { ...messForm.advancePayment, type: e.target.value } })}
                                 >
                                     <option value="None">None</option>
-                                    <option value="1 Month Rent">1 Month Rent</option>
-                                    <option value="2 Month Rent">2 Month Rent</option>
+                                    <option value="1 Month">1 Month</option>
+                                    <option value="2 Months">2 Months</option>
+                                    <option value="3 Months">3 Months</option>
+                                    <option value="4 Months">4 Months</option>
+                                    <option value="5 Months">5 Months</option>
+                                    <option value="6 Months">6 Months</option>
+                                    <option value="1 Month Rent">1 Month Rent (Legacy)</option>
+                                    <option value="2 Month Rent">2 Month Rent (Legacy)</option>
                                     <option value="Custom Amount">Custom Amount</option>
                                 </select>
                                 {messForm.advancePayment.type === 'Custom Amount' && (
@@ -879,6 +920,30 @@ const AdminDashboard = () => {
                                         </select>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Billing Cycle & Stay Commitment */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Rent Billing Cycle</label>
+                                    <select
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.rentCycle || 'monthly'}
+                                        onChange={(e) => setMessForm({ ...messForm, rentCycle: e.target.value })}
+                                    >
+                                        <option value="monthly">Monthly Basis</option>
+                                        <option value="yearly">Yearly Basis</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Minimum Stay (Months)</label>
+                                    <input
+                                        type="number"
+                                        className="w-full p-2 border rounded"
+                                        value={messForm.minStayDuration || 1}
+                                        onChange={(e) => setMessForm({ ...messForm, minStayDuration: parseInt(e.target.value) || 1 })}
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1015,18 +1080,41 @@ const AdminDashboard = () => {
                         </form>
                     </div>
                 ) : (
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-8 flex justify-between items-center">
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-800">{messProfile.name}</h2>
-                            <p className="text-gray-600">{messProfile.address}</p>
-                            <p className="text-gray-600">{messProfile.contact}</p>
+                    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+                        <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                                    <h2 className="text-2xl font-bold text-gray-800">{messProfile.name}</h2>
+                                    <span className="text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded font-semibold capitalize">{messProfile.district || 'balasore'}</span>
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-semibold">{messProfile.messType}</span>
+                                    {messProfile.rentCycle === 'yearly' && (
+                                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-semibold">Yearly Billing</span>
+                                    )}
+                                    {messProfile.minStayDuration > 1 && (
+                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-semibold">{messProfile.minStayDuration}m min stay</span>
+                                    )}
+                                </div>
+                                <p className="text-gray-600 text-sm">{messProfile.address}</p>
+                                <p className="text-gray-600 text-sm">📞 {messProfile.contact}</p>
+                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                    {messProfile.latitude && messProfile.longitude && (
+                                        <span className="flex items-center gap-1 text-green-600">✓ GPS Set</span>
+                                    )}
+                                    {messProfile.galleryUrls?.length > 0 && (
+                                        <span>🖼️ {messProfile.galleryUrls.length} gallery photos</span>
+                                    )}
+                                    {messProfile.isVerified && (
+                                        <span className="text-blue-600">✓ Verified</span>
+                                    )}
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleEditMessClick}
+                                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors ml-4 shrink-0"
+                            >
+                                <Pencil size={18} /> Edit Profile
+                            </button>
                         </div>
-                        <button
-                            onClick={handleEditMessClick}
-                            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-                        >
-                            <Pencil size={18} /> Edit Profile
-                        </button>
                     </div>
                 )}
 
@@ -1071,7 +1159,12 @@ const AdminDashboard = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Price per Student (₹/month)</label>
+                                        <label className="block text-sm font-medium mb-1">
+                                            Price per Student
+                                            <span className="ml-1 text-xs font-normal text-brand-primary">
+                                                ({messProfile?.rentCycle === 'yearly' ? '₹/year' : '₹/month'})
+                                            </span>
+                                        </label>
                                         <input
                                             type="number"
                                             className="w-full p-2 border rounded"
@@ -1235,7 +1328,7 @@ const AdminDashboard = () => {
                                                         'Five': '5',
                                                         'Six': '6'
                                                     })[booking.roomType] || booking.roomType} Seater</span>
-                                                    <span>💰 ₹{booking.price}/mo</span>
+                                                    <span>💰 ₹{booking.price}{booking.rentCycle === 'yearly' ? '/yr' : '/mo'}</span>
                                                     <span>📅 {booking.createdAt ? new Date(booking.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
                                                 </div>
                                             </div>
@@ -1251,15 +1344,17 @@ const AdminDashboard = () => {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => handleUpdateBookingStatus(booking.id, 'confirmed')}
-                                                            className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow-sm transition-colors text-sm"
+                                                            disabled={!!bookingActionLoading[booking.id]}
+                                                            className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-sm transition-colors text-sm"
                                                         >
-                                                            Approve
+                                                            {bookingActionLoading[booking.id] ? '...' : 'Approve'}
                                                         </button>
                                                         <button
                                                             onClick={() => handleUpdateBookingStatus(booking.id, 'rejected')}
-                                                            className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors text-sm"
+                                                            disabled={!!bookingActionLoading[booking.id]}
+                                                            className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed text-red-600 rounded-lg font-medium transition-colors text-sm"
                                                         >
-                                                            Reject
+                                                            {bookingActionLoading[booking.id] ? '...' : 'Reject'}
                                                         </button>
                                                     </div>
                                                 </div>

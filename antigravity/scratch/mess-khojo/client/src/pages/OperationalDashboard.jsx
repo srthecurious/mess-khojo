@@ -7,7 +7,7 @@ import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteD
 import { useNavigate } from 'react-router-dom';
 import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
-import { sendTelegramNotification, telegramTemplates } from '../utils/telegramNotifier';
+import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
 
 const compressImage = async (file) => {
@@ -46,7 +46,9 @@ const OperationalDashboard = () => {
     const [mobileAds, setMobileAds] = useState([]);
     const [heroAdUploading, setHeroAdUploading] = useState(false);
     const [heroAdForm, setHeroAdForm] = useState({ linkUrl: '', title: '', district: 'all' });
-    const [heroAdFile, setHeroAdFile] = useState(null);
+    // Separate file states for desktop and mobile to prevent cross-upload bugs
+    const [desktopAdFile, setDesktopAdFile] = useState(null);
+    const [mobileAdFile, setMobileAdFile] = useState(null);
 
     // Editing State
     const [editingItem, setEditingItem] = useState(null); // For mess/room edit modal
@@ -54,7 +56,9 @@ const OperationalDashboard = () => {
     const [editImageFiles, setEditImageFiles] = useState([]);
     const [editGalleryFiles, setEditGalleryFiles] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [saveToast, setSaveToast] = useState(null); // { message, type }
     const [revealedIds, setRevealedIds] = useState({}); // { bookingId: true/false } to toggle phone visibility
+    const [bookingActionLoading, setBookingActionLoading] = useState({}); // { bookingId: true }
 
     // Partner Creation State
     const [partnerEmail, setPartnerEmail] = useState('');
@@ -181,28 +185,15 @@ const OperationalDashboard = () => {
     // Fetch ALL Room Inquiries (For "Find Your Room" Coming Soon)
     useEffect(() => {
         const q = query(collection(db, "room_inquiries"));
-        let isFirstLoad = true;
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-
-            // Send notification for new room inquiries
-            if (!isFirstLoad) {
-                const newInquiries = data.filter(inquiry =>
-                    !allRoomInquiries.some(old => old.id === inquiry.id)
-                );
-
-                newInquiries.forEach(inquiry => {
-                    sendTelegramNotification(telegramTemplates.newRoomInquiry(inquiry));
-                });
-            }
-
             setRoomInquiries(data);
-            isFirstLoad = false;
         });
         return () => unsubscribe();
-    }, [allRoomInquiries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch ALL Feedbacks
     useEffect(() => {
@@ -234,29 +225,16 @@ const OperationalDashboard = () => {
     // Fetch ALL Mess Registrations
     useEffect(() => {
         const q = query(collection(db, "mess_registrations"));
-        let isFirstLoad = true;
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-
-            // Send notification for new pending registrations
-            if (!isFirstLoad) {
-                const newPendingRegistrations = data.filter(registration =>
-                    registration.status === 'pending' &&
-                    !allRegistrations.some(old => old.id === registration.id)
-                );
-
-                newPendingRegistrations.forEach(registration => {
-                    sendTelegramNotification(telegramTemplates.newRegistration(registration));
-                });
-            }
-
             setRegistrations(data);
-            isFirstLoad = false;
         });
         return () => unsubscribe();
-    }, [allRegistrations]);
+    // New registration Telegram notifications are handled in MessRegistration.jsx
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch ALL Messes
     useEffect(() => {
@@ -323,7 +301,8 @@ const OperationalDashboard = () => {
 
     // Upload hero ad
     const handleHeroAdUpload = async (section) => {
-        if (!heroAdFile) return alert('Please select an image');
+        const currentFile = section === 'desktop' ? desktopAdFile : mobileAdFile;
+        if (!currentFile) return alert('Please select an image');
         const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
         const storagePath = section === 'desktop' ? 'ads/desktop' : 'ads/mobile';
         const currentAds = section === 'desktop' ? desktopAds : mobileAds;
@@ -332,8 +311,8 @@ const OperationalDashboard = () => {
 
         setHeroAdUploading(true);
         try {
-            const compressed = await compressImage(heroAdFile);
-            const storageRef = ref(storage, `${storagePath}/${Date.now()}_${heroAdFile.name}`);
+            const compressed = await compressImage(currentFile);
+            const storageRef = ref(storage, `${storagePath}/${Date.now()}_${currentFile.name}`);
             const snapshot = await uploadBytes(storageRef, compressed);
             const imageUrl = await getDownloadURL(snapshot.ref);
 
@@ -341,15 +320,20 @@ const OperationalDashboard = () => {
                 imageUrl,
                 linkUrl: heroAdForm.linkUrl || '',
                 title: heroAdForm.title || '',
-                district: heroAdForm.district || 'balasore',
+                district: heroAdForm.district || 'all',
                 order: currentAds.length,
                 active: true,
                 createdAt: serverTimestamp()
             });
 
-            setHeroAdFile(null);
-            setHeroAdForm({ linkUrl: '', title: '', district: 'balasore' });
-            // Reset file input
+            // Keep district selection, only clear link/title
+            if (section === 'desktop') {
+                setDesktopAdFile(null);
+            } else {
+                setMobileAdFile(null);
+            }
+            setHeroAdForm(prev => ({ ...prev, linkUrl: '', title: '' }));
+            // Reset only the relevant file input
             const fileInput = document.getElementById(`hero-ad-file-${section}`);
             if (fileInput) fileInput.value = '';
         } catch (error) {
@@ -382,7 +366,7 @@ const OperationalDashboard = () => {
         }
     };
 
-    // Reorder hero ad
+    // Reorder hero ad — swap actual order values, not array indices
     const handleReorderHeroAd = async (adId, direction, section) => {
         const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
         const ads = section === 'desktop' ? [...desktopAds] : [...mobileAds];
@@ -391,15 +375,19 @@ const OperationalDashboard = () => {
         const newIdx = direction === 'up' ? idx - 1 : idx + 1;
         if (newIdx < 0 || newIdx >= ads.length) return;
 
+        // Swap the actual stored `order` values between the two documents
+        const currentOrder = ads[idx].order ?? idx;
+        const swapOrder = ads[newIdx].order ?? newIdx;
         try {
-            await updateDoc(doc(db, collectionName, ads[idx].id), { order: newIdx });
-            await updateDoc(doc(db, collectionName, ads[newIdx].id), { order: idx });
+            await updateDoc(doc(db, collectionName, ads[idx].id), { order: swapOrder });
+            await updateDoc(doc(db, collectionName, ads[newIdx].id), { order: currentOrder });
         } catch (error) {
             console.error('Reorder failed:', error);
         }
     };
 
     const handleBookingAction = async (id, status) => {
+        setBookingActionLoading(prev => ({ ...prev, [id]: true }));
         try {
             const remark = bookingRemarks[id] || "";
             await updateDoc(doc(db, "bookings", id), {
@@ -416,6 +404,12 @@ const OperationalDashboard = () => {
         } catch (error) {
             console.error("Update failed:", error);
             alert("Action failed");
+        } finally {
+            setBookingActionLoading(prev => {
+                const updated = { ...prev };
+                delete updated[id];
+                return updated;
+            });
         }
     };
 
@@ -446,6 +440,7 @@ const OperationalDashboard = () => {
         if (type === 'mess') {
             setEditForm({
                 name: item.name || '',
+                district: item.district || 'balasore', // Operator CAN change district
                 address: item.address || '',
                 contact: item.contact || '',
                 locationUrl: item.locationUrl || '',
@@ -462,32 +457,52 @@ const OperationalDashboard = () => {
                 galleryUrls: item.galleryUrls || [],
                 amenities: item.amenities || { food: false, wifi: false, inverter: false },
                 description: item.description || '',
-                sponsorRank: item.sponsorRank || ''
+                sponsorRank: item.sponsorRank || '',
+                rentCycle: item.rentCycle || 'monthly',
+                minStayDuration: item.minStayDuration || 1
             });
         } else {
             setEditForm({
-                occupancy: item.occupancy || 'Double',
+                occupancy: item.occupancy || '1',
                 category: item.category || '',
                 price: item.price || '',
                 availableCount: item.availableCount || 0,
                 totalInventory: item.totalInventory || 1,
                 otherInfo: item.otherInfo || '',
-                amenities: item.amenities || { ac: false, attachedBathroom: false }
+                amenities: item.amenities || { ac: false, attachedBathroom: false },
+                imageUrls: item.imageUrls || (item.imageUrl ? [item.imageUrl] : [])
             });
         }
     };
 
     const removeGalleryImage = async (imageUrlToRemove) => {
-        if (!editingItem || editingItem.type !== 'mess') return;
+        if (!editingItem) return;
         try {
-            const updatedUrls = (editForm.galleryUrls || []).filter(url => url !== imageUrlToRemove);
-            await updateDoc(doc(db, "messes", editingItem.id), {
-                galleryUrls: updatedUrls
-            });
-            setEditForm(prev => ({ ...prev, galleryUrls: updatedUrls }));
+            if (editingItem.type === 'mess') {
+                const updatedUrls = (editForm.galleryUrls || []).filter(url => url !== imageUrlToRemove);
+                await updateDoc(doc(db, "messes", editingItem.id), {
+                    galleryUrls: updatedUrls
+                });
+                setEditForm(prev => ({ ...prev, galleryUrls: updatedUrls }));
+            } else {
+                const updatedUrls = (editForm.imageUrls || []).filter(url => url !== imageUrlToRemove);
+                await updateDoc(doc(db, "rooms", editingItem.id), {
+                    imageUrls: updatedUrls,
+                    imageUrl: updatedUrls[0] || ""
+                });
+                setEditForm(prev => ({ ...prev, imageUrls: updatedUrls }));
+                
+                // Update local state to reflect change immediately
+                setRooms(prevRooms => prevRooms.map(r => {
+                    if (r.id === editingItem.id) {
+                        return { ...r, imageUrls: updatedUrls, imageUrl: updatedUrls[0] || "" };
+                    }
+                    return r;
+                }));
+            }
         } catch (error) {
             console.error("Error removing image:", error);
-            alert("Failed to remove gallery image");
+            alert("Failed to remove image");
         }
     };
 
@@ -534,16 +549,40 @@ const OperationalDashboard = () => {
                     lastUpdatedDate: editForm.isUserSourced ? editForm.lastUpdatedDate : null
                 });
             } else {
-                await updateDoc(doc(db, "rooms", editingItem.id), editForm);
+                let downloadURLs = editForm.imageUrls ? [...editForm.imageUrls] : [];
+                if (editGalleryFiles.length > 0) {
+                    const uploadPromises = Array.from(editGalleryFiles).map(async (file) => {
+                        const compressedFile = await compressImage(file);
+                        const storageRef = ref(storage, `rooms/${Date.now()}_${file.name}`);
+                        const snapshot = await uploadBytes(storageRef, compressedFile);
+                        return getDownloadURL(snapshot.ref);
+                    });
+                    const newUrls = await Promise.all(uploadPromises);
+                    downloadURLs = [...downloadURLs, ...newUrls];
+                }
+
+                if (downloadURLs.length > 5) {
+                    alert(`You have ${downloadURLs.length} images. Maximum allowed is 5. Please remove some.`);
+                    setIsSaving(false);
+                    return;
+                }
+
+                await updateDoc(doc(db, "rooms", editingItem.id), {
+                    ...editForm,
+                    imageUrls: downloadURLs,
+                    imageUrl: downloadURLs[0] || ""
+                });
             }
             setEditingItem(null);
             setEditForm(null);
             setEditImageFiles([]);
             setEditGalleryFiles([]);
-            alert("Updated successfully");
+            setSaveToast({ message: '✅ Changes saved successfully!', type: 'success' });
+            setTimeout(() => setSaveToast(null), 3500);
         } catch (error) {
             console.error("Save failed:", error);
-            alert("Save failed");
+            setSaveToast({ message: `❌ Save failed: ${error.message}`, type: 'error' });
+            setTimeout(() => setSaveToast(null), 3500);
         } finally {
             setIsSaving(false);
         }
@@ -679,10 +718,12 @@ const OperationalDashboard = () => {
     };
 
     const handleApproveRegistration = (reg) => {
+        // Sanitize phone number to create a valid email
+        const sanitizedPhone = (reg.phoneNumber || 'owner').replace(/[^a-zA-Z0-9]/g, '');
         setApproveModal({
             isOpen: true,
             reg: reg,
-            email: (reg.phoneNumber || "owner") + "@messkhojo.com",
+            email: sanitizedPhone + "@messkhojo.com",
             password: "MK" + Math.floor(100000 + Math.random() * 900000),
             loading: false
         });
@@ -733,6 +774,17 @@ const OperationalDashboard = () => {
                 inverter: facilities.includes('InverterPower') || false,
             };
 
+            const regAdv = reg.advancePayment || { type: 'None' };
+            const regMaint = reg.maintenanceCharge || { taken: false };
+            let derivedDeposit = '';
+            if (regAdv.type && regAdv.type !== 'None') {
+                derivedDeposit = regAdv.type === 'Custom Amount' ? `₹${regAdv.customAmount}` : regAdv.type;
+            }
+            if (regMaint.taken && regMaint.amount) {
+                const maintStr = ` + ₹${regMaint.amount} maintenance (${regMaint.frequency || 'Per Year'})`;
+                derivedDeposit = derivedDeposit ? `${derivedDeposit}${maintStr}` : `₹${regMaint.amount} maintenance (${regMaint.frequency || 'Per Year'})`;
+            }
+
             // 'name' is the correct field used by AdminDashboard and Home page
             const messDocData = {
                 adminId: newUser.uid,
@@ -748,8 +800,9 @@ const OperationalDashboard = () => {
                 facilities: facilities,
                 amenities: amenitiesObj,
                 includedInRent: includedInRent,
-                advancePayment: reg.advancePayment || { type: 'None' },
-                maintenanceCharge: reg.maintenanceCharge || { taken: false },
+                advancePayment: regAdv,
+                maintenanceCharge: regMaint,
+                advanceDeposit: derivedDeposit,
                 location: locationGeopoint,
                 latitude: reg.gpsLatitude ? Number(reg.gpsLatitude) : null,
                 longitude: reg.gpsLongitude ? Number(reg.gpsLongitude) : null,
@@ -757,7 +810,9 @@ const OperationalDashboard = () => {
                 landmark: reg.landmark || '',
                 isVerified: true,
                 isUserSourced: false,
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp(),
+                rentCycle: reg.rentCycle || 'monthly',
+                minStayDuration: reg.minStayDuration || 1
             };
 
             const messDocRef = await addDoc(collection(db, "messes"), messDocData);
@@ -793,7 +848,9 @@ const OperationalDashboard = () => {
                             amenities: { ac: label.toLowerCase().includes('ac'), attachedBathroom: false },
                             imageUrls: [],
                             imageUrl: '',
-                            createdAt: serverTimestamp()
+                            createdAt: serverTimestamp(),
+                            rentCycle: reg.rentCycle || 'monthly',
+                            minStayDuration: reg.minStayDuration || 1
                         });
                     });
                 }
@@ -810,7 +867,9 @@ const OperationalDashboard = () => {
                     amenities: { ac: false, attachedBathroom: false },
                     imageUrls: [],
                     imageUrl: '',
-                    createdAt: serverTimestamp()
+                    createdAt: serverTimestamp(),
+                    rentCycle: reg.rentCycle || 'monthly',
+                    minStayDuration: reg.minStayDuration || 1
                 })];
             });
             await Promise.all(roomCreatePromises);
@@ -1081,7 +1140,7 @@ const OperationalDashboard = () => {
                                                     <span className="text-slate-500 text-xs">ID: {booking.id.slice(0, 8)}</span>
                                                 </div>
                                                 <h3 className="font-bold text-white text-lg">{booking.messName}</h3>
-                                                <p className="text-slate-400 text-sm">{booking.roomType} Room • ₹{booking.price}/mo</p>
+                                                <p className="text-slate-400 text-sm">{booking.roomType} Room • ₹{booking.price}/{booking.rentCycle === 'yearly' ? 'yr' : 'mo'}</p>
                                                 <div className="pt-2 flex items-center gap-4 text-sm">
                                                     <div className="flex items-center gap-1 text-slate-300">
                                                         <Users size={14} /> {booking.userName}
@@ -1118,15 +1177,17 @@ const OperationalDashboard = () => {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => handleBookingAction(booking.id, 'confirmed')}
-                                                            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors shadow-lg shadow-green-900/20 text-sm"
+                                                            disabled={!!bookingActionLoading[booking.id]}
+                                                            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors shadow-lg shadow-green-900/20 text-sm"
                                                         >
-                                                            <CheckCircle size={16} /> Approve
+                                                            {bookingActionLoading[booking.id] ? '...' : <><CheckCircle size={16} /> Approve</>}
                                                         </button>
                                                         <button
                                                             onClick={() => handleBookingAction(booking.id, 'rejected')}
-                                                            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors border border-slate-600 text-sm"
+                                                            disabled={!!bookingActionLoading[booking.id]}
+                                                            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 rounded-lg font-medium transition-colors border border-slate-600 text-sm"
                                                         >
-                                                            <XCircle size={16} /> Reject
+                                                            {bookingActionLoading[booking.id] ? '...' : <><XCircle size={16} /> Reject</>}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1546,7 +1607,7 @@ const OperationalDashboard = () => {
                                                                     )}
                                                                 </div>
                                                             ) : (
-                                                                <p className="text-slate-500 italic mt-0.5">No GPS coordinates captured</p>
+                                                        <p className="text-slate-500 italic mt-0.5">No GPS coordinates captured</p>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1556,21 +1617,39 @@ const OperationalDashboard = () => {
                                             <div>
                                                 <p className="text-slate-500 text-xs uppercase font-bold mb-1">Rooms & Rent</p>
                                                 <div className="flex flex-col gap-1 mt-1">
-                                                    {reg.roomTypes?.map((t, i) => (
-                                                        <div key={i} className="flex justify-between items-center text-sm bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50">
-                                                            <span className="text-emerald-400 font-medium">{t}</span>
-                                                            <span className="text-slate-300 font-mono text-xs">
-                                                                {reg.rentInfo && reg.rentInfo[t] ? `₹${reg.rentInfo[t]}/mo` : 'No rent info'}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                                    {/* Support both legacy rentInfo and new roomVariants schema */}
+                                                    {reg.roomVariants
+                                                        ? Object.entries(reg.roomVariants).map(([type, variants], i) => {
+                                                            const lowestPrice = Array.isArray(variants)
+                                                                ? Math.min(...variants.map(v => Number(v.price) || 0))
+                                                                : null;
+                                                            const cycleSuffix = reg.rentCycle === 'yearly' ? '/yr' : '/mo';
+                                                            return (
+                                                                <div key={i} className="flex justify-between items-center text-sm bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50">
+                                                                    <span className="text-emerald-400 font-medium">{type}</span>
+                                                                    <span className="text-slate-300 font-mono text-xs">
+                                                                        {lowestPrice ? `₹${lowestPrice}${cycleSuffix}` : 'See variants'}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })
+                                                        : reg.roomTypes?.map((t, i) => (
+                                                            <div key={i} className="flex justify-between items-center text-sm bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50">
+                                                                <span className="text-emerald-400 font-medium">{t}</span>
+                                                                <span className="text-slate-300 font-mono text-xs">
+                                                                    {reg.rentInfo?.[t] ? `₹${reg.rentInfo[t]}${reg.rentCycle === 'yearly' ? '/yr' : '/mo'}` : 'No rent info'}
+                                                                </span>
+                                                            </div>
+                                                        ))
+                                                    }
                                                 </div>
-                                                {reg.vacantRooms && reg.vacantRooms.length > 0 && (
-                                                    <p className="text-xs text-slate-400 mt-2">
-                                                        <span className="font-bold text-slate-300">Vacant:</span> {reg.vacantRooms.join(', ')}
-                                                    </p>
-                                                )}
                                             </div>
+
+                                            {reg.vacantRooms && reg.vacantRooms.length > 0 && (
+                                                <p className="text-xs text-slate-400 mt-2">
+                                                    <span className="font-bold text-slate-300">Vacant:</span> {reg.vacantRooms.join(', ')}
+                                                </p>
+                                            )}
 
                                             {(reg.advancePayment?.type || reg.maintenanceCharge?.taken) && (
                                                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-700/50">
@@ -2016,7 +2095,9 @@ const OperationalDashboard = () => {
                                         <div className="bg-slate-900/50 rounded-xl p-4 mb-5 border border-slate-700/50 flex-grow">
                                             <div className="flex justify-between items-center mb-2">
                                                 <span className="text-xs text-slate-500 uppercase font-black">Price</span>
-                                                <span className="text-emerald-400 font-bold">₹{room.price}/mo</span>
+                                                <span className="text-emerald-400 font-bold">
+                                                    ₹{room.price}/{room.rentCycle === 'yearly' ? 'yr' : 'mo'}
+                                                </span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-xs text-slate-500 uppercase font-black">Availability</span>
@@ -2108,7 +2189,10 @@ const OperationalDashboard = () => {
                                                         type="file"
                                                         accept="image/*"
                                                         disabled={sectionAds.length >= 10 || heroAdUploading}
-                                                        onChange={(e) => setHeroAdFile(e.target.files?.[0] || null)}
+                                                        onChange={(e) => section === 'desktop'
+                                                        ? setDesktopAdFile(e.target.files?.[0] || null)
+                                                        : setMobileAdFile(e.target.files?.[0] || null)
+                                                    }
                                                         className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-pink-500/10 file:text-pink-400 hover:file:bg-pink-500/20 disabled:opacity-40"
                                                     />
                                                 </div>
@@ -2139,7 +2223,7 @@ const OperationalDashboard = () => {
                                                 </div>
                                                 <button
                                                     onClick={() => handleHeroAdUpload(section)}
-                                                    disabled={!heroAdFile || heroAdUploading || sectionAds.length >= 10}
+                                                    disabled={!(section === 'desktop' ? desktopAdFile : mobileAdFile) || heroAdUploading || sectionAds.length >= 10}
                                                     className="w-full py-2.5 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-pink-500/10"
                                                 >
                                                     {heroAdUploading ? 'Uploading...' : sectionAds.length >= 10 ? 'Limit Reached (10/10)' : 'Upload Banner'}
@@ -2221,6 +2305,17 @@ const OperationalDashboard = () => {
                 </main>
             </div>
 
+            {/* Save Toast Notification */}
+            {saveToast && (
+                <div className={`fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border text-sm font-bold animate-in slide-in-from-bottom-4 duration-300 ${
+                    saveToast.type === 'error'
+                        ? 'bg-red-900/90 border-red-700 text-red-200'
+                        : 'bg-emerald-900/90 border-emerald-700 text-emerald-200'
+                }`}>
+                    {saveToast.message}
+                </div>
+            )}
+
             {/* EDIT MODAL */}
             {editingItem && editForm && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -2274,6 +2369,19 @@ const OperationalDashboard = () => {
                                                 placeholder="1 = Top Rank"
                                             />
                                         </div>
+                                    </div>
+
+                                    {/* District — EDITABLE by operator */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-indigo-400 uppercase mb-2">District (Operator Only)</label>
+                                        <select
+                                            className="w-full bg-slate-900 border border-indigo-500/40 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={editForm.district || 'balasore'}
+                                            onChange={e => setEditForm({ ...editForm, district: e.target.value })}
+                                        >
+                                            <option value="balasore">Balasore</option>
+                                            <option value="bhadrak">Bhadrak</option>
+                                        </select>
                                     </div>
 
                                     <div>
@@ -2335,6 +2443,29 @@ const OperationalDashboard = () => {
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
                                                 value={editForm.security}
                                                 onChange={e => setEditForm({ ...editForm, security: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Rent Billing Cycle</label>
+                                            <select
+                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                                                value={editForm.rentCycle || 'monthly'}
+                                                onChange={e => setEditForm({ ...editForm, rentCycle: e.target.value })}
+                                            >
+                                                <option value="monthly">Monthly Basis</option>
+                                                <option value="yearly">Yearly Basis</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Minimum Stay (Months)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                                                value={editForm.minStayDuration || 1}
+                                                onChange={e => setEditForm({ ...editForm, minStayDuration: parseInt(e.target.value) || 1 })}
                                             />
                                         </div>
                                     </div>
@@ -2462,16 +2593,21 @@ const OperationalDashboard = () => {
                                                 value={editForm.occupancy}
                                                 onChange={e => setEditForm({ ...editForm, occupancy: e.target.value })}
                                             >
-                                                <option value="Single">Single</option>
-                                                <option value="Double">Double</option>
-                                                <option value="Triple">Triple</option>
-                                                <option value="Four">Four</option>
-                                                <option value="Five">Five</option>
-                                                <option value="Six">Six</option>
+                                                <option value="1">1 Seater (Single)</option>
+                                                <option value="2">2 Seater (Double)</option>
+                                                <option value="3">3 Seater (Triple)</option>
+                                                <option value="4">4 Seater</option>
+                                                <option value="5">5 Seater</option>
+                                                <option value="6">6 Seater</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Price (₹/mo)</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                                Price
+                                                <span className="ml-1 text-emerald-400 lowercase font-normal">
+                                                    ({messes.find(m => m.id === editingItem?.messId)?.rentCycle === 'yearly' ? '₹/year' : '₹/month'})
+                                                </span>
+                                            </label>
                                             <input
                                                 type="number"
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500"
@@ -2529,6 +2665,40 @@ const OperationalDashboard = () => {
                                             })}
                                             color="cyan"
                                         />
+                                    </div>
+
+                                    <div className="pt-2 border-t border-slate-700">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                                            Room Photos (Max 5)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            onChange={(e) => setEditGalleryFiles(e.target.files)}
+                                            className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-cyan-500/10 file:text-cyan-400 hover:file:bg-cyan-500/20"
+                                        />
+
+                                        {editForm.imageUrls?.length > 0 && (
+                                            <div className="mt-4">
+                                                <p className="text-xs text-slate-500 mb-2 font-medium">Current Photos ({editForm.imageUrls.length}/5):</p>
+                                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                                                    {editForm.imageUrls.map((url, idx) => (
+                                                        <div key={idx} className="relative group rounded-md overflow-hidden border border-slate-700 shadow-sm aspect-square bg-slate-900">
+                                                            <img src={url} alt={`Room Photo ${idx + 1}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.preventDefault(); removeGalleryImage(url); }}
+                                                                className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                title="Remove Image"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             )}

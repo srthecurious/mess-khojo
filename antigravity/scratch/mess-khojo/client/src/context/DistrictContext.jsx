@@ -26,7 +26,7 @@ export const DISTRICTS_CONFIG = {
         active: true,
         heroTitle: "Find Your Comfortable Stay in Bhadrak",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
-        gpsCenter: { lat: 21.0560, lng: 86.5050 }, 
+        gpsCenter: { lat: 21.0672, lng: 86.4886 }, 
         landmarks: [
             { name: 'Bhadrak Station', type: 'landmark' },
             { name: 'Charampa', type: 'landmark' },

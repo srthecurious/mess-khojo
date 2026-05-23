@@ -318,10 +318,6 @@ const RoomDetails = () => {
 
             await addDoc(collection(db, "bookings"), bookingData);
 
-            // Send Telegram Notification
-            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
-                sendTelegramNotification(telegramTemplates.newBooking(bookingData));
-            });
             setShowConfirmModal(false);
 
             // Open the phone dialer with the owner's contact number
@@ -371,11 +367,6 @@ const RoomDetails = () => {
 
             // Track the availability inquiry
             trackAvailabilityInquiry(mess.id, room.id);
-
-            // Send Telegram Notification
-            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
-                sendTelegramNotification(telegramTemplates.newInquiry(inquiryData));
-            });
 
             await fetchSimilarRooms();
             setNotifyStep('success');
@@ -550,14 +541,16 @@ const RoomDetails = () => {
                             <h4 className="font-bold text-gray-900 mb-2">Mess Rules</h4>
                             <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                                 <li>Deposit: {(() => {
-                                    if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                                    if (mess.advancePayment?.type && (mess.advancePayment.type !== 'None' || (mess.maintenanceCharge?.taken && mess.maintenanceCharge?.amount))) {
                                         const adv = mess.advancePayment;
                                         const maint = mess.maintenanceCharge;
-                                        const advStr = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
-                                        const maintStr = maint?.taken && maint?.amount
-                                            ? ` + ₹${maint.amount} maintenance`
+                                        const advStr = adv.type && adv.type !== 'None'
+                                            ? (adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type)
                                             : '';
-                                        return advStr + maintStr;
+                                        const maintStr = maint?.taken && maint?.amount
+                                            ? `${advStr ? ' + ' : ''}₹${maint.amount} maintenance`
+                                            : '';
+                                        return advStr + maintStr || 'No Deposit';
                                     }
                                     return mess.advanceDeposit || 'Contact Owner';
                                 })()}</li>

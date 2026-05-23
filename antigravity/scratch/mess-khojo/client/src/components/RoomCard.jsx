@@ -99,7 +99,14 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
                 <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
                     <div>
                         <div className="text-2xl font-extrabold text-brand-primary leading-none">₹{price}</div>
-                        <div className="text-xs font-medium text-gray-500 mt-0.5">per month</div>
+                        <div className="text-xs font-medium text-gray-500 mt-0.5">
+                            {room.rentCycle === 'yearly' ? 'per year' : 'per month'}
+                        </div>
+                        {room.minStayDuration && room.minStayDuration >= 12 && (
+                            <div className="mt-1 text-[10px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded inline-block">
+                                🔒 1-Yr Stay Commitment
+                            </div>
+                        )}
                     </div>
 
                     {isAdmin ? (

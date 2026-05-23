@@ -3,6 +3,7 @@ import { MapPin, Navigation, ExternalLink, Loader2, ChevronLeft } from 'lucide-r
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { useNavigate } from 'react-router-dom';
 import { trackMessExplorer } from '../analytics';
+import { useDistrict, DISTRICTS_CONFIG } from '../context/DistrictContext';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -24,11 +25,76 @@ const MapCameraHandler = ({ center, zoom }) => {
 
 const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
     const navigate = useNavigate();
-    const [mapCenter, setMapCenter] = useState(
-        userLocation?.lat && userLocation?.lng
-            ? { lat: userLocation.lat, lng: userLocation.lng }
-            : { lat: 21.4934, lng: 86.9294 }
-    );
+    const { selectedDistrict } = useDistrict();
+
+    // Helper function to calculate exact distance in kilometers using the Haversine formula
+    const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
+    const districtCenter = React.useMemo(() => {
+        return selectedDistrict && DISTRICTS_CONFIG[selectedDistrict]
+            ? DISTRICTS_CONFIG[selectedDistrict].gpsCenter
+            : null;
+    }, [selectedDistrict]);
+
+    // Calculate dynamic centroid center of messes in this district to open at high mess density area (purple pin density)
+    // Filter out coordinate outliers (e.g. Balasore messes returned in Bhadrak district) to prevent distorting centroid centering
+    const dynamicCentroid = React.useMemo(() => {
+        let messesWithCoords = validMesses.filter(m => m.latitude && m.longitude && !isNaN(m.latitude) && !isNaN(m.longitude));
+        
+        if (districtCenter) {
+            // Only include messes that are within 40 km of the district center to filter out rogue/outlier district listings
+            messesWithCoords = messesWithCoords.filter(m => {
+                const distance = getDistanceKm(m.latitude, m.longitude, districtCenter.lat, districtCenter.lng);
+                return distance < 40;
+            });
+        }
+
+        if (messesWithCoords.length > 0) {
+            const sumLat = messesWithCoords.reduce((sum, m) => sum + m.latitude, 0);
+            const sumLng = messesWithCoords.reduce((sum, m) => sum + m.longitude, 0);
+            return {
+                lat: sumLat / messesWithCoords.length,
+                lng: sumLng / messesWithCoords.length
+            };
+        }
+        return null;
+    }, [validMesses, districtCenter]);
+
+    const defaultCenter = dynamicCentroid || districtCenter || { lat: 21.4934, lng: 86.9294 }; // Balasore fallback
+
+    const isUserLocationValidForDistrict = React.useMemo(() => {
+        if (!userLocation?.lat || !userLocation?.lng || !districtCenter) return false;
+        return getDistanceKm(userLocation.lat, userLocation.lng, districtCenter.lat, districtCenter.lng) < 40;
+    }, [userLocation, districtCenter]);
+
+    const [mapCenter, setMapCenter] = useState(() => {
+        if (isUserLocationValidForDistrict && userLocation?.lat && userLocation?.lng) {
+            return { lat: userLocation.lat, lng: userLocation.lng };
+        }
+        return defaultCenter;
+    });
+
+    // Automatically center map on dynamic centroid once messes load (placing map at the highest purple pin density area)
+    useEffect(() => {
+        if (!isUserLocationValidForDistrict) {
+            if (dynamicCentroid) {
+                setMapCenter(dynamicCentroid);
+            } else if (districtCenter) {
+                setMapCenter(districtCenter);
+            }
+        }
+    }, [dynamicCentroid, districtCenter, isUserLocationValidForDistrict]);
     const [showFullMap, setShowFullMap] = useState(false);
     const [selectedMess, setSelectedMess] = useState(null);
     const [currentZoom, setCurrentZoom] = useState(15);
@@ -255,7 +321,7 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                                                     strokeLinejoin="miter"
                                                     strokeLinecap="butt"
                                                     className="text-white relative z-10 [&>circle]:fill-transparent"
-                                                    fill="url(#premium-purple)"
+                                                    fill="#7C3AED"
                                                 />
                                             </div>
                                         )}
@@ -280,7 +346,7 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                                 }
                                 if (!navigator.geolocation) {
                                     alert("Your browser doesn't support location services.");
-                                    setMapCenter({ lat: 21.4934, lng: 86.9294 });
+                                    setMapCenter(defaultCenter);
                                     setCurrentZoom(15);
                                     return;
                                 }
@@ -290,8 +356,8 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                                         setIsLocating(false);
                                         let { latitude, longitude } = position.coords;
                                         if (latitude > 19.8 && latitude < 20.9) {
-                                            latitude = 21.4934;
-                                            longitude = 86.9294;
+                                            latitude = defaultCenter.lat;
+                                            longitude = defaultCenter.lng;
                                         }
                                         setLocalUserLocation({ lat: latitude, lng: longitude });
                                         setMapCenter({ lat: latitude, lng: longitude });
@@ -303,7 +369,7 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                                         if (localUserLocation?.lat && localUserLocation?.lng) {
                                             setMapCenter({ lat: localUserLocation.lat, lng: localUserLocation.lng });
                                         } else {
-                                            setMapCenter({ lat: 21.4934, lng: 86.9294 });
+                                            setMapCenter(defaultCenter);
                                             alert("Unable to get your live location. Centered to default.");
                                         }
                                         setCurrentZoom(15);

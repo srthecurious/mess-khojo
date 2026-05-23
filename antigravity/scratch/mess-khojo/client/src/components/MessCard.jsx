@@ -131,7 +131,14 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
                                         </span>
                                     </>
                                 )}
-                                <span className="text-[10px] text-gray-500 font-medium">/mo</span>
+                                <span className="text-[10px] text-gray-500 font-medium">
+                                    {mess.rentCycle === 'yearly' ? '/yr' : '/mo'}
+                                </span>
+                                {mess.minStayDuration && mess.minStayDuration >= 12 && (
+                                    <span className="text-[9px] md:text-[10px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded shadow-sm self-center ml-2">
+                                        ⏱️ 1-Yr Stay
+                                    </span>
+                                )}
                             </div>
                         ) : null}
                     </div>

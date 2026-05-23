@@ -132,12 +132,6 @@ const MessDetails = () => {
 
             await addDoc(collection(db, "inquiries"), inquiryDocData);
 
-            // Send Telegram Notification
-            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
-                // Ensure inquiry notification template handles fields correctly
-                sendTelegramNotification(telegramTemplates.newInquiry(inquiryDocData));
-            });
-
             // 2. Prepare WhatsApp message
             const message = `* Inquiry for ${mess.name} * \n\nHello Mess Khojo, I am ${inquiryData.name}. I am looking for a ${inquiryData.seating === 'Any' ? 'room' : inquiryData.seating + ' room'} in * ${mess.name}*.\n\nMy contact: ${inquiryData.phone} \n\nPlease help me with seat availability and details.`;
             const encodedMessage = encodeURIComponent(message);
@@ -642,7 +636,7 @@ const MessDetails = () => {
                                 {/* Managed By */}
                                 {mess.managedBy && (
                                     <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Managed By</h4>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Food Facility Managed By</h4>
                                         <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${
                                             mess.managedBy === 'Students' ? 'bg-emerald-100 text-emerald-700'
                                                 : mess.managedBy === 'Warden' ? 'bg-purple-100 text-purple-700'
@@ -656,14 +650,18 @@ const MessDetails = () => {
                                 {/* Financials — new schema (advancePayment + maintenanceCharge) or old (advanceDeposit string) */}
                                 {(() => {
                                     let advanceLabel = null;
-                                    if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                                    if (mess.advancePayment?.type && (mess.advancePayment.type !== 'None' || (mess.maintenanceCharge?.taken && mess.maintenanceCharge?.amount))) {
                                         const adv = mess.advancePayment;
                                         const maint = mess.maintenanceCharge;
-                                        const advStr = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
+                                        const advStr = adv.type && adv.type !== 'None'
+                                            ? (adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type)
+                                            : 'No Deposit';
                                         const maintStr = maint?.taken && maint?.amount
                                             ? ` + ₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`
                                             : '';
-                                        advanceLabel = advStr + maintStr;
+                                        advanceLabel = advStr === 'No Deposit' && maintStr
+                                            ? `₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`
+                                            : advStr + maintStr;
                                     } else if (mess.advanceDeposit) {
                                         advanceLabel = mess.advanceDeposit;
                                     }
@@ -1013,6 +1011,7 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
     const minPrice = prices[0];
     const maxPrice = prices[prices.length - 1];
     const priceDisplay = minPrice === maxPrice ? `₹${minPrice}` : `₹${minPrice} - ₹${maxPrice}`;
+    const cycleSuffix = (rooms[0] && rooms[0].rentCycle === 'yearly') ? '/yr' : '/mo';
 
     // Calculate total available beds
     const totalAvailable = rooms.reduce((sum, r) => sum + (r.availableCount || 0), 0);
@@ -1036,7 +1035,7 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
                         <h3 className="text-xl font-bold text-brand-text-dark">{displayOccupancy} Seater Rooms</h3>
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-brand-light-gray text-brand-text-gray">{rooms.length} Variants</span>
                     </div>
-                    <p className="text-brand-text-gray text-sm">Starting from <span className="font-semibold text-brand-primary">{priceDisplay}/mo</span></p>
+                    <p className="text-brand-text-gray text-sm">Starting from <span className="font-semibold text-brand-primary">{priceDisplay}{cycleSuffix}</span></p>
                 </div>
 
                 <div className="flex items-center gap-4 mt-2 md:mt-0">

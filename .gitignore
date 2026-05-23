@@ -1,7 +1,11 @@
 antigravity-browser-profile/
 
 antigravity/memory/
+antigravity/mcp_config.json
 *.log
 node_modules/
 .env
 .DS_Store
+
+# Flutter mobile app - tracked in its own separate git repository
+/messkhojo_flutter/
