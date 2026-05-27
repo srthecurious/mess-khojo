@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2 } from 'lucide-react';
-import { db, auth } from '../firebase';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../firebase';
+import { serverTimestamp } from 'firebase/firestore';
+import { getMess, watchRoomsByMess } from '../services/messService';
+import { addClaim, addInquiry } from '../services/bookingService';
+import { getUserDoc } from '../services/userService';
 import RoomCard from '../components/RoomCard';
 import ClaimModal from '../components/ClaimModal';
 import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView } from '../analytics';
@@ -10,7 +13,8 @@ import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-// eslint-disable-next-line no-unused-vars
+import { BRAND } from '../constants';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MessDetails = () => {
@@ -89,9 +93,9 @@ const MessDetails = () => {
     const handleClaimSubmit = async (phoneNumber) => {
         try {
             setClaiming(true);
-            const userDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", auth.currentUser.uid)));
+            const userDoc = await getUserDoc(auth.currentUser.uid);
             let userData = {};
-            if (!userDoc.empty) userData = userDoc.docs[0].data();
+            if (userDoc.exists()) userData = userDoc.data();
 
             const claimData = {
                 messId, messName: mess.name,
@@ -102,7 +106,7 @@ const MessDetails = () => {
                 status: 'pending',
                 createdAt: serverTimestamp()
             };
-            await addDoc(collection(db, "claims"), claimData);
+            await addClaim(claimData);
             import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
                 sendTelegramNotification(telegramTemplates.newClaim(claimData));
             });
@@ -130,12 +134,12 @@ const MessDetails = () => {
                 createdAt: serverTimestamp()
             };
 
-            await addDoc(collection(db, "inquiries"), inquiryDocData);
+            await addInquiry(inquiryDocData);
 
             // 2. Prepare WhatsApp message
             const message = `* Inquiry for ${mess.name} * \n\nHello Mess Khojo, I am ${inquiryData.name}. I am looking for a ${inquiryData.seating === 'Any' ? 'room' : inquiryData.seating + ' room'} in * ${mess.name}*.\n\nMy contact: ${inquiryData.phone} \n\nPlease help me with seat availability and details.`;
             const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://wa.me/+919692819621?text=${encodedMessage}`;
+            const whatsappUrl = `https://wa.me/${BRAND.whatsappNumber}?text=${encodedMessage}`;
 
             setShowInquiryModal(false);
             window.open(whatsappUrl, '_blank');
@@ -169,18 +173,13 @@ const MessDetails = () => {
         const fetchMessAndRooms = async () => {
             try {
                 // 1. Fetch Mess Details
-                const messDoc = await getDoc(doc(db, "messes", messId));
+                const messDoc = await getMess(messId);
                 if (messDoc.exists()) {
                     setMess({ id: messDoc.id, ...messDoc.data() });
                 }
 
                 // 2. Fetch Rooms for this Mess (real-time)
-                const q = query(collection(db, "rooms"), where("messId", "==", messId));
-                unsubscribeRooms = onSnapshot(q, (snapshot) => {
-                    const roomsData = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
+                unsubscribeRooms = watchRoomsByMess(messId, (roomsData) => {
                     setRooms(roomsData);
                     setLoading(false);
                 });
@@ -221,18 +220,7 @@ const MessDetails = () => {
         structuredData: mess ? generateMessSchema(mess) : null
     });
 
-    useEffect(() => {
-        if (showInquiryModal) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'auto'; // Re-enable scrolling
-        }
-
-        // Cleanup on unmount
-        return () => {
-            document.body.style.overflow = 'auto';
-        };
-    }, [showInquiryModal]);
+    useBodyScrollLock(showInquiryModal);
 
     // Inject structured data for this mess
     useEffect(() => {
@@ -991,7 +979,7 @@ const MessDetails = () => {
                         return;
                     }
                     const message = `Hi MessKhojo, I want to know more about ${mess.name} (${mess.address || 'No Address'})`;
-                    window.open(`https://wa.me/919692819621?text=${encodeURIComponent(message)}`, '_blank');
+                    window.open(`https://wa.me/${BRAND.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
                 }}
                 className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.6)] hover:shadow-[0_8px_25px_rgba(37,211,102,0.5)] hover:-translate-y-1 transition-all duration-300 animate-bounce-slow"
                 title="Chat with Support"

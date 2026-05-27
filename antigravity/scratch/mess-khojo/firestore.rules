@@ -2,112 +2,177 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if user is authenticated
+
+    // ─── Helper Functions ────────────────────────────────────────────────────
+
+    /** True if the caller is signed in. */
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Helper function to check for specific operator email
-    // REPLACE 'operator@example.com' with your actual operator email or use Custom Claims
+
+    /** True if the caller is the system operator (by verified email). */
     function isOperator() {
-      return isAuthenticated() && request.auth.token.email == 'messkhojooperator@gmail.com'; 
+      return isAuthenticated() && request.auth.token.email == 'messkhojooperator@gmail.com';
     }
 
-    // --- Users Collection ---
-    // Users can read their own document
-    // Users can create their own document (on signup)
-    // Users can update their own document, BUT cannot change sensitive fields
+    /**
+     * True if the caller holds the 'admin' custom claim.
+     * Admins are mess owners granted elevated rights by the operator.
+     * Grant via: admin.auth().setCustomUserClaims(uid, { admin: true })
+     */
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    /** True if the caller is the owner of the mess referenced by messId. */
+    function isMessOwner(messId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/messes/$(messId)).data.adminId == request.auth.uid;
+    }
+
+    // ─── Users ───────────────────────────────────────────────────────────────
+    // • Users read/write only their own document.
+    // • Users cannot self-escalate privileged fields (role, isAdmin, isOperator, adminId).
+    // • Operator can manage all user documents.
+
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isOperator());
+      allow read:   if isAuthenticated() && (request.auth.uid == userId || isOperator());
       allow create: if isAuthenticated() && (request.auth.uid == userId || isOperator());
       allow update: if isAuthenticated() && (
-                      (request.auth.uid == userId && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin', 'adminId', 'isOperator'])))
-                      || isOperator()
-                    );
-      allow delete: if isOperator(); // Users cannot delete their own account doc
+        (
+          request.auth.uid == userId &&
+          !request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasAny(['role', 'isAdmin', 'adminId', 'isOperator'])
+        ) || isOperator()
+      );
+      allow delete: if isAuthenticated() && (
+        (
+          request.auth.uid == userId &&
+          (!('role' in resource.data) || resource.data.role == 'user')
+        ) || isOperator()
+      );
     }
 
-    // --- Messes Collection ---
-    // Public Read
-    // Write only by authenticated Admins (Mess Owners) or System Operators
+    // ─── Messes ──────────────────────────────────────────────────────────────
+    // • Public read (listings must be browsable by guests).
+    // • Any authenticated user may create — but required fields must be present.
+    // • Only the mess owner (adminId match) or operator may update/delete.
+
     match /messes/{messId} {
-      allow read: if true; 
-      allow create: if isAuthenticated(); // Allow any auth user to *try* to create (logic handled in app)
-      allow update, delete: if isAuthenticated() && (resource.data.adminId == request.auth.uid || isOperator());
+      allow read: if true;
+
+      allow create: if isAuthenticated() &&
+        // Enforce caller sets themselves as the owner
+        request.resource.data.adminId == request.auth.uid &&
+        // Required fields must be present
+        request.resource.data.keys().hasAll(['name', 'adminId', 'district']) &&
+        // name must be a non-empty string
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0;
+
+      allow update, delete: if isAuthenticated() &&
+        (resource.data.adminId == request.auth.uid || isOperator());
     }
 
-    // --- Rooms Collection ---
-    // Public Read
-    // Write only by Mess Owners
+    // ─── Rooms ───────────────────────────────────────────────────────────────
+    // • Public read.
+    // • Write only if caller owns the parent mess referenced by room.messId,
+    //   OR is the operator. This prevents rogue admins from editing other messes' rooms.
+
     match /rooms/{roomId} {
       allow read: if true;
-      allow write: if isAuthenticated(); // Ideally check ownership relationship to mess
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll(['messId', 'price', 'occupancy']) &&
+        isMessOwner(request.resource.data.messId);
+
+      allow update, delete: if isAuthenticated() &&
+        (isMessOwner(resource.data.messId) || isOperator());
     }
 
-    // --- Bookings Collection ---
-    // Users can read/create their own bookings
-    // Operators can read/manage all bookings
+    // ─── Bookings ────────────────────────────────────────────────────────────
+    // • Users can read/create/update/delete only their own bookings.
+    // • Operator can manage all bookings.
+    // • userId on create must equal the caller's UID (no spoofing).
+
     match /bookings/{bookingId} {
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isOperator());
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isOperator());
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'messId', 'roomId']);
+
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isOperator());
+
+      allow update, delete: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isOperator());
     }
 
-    // --- Claims & Inquiries ---
-    // Public create (for inquiries), Restricted read
+    // ─── Claims & Inquiries ──────────────────────────────────────────────────
+    // • Authenticated users may submit claims.
+    // • Only operator can read/update/delete claims.
+
     match /claims/{claimId} {
       allow create: if isAuthenticated();
       allow read, update, delete: if isOperator();
     }
-    
+
+    // • Inquiries can be submitted by anyone (including guests).
     match /inquiries/{inquiryId} {
-      allow create: if true; // Unregistered users can inquire
+      allow create: if true;
       allow read, update, delete: if isOperator();
     }
-    // --- Feedbacks Collection ---
-    // Anyone can create (submit feedback)
-    // Only Operators can read users' feedback and reply
+
+    // ─── Feedbacks ───────────────────────────────────────────────────────────
+    // • Anyone can submit feedback (including guests for public-facing forms).
+    // • Only operator may read/respond/delete.
+
     match /feedbacks/{feedbackId} {
       allow create: if true;
       allow read, update, delete: if isOperator();
     }
 
-    // --- Room Inquiries (Book Room) ---
-    // Public create (anyone can request a room)
-    // Only Operators can read and manage
+    // ─── Room Inquiries ──────────────────────────────────────────────────────
+    // • Anyone can submit a room inquiry.
+    // • Only operator can manage.
+
     match /room_inquiries/{inquiryId} {
-        allow create: if true;
-        allow read, update, delete: if isOperator();
+      allow create: if true;
+      allow read, update, delete: if isOperator();
     }
 
-    // --- Mess Registrations ---
-    // Public create (anyone can register a mess)
-    // Only Operators can read and manage registrations
+    // ─── Mess Registrations ──────────────────────────────────────────────────
+    // • Anyone can submit a registration (owners self-onboarding flow).
+    // • Only operator can read and process.
+
     match /mess_registrations/{registrationId} {
-        allow create: if true;
-        allow read, update, delete: if isOperator();
+      allow create: if true;
+      allow read, update, delete: if isOperator();
     }
 
-    // --- App Config (Hero Carousel Toggle) ---
-    // Public read, Operator write
+    // ─── App Config ──────────────────────────────────────────────────────────
+    // • Public read (hero carousel toggle, feature flags).
+    // • Only operator may write.
+
     match /app_config/{configId} {
-        allow read: if true;
-        allow write: if isOperator();
+      allow read: if true;
+      allow write: if isOperator();
     }
 
-    // --- Hero Ads (Desktop Banners) ---
-    // Public read, Operator write, max 10 enforced in app
+    // ─── Hero Ads (Desktop) ──────────────────────────────────────────────────
+    // • Public read, operator write only.
+
     match /hero_ads_desktop/{adId} {
-        allow read: if true;
-        allow create, update, delete: if isOperator();
+      allow read: if true;
+      allow create, update, delete: if isOperator();
     }
 
-    // --- Hero Ads (Mobile Banners) ---
-    // Public read, Operator write, max 10 enforced in app
+    // ─── Hero Ads (Mobile) ───────────────────────────────────────────────────
+    // • Public read, operator write only.
+
     match /hero_ads_mobile/{adId} {
-        allow read: if true;
-        allow create, update, delete: if isOperator();
+      allow read: if true;
+      allow create, update, delete: if isOperator();
     }
   }
 }

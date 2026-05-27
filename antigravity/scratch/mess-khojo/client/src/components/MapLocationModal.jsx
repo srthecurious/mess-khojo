@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, MapPin, Check } from 'lucide-react';
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
-import { AnimatePresence, motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { AnimatePresence, motion } from 'framer-motion';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 

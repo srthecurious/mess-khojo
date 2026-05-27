@@ -3,7 +3,6 @@ import { ChevronRight, ChevronLeft, Check, Building2, Users, BedDouble, MapPin, 
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion';
 import { trackMessRegistration } from '../analytics';
 import usePageSEO from '../hooks/usePageSEO';

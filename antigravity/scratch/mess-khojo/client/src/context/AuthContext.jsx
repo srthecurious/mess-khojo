@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut as firebaseSignOut, deleteUser } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 const AuthContext = createContext();
 
@@ -37,16 +37,14 @@ export function AuthProvider({ children }) {
                             setUserRole("admin"); // Partner who owns a mess
                         } else {
                             // New user - document might be created soon
-                            // Wait a bit and check again
-                            setTimeout(async () => {
-                                const retryUserDoc = await getDoc(userDocRef);
-                                if (retryUserDoc.exists()) {
-                                    const retryUserData = retryUserDoc.data();
+                            // Watch the document for creation
+                            const unsubUser = onSnapshot(userDocRef, (snap) => {
+                                if (snap.exists()) {
+                                    const retryUserData = snap.data();
                                     setUserRole(retryUserData.role || 'user');
-                                } else {
-                                    setUserRole('user'); // Default to user if still nothing
+                                    unsubUser(); // stop watching once we have the data
                                 }
-                            }, 1000);
+                            });
                         }
                     }
                 } catch (error) {

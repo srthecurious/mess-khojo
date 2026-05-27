@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { collection, onSnapshot, doc, query, where, orderBy } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { BRAND, PAGINATION } from '../constants';
 import { db } from '../firebase';
 import MessCard from '../components/MessCard';
 import SkeletonCard from '../components/SkeletonCard';
@@ -8,21 +9,22 @@ import FilterBar from '../components/FilterBar';
 import Header from '../components/Header';
 import FeedbackForm from '../components/FeedbackForm';
 import MessExplorer from '../components/MessExplorer';
-import MapLocationModal from '../components/MapLocationModal';
+const MapLocationModal = React.lazy(() => import('../components/MapLocationModal'));
 import HeroCarousel from '../components/HeroCarousel';
 import DistrictSwitcher from '../components/DistrictSwitcher';
 import { Search, MapPin, Home as HomeIcon, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { trackLocationUsage, trackSearch, trackViewMore } from '../analytics';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDistrict } from '../context/DistrictContext';
 import { useToast } from '../context/ToastContext';
 import { usePageSEO } from '../hooks/usePageSEO';
 import useMesses from '../hooks/useMesses';
+import { createSearchIndex, searchMesses } from '../utils/search';
 
 // Helper functions moved outside component
+// Deg2rad helper remains
 const deg2rad = (deg) => {
     return deg * (Math.PI / 180);
 };
@@ -50,83 +52,11 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; // Distance in km
 };
 
-// Levenshtein edit distance for typo tolerance
-const levenshtein = (a, b) => {
-    const m = a.length, n = b.length;
-    if (m === 0) return n;
-    if (n === 0) return m;
-    const dp = Array.from({ length: m + 1 }, (_, i) => i);
-    for (let j = 1; j <= n; j++) {
-        let prev = dp[0];
-        dp[0] = j;
-        for (let i = 1; i <= m; i++) {
-            const temp = dp[i];
-            dp[i] = a[i - 1] === b[j - 1]
-                ? prev
-                : 1 + Math.min(prev, dp[i], dp[i - 1]);
-            prev = temp;
-        }
-    }
-    return dp[m];
-};
-
-// Score how well `query` matches `text` (0 = no match, higher = better)
-const fuzzyScore = (query, text) => {
-    if (!query || !text) return 0;
-    const q = query.toLowerCase().trim();
-    const t = text.toLowerCase().trim();
-    if (!q || !t) return 0;
-
-    // Exact full match
-    if (t === q) return 120;
-    // Starts with query
-    if (t.startsWith(q)) return 110;
-    // Contains query as substring
-    if (t.includes(q)) return 100;
-
-    // Word-level matching: check if individual query words appear in text
-    const qWords = q.split(/\s+/);
-    const tWords = t.split(/\s+/);
-    let wordMatchCount = 0;
-    for (const qw of qWords) {
-        if (qw.length < 2) continue;
-        if (tWords.some(tw => tw.includes(qw) || qw.includes(tw))) {
-            wordMatchCount++;
-        }
-    }
-    if (wordMatchCount > 0) {
-        return 60 + (wordMatchCount / Math.max(qWords.length, 1)) * 30; // 60-90
-    }
-
-    // Check if any word in text starts with the query
-    if (tWords.some(tw => tw.startsWith(q))) return 70;
-
-    // Levenshtein similarity on each word pair (for typos)
-    let bestWordSim = 0;
-    for (const qw of qWords) {
-        if (qw.length < 2) continue;
-        for (const tw of tWords) {
-            if (tw.length < 2) continue;
-            const dist = levenshtein(qw, tw);
-            const maxLen = Math.max(qw.length, tw.length);
-            const sim = 1 - dist / maxLen;
-            if (sim > bestWordSim) bestWordSim = sim;
-        }
-    }
-    // Also check full string similarity for short queries
-    const fullDist = levenshtein(q, t.substring(0, Math.min(t.length, q.length + 3)));
-    const fullSim = 1 - fullDist / Math.max(q.length, t.substring(0, q.length + 3).length);
-    bestWordSim = Math.max(bestWordSim, fullSim);
-
-    if (bestWordSim >= 0.5) {
-        return 20 + bestWordSim * 30; // 20-50
-    }
-
-    return 0;
-};
+const CARDS_PER_PAGE = PAGINATION.MESSES_PER_PAGE;
 
 const Home = () => {
     const { currentUser } = useAuth();
+
     const navigate = useNavigate();
     const { isMessWishlisted, toggleMessWishlist } = useWishlist();
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -204,7 +134,7 @@ const Home = () => {
     }, [filters]);
     const [showMapModal, setShowMapModal] = useState(false);
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-    const [displayCount, setDisplayCount] = useState(12); // Pagination: show 12 cards initially
+    const [displayCount, setDisplayCount] = useState(PAGINATION.MESSES_PER_PAGE);
 
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [carouselEnabled, setCarouselEnabled] = useState(false);
@@ -341,7 +271,6 @@ const Home = () => {
         };
     }, [showMapModal]); // Added dependency on showMapModal to access current state in listener
 
-    const CARDS_PER_PAGE = 12;
 
 
 
@@ -516,12 +445,47 @@ const Home = () => {
 
     // Filtering & Sorting Logic - Memoized for Performance
     const filteredMesses = React.useMemo(() => {
+        let searchResultsMap = new Map();
+        let isFuzzy = false;
+
+        if (filters.location) {
+            const activeMesses = messes.filter(m => !m.hidden);
+            const fuse = createSearchIndex(activeMesses);
+            const searched = searchMesses(fuse, filters.location);
+            
+            // Check if we have exact/very high confidence matches (score >= 96)
+            const highConfidenceMatches = searched.filter(m => m.searchScore >= 96);
+            
+            let finalSearchList = searched;
+            if (highConfidenceMatches.length > 0) {
+                finalSearchList = highConfidenceMatches;
+            } else {
+                // Fuzzy matches capped at 10 recommendations
+                finalSearchList = searched.slice(0, 10);
+                if (finalSearchList.length > 0) {
+                    isFuzzy = true;
+                }
+            }
+
+            finalSearchList.forEach(item => {
+                searchResultsMap.set(item.id, item.searchScore);
+            });
+        }
+
         let result = messes.map(mess => {
-            // Calculate Distance FIRST if userLocation exists
-            // Calculate Distance FIRST if userLocation exists
+            // Visibility Filter
+            if (mess.hidden) return null;
+
+            // 1. Location Filter (Fuzzy Search via Fuse.js map)
+            let searchScore = 0;
+            if (filters.location) {
+                if (!searchResultsMap.has(mess.id)) return null;
+                searchScore = searchResultsMap.get(mess.id);
+            }
+
+            // Calculate Distance if userLocation exists
             let distance = null;
             if (userLocation?.lat && userLocation?.lng && mess.latitude && mess.longitude) {
-                // Strict number conversion
                 const lat1 = Number(userLocation.lat);
                 const lng1 = Number(userLocation.lng);
                 const lat2 = Number(mess.latitude);
@@ -529,30 +493,22 @@ const Home = () => {
 
                 if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
                     distance = calculateDistance(lat1, lng1, lat2, lng2);
-                } else {
-                    console.warn(`Invalid coords for ${mess.name}:`, { lat1, lng1, lat2, lng2 });
                 }
             }
 
             const messWithDist = { ...mess, distance };
 
-            // Visibility Filter
-            if (mess.hidden) return null;
-
-            // 1. Location Filter (Fuzzy Search)
-            let searchScore = 0;
-            if (filters.location) {
-                const nameScore = fuzzyScore(filters.location, mess.name || '');
-                const addrScore = fuzzyScore(filters.location, mess.address || '') * 0.8; // Slightly lower weight for address
-                searchScore = Math.max(nameScore, addrScore);
-            }
-
             // 2. Mess Type Filter (Gender)
             if (filters.messType && filters.messType !== '') {
-                if (mess.messType !== filters.messType) return null;
+                const selectedType = filters.messType.toLowerCase();
+                if (Array.isArray(mess.messType)) {
+                    const hasMatch = mess.messType.some(t => t && t.toLowerCase() === selectedType);
+                    if (!hasMatch) return null;
+                } else {
+                    const currentType = (mess.messType || '').toLowerCase();
+                    if (currentType !== selectedType) return null;
+                }
             }
-
-
 
             // Get rooms for this mess
             const messRooms = rooms.filter(room => room.messId === mess.id);
@@ -579,10 +535,7 @@ const Home = () => {
 
             // Helper to check amenity (Mess Level > Fallback to Room Level for legacy data)
             const checkAmenity = (key) => {
-                // 1. Check new Mess-level amenities
                 if (mess.amenities && mess.amenities[key] !== undefined) return mess.amenities[key];
-
-                // 2. Fallback: Check if ANY room has this feature (Migration support)
                 return messRooms.some(r => {
                     const rAm = r.amenities || r;
                     return rAm[key] === true;
@@ -599,22 +552,18 @@ const Home = () => {
                 const price = Number(room.price || room.rent);
                 const amenities = room.amenities || room;
 
-                // Price
                 if (filters.minPrice && price < Number(filters.minPrice)) return false;
                 if (filters.maxPrice && price > Number(filters.maxPrice)) return false;
-
-                // Room Amenities
                 if (filters.amenities.ac && !amenities.ac) return false;
-
-                // Availability
-                if (filters.availableOnly && (room.availableCount === 0 || room.available === false)) return false;
+                const isRoomAvailable = room.availableCount !== undefined 
+                    ? Number(room.availableCount) > 0 
+                    : room.available !== false;
+                if (filters.availableOnly && !isRoomAvailable) return false;
 
                 return true;
             });
 
             const hasRoomCriteria = filters.minPrice || filters.maxPrice || filters.availableOnly || filters.amenities.ac;
-
-            // If filtering by room criteria, and no rooms match, exclude mess
             if (hasRoomCriteria && matchingRooms.length === 0) return null;
 
             // Calculate Total Matching Beds
@@ -634,28 +583,6 @@ const Home = () => {
             };
         }).filter(Boolean); // Remove nulls
 
-        // Fuzzy Search: If searching, split into exact and fuzzy matches
-        let isFuzzy = false;
-        if (filters.location) {
-            const exactMatches = result.filter(m => m.searchScore >= 100);
-            if (exactMatches.length > 0) {
-                // Have exact/substring matches — use only those
-                result = exactMatches;
-            } else {
-                // No exact matches — show fuzzy results sorted by relevance
-                const fuzzyMatches = result
-                    .filter(m => m.searchScore > 0)
-                    .sort((a, b) => b.searchScore - a.searchScore)
-                    .slice(0, 10); // Cap at 10 fuzzy suggestions
-                if (fuzzyMatches.length > 0) {
-                    result = fuzzyMatches;
-                    isFuzzy = true;
-                } else {
-                    result = []; // Truly nothing matched
-                }
-            }
-        }
-
         // Sort by search score first (if searching), then by distance or default
         if (filters.location) {
             result.sort((a, b) => b.searchScore - a.searchScore);
@@ -666,22 +593,27 @@ const Home = () => {
                 return distA - distB;
             });
         } else {
-            // Default Sort: Priority to visual content -> Alphabetical
+            // Default Sort: Priority to verified -> verified poster -> images count -> alphabetical
             result.sort((a, b) => {
-                // 1. Priority: Not User Sourced (verified properties first)
+                // Priority 1: Verified listings first
+                const isVerifiedA = !!a.isVerified;
+                const isVerifiedB = !!b.isVerified;
+                if (isVerifiedA !== isVerifiedB) return isVerifiedB ? 1 : -1;
+
+                // Priority 2: User sourced listings last
                 const isUserSourcedA = !!a.isUserSourced;
                 const isUserSourcedB = !!b.isUserSourced;
                 if (isUserSourcedA !== isUserSourcedB) return isUserSourcedA ? 1 : -1;
 
-                // 2. Priority: Has Poster Image
+                // Priority 3: Verified poster
                 const hasPosterA = !!a.posterUrl && a.posterUrl.length > 5;
                 const hasPosterB = !!b.posterUrl && b.posterUrl.length > 5;
                 if (hasPosterA !== hasPosterB) return hasPosterB ? 1 : -1;
 
-                // 3. Priority: Total Images Available (gallery + rooms)
+                // Priority 4: Image count
                 if (a.totalImages !== b.totalImages) return b.totalImages - a.totalImages;
 
-                // 4. Priority: Alphabetical Order
+                // Priority 5: Alphabetical
                 return (a.name || '').localeCompare(b.name || '');
             });
         }
@@ -1008,7 +940,7 @@ const Home = () => {
                                 >
                                     <div className="flex gap-2">
                                         {/* WhatsApp Banner */}
-                                        <a href="https://chat.whatsapp.com/LYhQ5jOBMfZItlupwWbrwx" target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]">
+                                        <a href={BRAND.whatsappCommunityUrl} target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]">
                                             <div className="rounded-2xl bg-[#1eaa62] p-4 flex items-center gap-3 min-h-[72px]">
                                                 <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center">
                                                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#25D366] fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
@@ -1022,7 +954,7 @@ const Home = () => {
                                         </a>
 
                                         {/* Telegram Banner */}
-                                        <a href="https://t.me/messkhojo" target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]">
+                                        <a href={BRAND.telegramUrl} target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]">
                                             <div className="rounded-2xl bg-[#0088cc] p-4 flex items-center gap-3 min-h-[72px]">
                                                 <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center">
                                                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#0088cc] fill-current"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" /></svg>
@@ -1037,7 +969,7 @@ const Home = () => {
 
 
                                         {/* Clones for Infinite Loop */}
-                                        <a href="https://chat.whatsapp.com/LYhQ5jOBMfZItlupwWbrwx" target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]" tabIndex="-1" aria-hidden="true">
+                                        <a href={BRAND.whatsappCommunityUrl} target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]" tabIndex="-1" aria-hidden="true">
                                             <div className="rounded-2xl bg-[#1eaa62] p-4 flex items-center gap-3 min-h-[72px]">
                                                 <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center">
                                                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#25D366] fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
@@ -1050,7 +982,7 @@ const Home = () => {
                                             </div>
                                         </a>
 
-                                        <a href="https://t.me/messkhojo" target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]" tabIndex="-1" aria-hidden="true">
+                                        <a href={BRAND.telegramUrl} target="_blank" rel="noopener noreferrer" className="snap-start flex-shrink-0 w-[90%] md:w-[48%]" tabIndex="-1" aria-hidden="true">
                                             <div className="rounded-2xl bg-[#0088cc] p-4 flex items-center gap-3 min-h-[72px]">
                                                 <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center">
                                                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#0088cc] fill-current"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" /></svg>
@@ -1148,17 +1080,26 @@ const Home = () => {
 
             {/* Map Location Modal */}
             {showMapModal && (
-                <MapLocationModal
-                    initialLocation={userLocation}
-                    onLocationSelect={(location) => {
-                        setUserLocation(location);
-                        // We must close carefully. If we push state to open, we must pop to close.
-                        // But setting state directly to false leaves history dirty.
-                        handleCloseMap();
-                        // Note: handleCloseMap triggers popstate -> sets showMapModal(false)
-                    }}
-                    onClose={handleCloseMap}
-                />
+                <React.Suspense fallback={
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl p-6 flex flex-col items-center shadow-2xl">
+                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-primary border-t-transparent mb-4"></div>
+                            <p className="text-brand-text-dark font-bold text-lg">Loading Map...</p>
+                        </div>
+                    </div>
+                }>
+                    <MapLocationModal
+                        initialLocation={userLocation}
+                        onLocationSelect={(location) => {
+                            setUserLocation(location);
+                            // We must close carefully. If we push state to open, we must pop to close.
+                            // But setting state directly to false leaves history dirty.
+                            handleCloseMap();
+                            // Note: handleCloseMap triggers popstate -> sets showMapModal(false)
+                        }}
+                        onClose={handleCloseMap}
+                    />
+                </React.Suspense>
             )}
 
             {/* GPS Loader Overlay */}

@@ -1,11 +1,28 @@
 antigravity-browser-profile/
 
+# Ignore agent internal folders to keep the repository clean
+antigravity/brain/
+antigravity/conversations/
+antigravity/implicit/
+antigravity/browser_recordings/
+antigravity/code_tracker/
+antigravity/annotations/
+antigravity/playground/
+antigravity/html_artifacts/
+antigravity/skills/
+antigravity/daemon/
+antigravity/knowledge/
+antigravity/prompting/
+antigravity/user_settings.pb
+antigravity/installation_id
 antigravity/memory/
 antigravity/mcp_config.json
+
 *.log
 node_modules/
 .env
 .DS_Store
+.vscode/
 
 # Flutter mobile app - tracked in its own separate git repository
 /messkhojo_flutter/

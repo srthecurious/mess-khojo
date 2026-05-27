@@ -3,7 +3,7 @@ import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote,
 import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { motion, AnimatePresence } from 'framer-motion';
 
 const popularAreas = [
     "Azimabad", "Mansingh Bazar", "FM College Road", "ITI Chhak", "Remuna", "Station Square"

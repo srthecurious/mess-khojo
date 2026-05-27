@@ -1,7 +1,9 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers, ArrowRight, Heart } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
+import { OCCUPANCY_MAP } from '../constants';
 
 const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishlist, isUserSourced = false }) => {
     // Handle both old (imageUrl) and new (imageUrls) data structures
@@ -12,16 +14,7 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
     // Handle amenities (support both new nested object and old flat structure)
     const am = room.amenities || room;
 
-    // Map legacy text to numbers
-    const occupancyMap = {
-        'Single': '1',
-        'Double': '2',
-        'Triple': '3',
-        'Four': '4',
-        'Five': '5',
-        'Six': '6'
-    };
-    const displayOccupancy = occupancyMap[room.occupancy] || room.occupancy;
+    const displayOccupancy = OCCUPANCY_MAP[room.occupancy] || room.occupancy;
     const title = displayOccupancy ? `${displayOccupancy} Seater` : `Room ${room.roomNumber}`;
     const price = room.price || room.rent;
 
@@ -33,6 +26,10 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
                     src={displayImage}
                     alt={title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
+                    width={350}
+                    height={190}
                 />
                 {/* Gradient for badge readability */}
                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -139,6 +136,32 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
             )}
         </div>
     );
+};
+
+RoomCard.propTypes = {
+    room: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        occupancy: PropTypes.string,
+        roomNumber: PropTypes.string,
+        category: PropTypes.string,
+        totalInventory: PropTypes.number,
+        price: PropTypes.any, // price can be string/number in database
+        rent: PropTypes.any,
+        amenities: PropTypes.object,
+        availableCount: PropTypes.number,
+        available: PropTypes.bool,
+        imageUrls: PropTypes.arrayOf(PropTypes.string),
+        imageUrl: PropTypes.string,
+        messId: PropTypes.string,
+        messName: PropTypes.string,
+        rentCycle: PropTypes.string,
+        minStayDuration: PropTypes.number
+    }).isRequired,
+    isAdmin: PropTypes.bool,
+    onDelete: PropTypes.func,
+    isWishlisted: PropTypes.bool,
+    onToggleWishlist: PropTypes.func,
+    isUserSourced: PropTypes.bool
 };
 
 export default RoomCard;

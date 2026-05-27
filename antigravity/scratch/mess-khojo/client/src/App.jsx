@@ -6,6 +6,7 @@ import { DistrictProvider } from './context/DistrictContext';
 import { ToastProvider } from './context/ToastContext';
 import { trackPageView } from './analytics';
 import DistrictSelector from './components/DistrictSelector';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Route-level code splitting — only the visited page's code is downloaded
 const Home = React.lazy(() => import('./pages/Home'));
@@ -65,37 +66,39 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-brand-secondary text-brand-text-dark font-sans flex flex-col">
       <DistrictSelector />
-      <Suspense fallback={<RouteLoader />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/explorer" element={<Home />} />
-          <Route path="/mess/:id" element={<MessDetails />} />
-          <Route path="/room/:messId/:roomId" element={<RoomDetails />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <ErrorBoundary>
+        <Suspense fallback={<RouteLoader />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/explorer" element={<Home />} />
+            <Route path="/mess/:id" element={<MessDetails />} />
+            <Route path="/room/:messId/:roomId" element={<RoomDetails />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-          {/* Operational Interface (Single Operator) */}
-          <Route path="/operational/login" element={<OperationalLogin />} />
-          <Route path="/operational/dashboard" element={<OperationalDashboard />} />
+            {/* Operational Interface (Single Operator) */}
+            <Route path="/operational/login" element={<OperationalLogin />} />
+            <Route path="/operational/dashboard" element={<OperationalDashboard />} />
 
-          {/* User Routes */}
-          <Route path="/user-signup" element={<UserSignup />} />
-          <Route path="/user-login" element={<UserLogin />} />
-          <Route path="/profile" element={<UserProfile />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/booking-success" element={<BookingSuccess />} />
-          <Route path="/register-mess" element={<MessRegistration />} />
-          <Route path="/find-your-room" element={<BookRoomComingSoon />} />
+            {/* User Routes */}
+            <Route path="/user-signup" element={<UserSignup />} />
+            <Route path="/user-login" element={<UserLogin />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/booking-success" element={<BookingSuccess />} />
+            <Route path="/register-mess" element={<MessRegistration />} />
+            <Route path="/find-your-room" element={<BookRoomComingSoon />} />
 
-          {/* Legal Pages */}
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-          <Route path="/about-us" element={<AboutUs />} />
+            {/* Legal Pages */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+            <Route path="/about-us" element={<AboutUs />} />
 
-          {/* 404 Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+            {/* 404 Catch-all */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
       {!isRoomDetails && <Footer />}
     </div>
   );

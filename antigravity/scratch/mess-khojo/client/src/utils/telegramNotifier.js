@@ -16,65 +16,24 @@
 const esc = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export const sendTelegramNotification = async (message) => {
-    // In production, use the secure Netlify Function
-    if (!import.meta.env.DEV) {
-        try {
-            const response = await fetch('/.netlify/functions/send-telegram', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message })
-            });
-            if (!response.ok) {
-                console.error('Netlify Function call failed with status:', response.status);
-                // Optionally, parse response body for more details if the function returns error messages
-                // const errorData = await response.json();
-                // console.error('Netlify Function error details:', errorData);
-            } else {
-                console.log('✅ Telegram notification sent via Netlify Function successfully');
-            }
-            return response.ok;
-        } catch (error) {
-            console.error('Netlify Function Error:', error);
-            return false;
-        }
-    }
-
-    // In development, keep using direct API (fallback)
-    const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-    const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID;
-
-    // Skip if credentials not configured (prevents errors during setup)
-    if (!botToken || !chatId) {
-        console.warn('Telegram notifications not configured. Add VITE_TELEGRAM_BOT_TOKEN and VITE_TELEGRAM_CHAT_ID to .env');
-        return false;
-    }
-
     try {
-        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        const response = await fetch(url, {
+        const response = await fetch('/.netlify/functions/send-telegram', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: message,
-                parse_mode: 'HTML', // Allows <b>, <i>, <a> tags for formatting
-                disable_web_page_preview: true, // Don't show link previews
-            }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
         });
-
-        const result = await response.json();
-
-        if (!result.ok) {
-            console.error('Telegram send failed:', result);
-            return false;
+        if (!response.ok) {
+            console.error('Telegram notification failed with status:', response.status);
         }
-
-        console.log('✅ Telegram notification sent successfully');
-        return true;
+        return response.ok;
     } catch (error) {
-        console.error('❌ Telegram notification error:', error);
+        // In local dev without Netlify CLI, the function endpoint won't exist.
+        // Log a warning and fail silently — notifications are non-critical.
+        if (import.meta.env.DEV) {
+            console.warn('Telegram notification skipped (Netlify Functions not available in local dev). Run `netlify dev` to test notifications.');
+        } else {
+            console.error('Telegram notification error:', error);
+        }
         return false;
     }
 };

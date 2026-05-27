@@ -18,7 +18,9 @@ const UserLogin = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const redirectUrl = searchParams.get('redirect') || '/profile';
+    const rawRedirect = searchParams.get('redirect') || '/profile';
+    // Prevent open redirect attacks — only allow relative paths
+    const redirectUrl = rawRedirect.startsWith('/') ? rawRedirect : '/profile';
 
     const handleGoogleSignIn = async () => {
         setError('');
@@ -81,9 +83,7 @@ const UserLogin = () => {
         setLoading(true);
 
         try {
-            console.log("Attempting login for:", email);
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-             console.log("Login successful for UID:", userCredential.user.uid);
+            await signInWithEmailAndPassword(auth, email, password);
             navigate(redirectUrl);
 
             // Track successful login

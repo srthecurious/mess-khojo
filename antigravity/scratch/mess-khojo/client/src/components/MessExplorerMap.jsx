@@ -114,7 +114,14 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
     const filteredMesses = React.useMemo(() => {
         return validMesses.filter(mess => {
             if (explorerFilters.messType && explorerFilters.messType !== '') {
-                if (mess.messType !== explorerFilters.messType) return false;
+                const selectedType = explorerFilters.messType.toLowerCase();
+                if (Array.isArray(mess.messType)) {
+                    const hasMatch = mess.messType.some(t => t && t.toLowerCase() === selectedType);
+                    if (!hasMatch) return false;
+                } else {
+                    const currentType = (mess.messType || '').toLowerCase();
+                    if (currentType !== selectedType) return false;
+                }
             }
 
             const checkAmenity = (key) => {
@@ -433,12 +440,18 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                                                     <span className="text-3xl">🏡</span>
                                                 </div>
                                             )}
-                                            <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded shadow-sm text-[9px] font-extrabold uppercase tracking-wide" style={{
-                                                backgroundColor: mess.messType === 'Boys' ? '#DBEAFE' : mess.messType === 'Girls' ? '#FCE7F3' : '#E0E7FF',
-                                                color: mess.messType === 'Boys' ? '#1E40AF' : mess.messType === 'Girls' ? '#BE185D' : '#4338CA'
-                                            }}>
-                                                {mess.messType}
-                                            </div>
+                                            {(() => {
+                                                const isBoys = Array.isArray(mess.messType) ? mess.messType.includes('Boys') : mess.messType === 'Boys';
+                                                const isGirls = Array.isArray(mess.messType) ? mess.messType.includes('Girls') : mess.messType === 'Girls';
+                                                return (
+                                                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded shadow-sm text-[9px] font-extrabold uppercase tracking-wide" style={{
+                                                        backgroundColor: isBoys ? '#DBEAFE' : isGirls ? '#FCE7F3' : '#E0E7FF',
+                                                        color: isBoys ? '#1E40AF' : isGirls ? '#BE185D' : '#4338CA'
+                                                    }}>
+                                                        {Array.isArray(mess.messType) ? mess.messType.join(' & ') : mess.messType}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
 
                                         {/* Mess Info & Actions */}

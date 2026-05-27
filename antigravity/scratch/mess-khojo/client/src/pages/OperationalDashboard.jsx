@@ -3,12 +3,31 @@ import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, query, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc, addDoc, getDoc, setDoc, getDocs, GeoPoint } from 'firebase/firestore';
+import { collection, updateDoc, doc, serverTimestamp, addDoc, getDoc, setDoc, getDocs, GeoPoint } from 'firebase/firestore';
+
+
 import { useNavigate } from 'react-router-dom';
 import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
+
+// Tab Components
+import BookingsTab from './OperationalDashboard/tabs/BookingsTab';
+import PartnersTab from './OperationalDashboard/tabs/PartnersTab';
+import ClaimsTab from './OperationalDashboard/tabs/ClaimsTab';
+import RegistrationsTab from './OperationalDashboard/tabs/RegistrationsTab';
+import InquiriesTab from './OperationalDashboard/tabs/InquiriesTab';
+import RoomInquiriesTab from './OperationalDashboard/tabs/RoomInquiriesTab';
+import FeedbacksTab from './OperationalDashboard/tabs/FeedbacksTab';
+import MessesTab from './OperationalDashboard/tabs/MessesTab';
+import RoomsTab from './OperationalDashboard/tabs/RoomsTab';
+import HeroAdsTab from './OperationalDashboard/tabs/HeroAdsTab';
+
+// Hooks
+import { useOperationalData } from './OperationalDashboard/hooks/useOperationalData';
+import { useHeroAds } from './OperationalDashboard/hooks/useHeroAds';
+import { backfillRoomDistricts } from '../utils/migrations';
 
 const compressImage = async (file) => {
     const options = {
@@ -27,28 +46,17 @@ const compressImage = async (file) => {
 
 const OperationalDashboard = () => {
     const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
-    const [allBookings, setBookings] = useState([]);
-    const [allClaims, setClaims] = useState([]);
-    const [allInquiries, setInquiries] = useState([]);
-    const [allRoomInquiries, setRoomInquiries] = useState([]);
-    const [feedbacks, setFeedbacks] = useState([]);
     const [feedbackReplies, setFeedbackReplies] = useState({}); // { feedbackId: replyText }
-    const [allRegistrations, setRegistrations] = useState([]);
-    const [allMesses, setMesses] = useState([]);
-    const [allRooms, setRooms] = useState([]);
+    const opData = useOperationalData();
+    const { bookings: allBookings, claims: allClaims, inquiries: allInquiries, roomInquiries: allRoomInquiries, feedbacks, registrations: allRegistrations, messes: allMesses, rooms: allRooms } = opData;
+    
+    const heroAds = useHeroAds();
+    const { carouselEnabled, desktopAds, mobileAds, heroAdUploading, heroAdForm, setHeroAdForm, desktopAdFile, setDesktopAdFile, mobileAdFile, setMobileAdFile, handleToggleCarousel, handleHeroAdUpload, handleReorderHeroAd, handleToggleHeroAd, handleDeleteHeroAd } = heroAds;
+
     const [opFilterDistrict, setOpFilterDistrict] = useState('all');
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Hero Ads State
-    const [carouselEnabled, setCarouselEnabled] = useState(false);
-    const [desktopAds, setDesktopAds] = useState([]);
-    const [mobileAds, setMobileAds] = useState([]);
-    const [heroAdUploading, setHeroAdUploading] = useState(false);
-    const [heroAdForm, setHeroAdForm] = useState({ linkUrl: '', title: '', district: 'all' });
-    // Separate file states for desktop and mobile to prevent cross-upload bugs
-    const [desktopAdFile, setDesktopAdFile] = useState(null);
-    const [mobileAdFile, setMobileAdFile] = useState(null);
 
     // Editing State
     const [editingItem, setEditingItem] = useState(null); // For mess/room edit modal
@@ -98,293 +106,7 @@ const OperationalDashboard = () => {
         return () => unsubscribe();
     }, [navigate]);
 
-    // Fetch ALL Bookings
-    useEffect(() => {
-        const q = query(collection(db, "bookings"));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Sort by newest
-            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-
-            // Send notification for new pending bookings (skip first load)
-            // Send notification logic moved to RoomDetails.jsx (Trigger on Action)
-            /*
-            if (!isFirstLoad) {
-                const newPendingBookings = data.filter(booking =>
-                    booking.status === 'pending' &&
-                    !bookings.some(old => old.id === booking.id)
-                );
-
-                newPendingBookings.forEach(booking => {
-                    sendTelegramNotification(telegramTemplates.newBooking(booking));
-                });
-            }
-            */
-
-            setBookings(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Fetch ALL Claims
-    useEffect(() => {
-        const q = query(collection(db, "claims"));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-
-            // Send notification for new pending claims
-            // Send notification logic moved to MessDetails.jsx (Trigger on Action)
-            /*
-            if (!isFirstLoad) {
-                const newPendingClaims = data.filter(claim =>
-                    claim.status === 'pending' &&
-                    !claims.some(old => old.id === claim.id)
-                );
-
-                newPendingClaims.forEach(claim => {
-                    sendTelegramNotification(telegramTemplates.newClaim(claim));
-                });
-            }
-            */
-
-            setClaims(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Fetch ALL Inquiries
-    useEffect(() => {
-        const q = query(collection(db, "inquiries"));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-
-            // Send notification for new pending inquiries
-            /*
-            if (!isFirstLoad) {
-                const newPendingInquiries = data.filter(inquiry =>
-                    inquiry.status === 'pending' &&
-                    !inquiries.some(old => old.id === inquiry.id)
-                );
-
-                newPendingInquiries.forEach(inquiry => {
-                    sendTelegramNotification(telegramTemplates.newInquiry(inquiry));
-                });
-            }
-            */
-
-            setInquiries(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Fetch ALL Room Inquiries (For "Find Your Room" Coming Soon)
-    useEffect(() => {
-        const q = query(collection(db, "room_inquiries"));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-            setRoomInquiries(data);
-        });
-        return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Fetch ALL Feedbacks
-    useEffect(() => {
-        const q = query(collection(db, "feedbacks"));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-
-            // Send notification for new pending feedbacks
-            /*
-            if (!isFirstLoad) {
-                const newPendingFeedbacks = data.filter(feedback =>
-                    feedback.status === 'pending' &&
-                    !feedbacks.some(old => old.id === feedback.id)
-                );
-
-                newPendingFeedbacks.forEach(feedback => {
-                    sendTelegramNotification(telegramTemplates.newFeedback(feedback));
-                });
-            }
-            */
-
-            setFeedbacks(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Fetch ALL Mess Registrations
-    useEffect(() => {
-        const q = query(collection(db, "mess_registrations"));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-            setRegistrations(data);
-        });
-        return () => unsubscribe();
-    // New registration Telegram notifications are handled in MessRegistration.jsx
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Fetch ALL Messes
-    useEffect(() => {
-        const q = query(collection(db, "messes"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => (a.name || a.messName || '').localeCompare(b.name || b.messName || ''));
-            setMesses(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Fetch ALL Rooms
-    useEffect(() => {
-        const q = query(collection(db, "rooms"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setRooms(data);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Fetch carousel toggle
-    useEffect(() => {
-        const unsub = onSnapshot(doc(db, 'app_config', 'hero'), (snap) => {
-            if (snap.exists()) {
-                setCarouselEnabled(!!snap.data().carouselEnabled);
-            }
-        });
-        return unsub;
-    }, []);
-
-    // Fetch desktop ads
-    useEffect(() => {
-        const q = query(collection(db, 'hero_ads_desktop'));
-        const unsub = onSnapshot(q, (snap) => {
-            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            data.sort((a, b) => (a.order || 0) - (b.order || 0));
-            setDesktopAds(data);
-        });
-        return unsub;
-    }, []);
-
-    // Fetch mobile ads
-    useEffect(() => {
-        const q = query(collection(db, 'hero_ads_mobile'));
-        const unsub = onSnapshot(q, (snap) => {
-            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            data.sort((a, b) => (a.order || 0) - (b.order || 0));
-            setMobileAds(data);
-        });
-        return unsub;
-    }, []);
-
-    // Toggle carousel
-    const handleToggleCarousel = async () => {
-        try {
-            await setDoc(doc(db, 'app_config', 'hero'), { carouselEnabled: !carouselEnabled }, { merge: true });
-        } catch (error) {
-            console.error('Toggle failed:', error);
-            alert('Failed to toggle carousel');
-        }
-    };
-
-    // Upload hero ad
-    const handleHeroAdUpload = async (section) => {
-        const currentFile = section === 'desktop' ? desktopAdFile : mobileAdFile;
-        if (!currentFile) return alert('Please select an image');
-        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
-        const storagePath = section === 'desktop' ? 'ads/desktop' : 'ads/mobile';
-        const currentAds = section === 'desktop' ? desktopAds : mobileAds;
-
-        if (currentAds.length >= 10) return alert('Limit reached (10/10). Delete one to upload more.');
-
-        setHeroAdUploading(true);
-        try {
-            const compressed = await compressImage(currentFile);
-            const storageRef = ref(storage, `${storagePath}/${Date.now()}_${currentFile.name}`);
-            const snapshot = await uploadBytes(storageRef, compressed);
-            const imageUrl = await getDownloadURL(snapshot.ref);
-
-            await addDoc(collection(db, collectionName), {
-                imageUrl,
-                linkUrl: heroAdForm.linkUrl || '',
-                title: heroAdForm.title || '',
-                district: heroAdForm.district || 'all',
-                order: currentAds.length,
-                active: true,
-                createdAt: serverTimestamp()
-            });
-
-            // Keep district selection, only clear link/title
-            if (section === 'desktop') {
-                setDesktopAdFile(null);
-            } else {
-                setMobileAdFile(null);
-            }
-            setHeroAdForm(prev => ({ ...prev, linkUrl: '', title: '' }));
-            // Reset only the relevant file input
-            const fileInput = document.getElementById(`hero-ad-file-${section}`);
-            if (fileInput) fileInput.value = '';
-        } catch (error) {
-            console.error('Upload failed:', error);
-            alert('Upload failed: ' + error.message);
-        } finally {
-            setHeroAdUploading(false);
-        }
-    };
-
-    // Delete hero ad
-    const handleDeleteHeroAd = async (adId, section) => {
-        if (!window.confirm('Delete this banner?')) return;
-        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
-        try {
-            await deleteDoc(doc(db, collectionName, adId));
-        } catch (error) {
-            console.error('Delete failed:', error);
-            alert('Delete failed');
-        }
-    };
-
-    // Toggle hero ad active
-    const handleToggleHeroAd = async (adId, currentActive, section) => {
-        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
-        try {
-            await updateDoc(doc(db, collectionName, adId), { active: !currentActive });
-        } catch (error) {
-            console.error('Toggle failed:', error);
-        }
-    };
-
-    // Reorder hero ad — swap actual order values, not array indices
-    const handleReorderHeroAd = async (adId, direction, section) => {
-        const collectionName = section === 'desktop' ? 'hero_ads_desktop' : 'hero_ads_mobile';
-        const ads = section === 'desktop' ? [...desktopAds] : [...mobileAds];
-        const idx = ads.findIndex(a => a.id === adId);
-        if (idx === -1) return;
-        const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-        if (newIdx < 0 || newIdx >= ads.length) return;
-
-        // Swap the actual stored `order` values between the two documents
-        const currentOrder = ads[idx].order ?? idx;
-        const swapOrder = ads[newIdx].order ?? newIdx;
-        try {
-            await updateDoc(doc(db, collectionName, ads[idx].id), { order: swapOrder });
-            await updateDoc(doc(db, collectionName, ads[newIdx].id), { order: currentOrder });
-        } catch (error) {
-            console.error('Reorder failed:', error);
-        }
-    };
 
     const handleBookingAction = async (id, status) => {
         setBookingActionLoading(prev => ({ ...prev, [id]: true }));
@@ -491,15 +213,8 @@ const OperationalDashboard = () => {
                     imageUrl: updatedUrls[0] || ""
                 });
                 setEditForm(prev => ({ ...prev, imageUrls: updatedUrls }));
-                
-                // Update local state to reflect change immediately
-                setRooms(prevRooms => prevRooms.map(r => {
-                    if (r.id === editingItem.id) {
-                        return { ...r, imageUrls: updatedUrls, imageUrl: updatedUrls[0] || "" };
-                    }
-                    return r;
-                }));
             }
+
         } catch (error) {
             console.error("Error removing image:", error);
             alert("Failed to remove image");
@@ -682,11 +397,11 @@ const OperationalDashboard = () => {
     };
 
     const handleBackfillDistricts = async () => {
-        if (!window.confirm("Are you sure you want to backfill district field to 'balasore' for all existing messes?")) return;
+        if (!window.confirm("Are you sure you want to backfill district field for all existing messes and rooms?")) return;
         
         setMigrationStatus({ loading: true, msg: 'Starting backfill...', type: 'info' });
         try {
-            let backfilledCount = 0;
+            let backfilledMessesCount = 0;
             const messesSnapshot = await getDocs(collection(db, "messes"));
             
             for (const messDoc of messesSnapshot.docs) {
@@ -695,12 +410,87 @@ const OperationalDashboard = () => {
                     await updateDoc(doc(db, "messes", messDoc.id), {
                         district: 'balasore'
                     });
-                    backfilledCount++;
+                    backfilledMessesCount++;
                 }
             }
-            setMigrationStatus({ loading: false, msg: `Successfully backfilled district for ${backfilledCount} messes.`, type: 'success' });
+
+            // Also backfill rooms
+            const roomResult = await backfillRoomDistricts();
+            
+            if (roomResult.success) {
+                setMigrationStatus({ 
+                    loading: false, 
+                    msg: `Backfill successful: ${backfilledMessesCount} messes and ${roomResult.count} rooms updated.`, 
+                    type: 'success' 
+                });
+            } else {
+                setMigrationStatus({ 
+                    loading: false, 
+                    msg: `Messes backfilled (${backfilledMessesCount}), but rooms failed: ${roomResult.error.message}`, 
+                    type: 'error' 
+                });
+            }
         } catch (error) {
             console.error("Backfill failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
+    const handleSyncACAmenities = async () => {
+        if (!window.confirm("Are you sure you want to sync AC amenities for all 1-click approved messes and their rooms?")) return;
+        
+        setMigrationStatus({ loading: true, msg: 'Syncing AC amenities...', type: 'info' });
+        try {
+            let messSyncCount = 0;
+            let roomSyncCount = 0;
+            
+            const messesSnapshot = await getDocs(collection(db, "messes"));
+            const roomsSnapshot = await getDocs(collection(db, "rooms"));
+            
+            for (const messDoc of messesSnapshot.docs) {
+                const messData = messDoc.data();
+                const partnerId = messData.partnerId || '';
+                
+                // Only sync 1-click messes (partnerId starting with 'MK-')
+                if (partnerId.startsWith('MK-')) {
+                    const facilities = messData.facilities || [];
+                    const amenities = messData.amenities || {};
+                    const hasACFacility = facilities.includes('AC');
+                    
+                    // Update mess-level AC amenity if facilities includes 'AC' but amenities.ac is not true
+                    if (hasACFacility && !amenities.ac) {
+                        const updatedAmenities = { ...amenities, ac: true };
+                        await updateDoc(doc(db, "messes", messDoc.id), {
+                            amenities: updatedAmenities
+                        });
+                        messSyncCount++;
+                    }
+                    
+                    // Update room-level AC amenities for this mess if the mess has AC facility
+                    if (hasACFacility) {
+                        for (const roomDoc of roomsSnapshot.docs) {
+                            const roomData = roomDoc.data();
+                            if (roomData.messId === messDoc.id) {
+                                const roomAmenities = roomData.amenities || {};
+                                if (!roomAmenities.ac) {
+                                    await updateDoc(doc(db, "rooms", roomDoc.id), {
+                                        amenities: { ...roomAmenities, ac: true }
+                                    });
+                                    roomSyncCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            setMigrationStatus({
+                loading: false,
+                msg: `AC sync successful: ${messSyncCount} messes and ${roomSyncCount} rooms updated.`,
+                type: 'success'
+            });
+        } catch (error) {
+            console.error("AC sync failed:", error);
             setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
         }
     };
@@ -772,6 +562,7 @@ const OperationalDashboard = () => {
                 food: facilities.includes('Food Facility') || false,
                 wifi: facilities.includes('Wifi') || false,
                 inverter: facilities.includes('InverterPower') || false,
+                ac: facilities.includes('AC') || false,
             };
 
             const regAdv = reg.advancePayment || { type: 'None' };
@@ -840,12 +631,13 @@ const OperationalDashboard = () => {
                         return addDoc(collection(db, "rooms"), {
                             messId: messDocRef.id,
                             messName: reg.messName,
+                            district: reg.district || 'balasore',
                             occupancy: String(occupancyNum),
                             category,
                             price: Number(variant.price) || 0,
                             totalInventory: 1,
                             availableCount: variant.isVacant ? 1 : 0,
-                            amenities: { ac: label.toLowerCase().includes('ac'), attachedBathroom: false },
+                            amenities: { ac: facilities.includes('AC') || label.toLowerCase().includes('ac'), attachedBathroom: false },
                             imageUrls: [],
                             imageUrl: '',
                             createdAt: serverTimestamp(),
@@ -859,12 +651,13 @@ const OperationalDashboard = () => {
                 return [addDoc(collection(db, "rooms"), {
                     messId: messDocRef.id,
                     messName: reg.messName,
+                    district: reg.district || 'balasore',
                     occupancy: String(occupancyNum),
                     category: roomType,
                     price: Number(rentInfo[roomType]) || 0,
                     totalInventory: 1,
                     availableCount: isVacant ? 1 : 0,
-                    amenities: { ac: false, attachedBathroom: false },
+                    amenities: { ac: facilities.includes('AC'), attachedBathroom: false },
                     imageUrls: [],
                     imageUrl: '',
                     createdAt: serverTimestamp(),
@@ -1116,1192 +909,79 @@ const OperationalDashboard = () => {
 
                     {/* BOOKINGS TAB */}
                     {activeTab === 'bookings' && (
-                        <div className="max-w-5xl mx-auto">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                                <Calendar className="text-emerald-500" />
-                                All Call Requests
-                            </h2>
-                            <div className="space-y-4">
-                                {bookings.length === 0 ? (
-                                    <div className="text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                                        No call requests found in the system.
-                                    </div>
-                                ) : (
-                                    bookings.map(booking => (
-                                        <div key={booking.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm flex flex-col md:flex-row justify-between gap-4">
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide ${booking.status === 'confirmed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                                        booking.status === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                                        }`}>
-                                                        {booking.status}
-                                                    </span>
-                                                    <span className="text-slate-500 text-xs">ID: {booking.id.slice(0, 8)}</span>
-                                                </div>
-                                                <h3 className="font-bold text-white text-lg">{booking.messName}</h3>
-                                                <p className="text-slate-400 text-sm">{booking.roomType} Room • ₹{booking.price}/{booking.rentCycle === 'yearly' ? 'yr' : 'mo'}</p>
-                                                <div className="pt-2 flex items-center gap-4 text-sm">
-                                                    <div className="flex items-center gap-1 text-slate-300">
-                                                        <Users size={14} /> {booking.userName}
-                                                    </div>
-                                                    <div className="text-slate-400 flex items-center gap-2">
-                                                        <span className="font-mono bg-slate-900 px-2 py-1 rounded">
-                                                            {revealedIds[booking.id] ? booking.userPhone : booking.userPhone?.replace(/\d(?=\d{4})/g, "*")}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => setRevealedIds(prev => ({ ...prev, [booking.id]: !prev[booking.id] }))}
-                                                            className="text-slate-500 hover:text-emerald-400 transition-colors"
-                                                            title={revealedIds[booking.id] ? "Hide Number" : "Show Number"}
-                                                        >
-                                                            {revealedIds[booking.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {booking.status !== 'pending' && booking.remark && (
-                                                    <div className="mt-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700/50 text-xs text-slate-400 italic">
-                                                        Remark: {booking.remark}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {booking.status === 'pending' ? (
-                                                <div className="flex flex-col gap-3 min-w-[280px]">
-                                                    <textarea
-                                                        placeholder="Write a remark (optional)..."
-                                                        value={bookingRemarks[booking.id] || ''}
-                                                        onChange={(e) => setBookingRemarks(prev => ({ ...prev, [booking.id]: e.target.value }))}
-                                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-emerald-500 outline-none resize-none h-20"
-                                                    />
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => handleBookingAction(booking.id, 'confirmed')}
-                                                            disabled={!!bookingActionLoading[booking.id]}
-                                                            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors shadow-lg shadow-green-900/20 text-sm"
-                                                        >
-                                                            {bookingActionLoading[booking.id] ? '...' : <><CheckCircle size={16} /> Approve</>}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleBookingAction(booking.id, 'rejected')}
-                                                            disabled={!!bookingActionLoading[booking.id]}
-                                                            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 rounded-lg font-medium transition-colors border border-slate-600 text-sm"
-                                                        >
-                                                            {bookingActionLoading[booking.id] ? '...' : <><XCircle size={16} /> Reject</>}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={async () => {
-                                                        if (window.confirm("Delete this completed booking record?")) {
-                                                            try {
-                                                                await deleteDoc(doc(db, "bookings", booking.id));
-                                                            } catch { alert("Delete failed"); }
-                                                        }
-                                                    }}
-                                                    className="self-end md:self-center flex items-center gap-1 px-4 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"
-                                                >
-                                                    <Trash2 size={16} /> Delete
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* PARTNERS TAB */}
-                    {activeTab === 'partners' && (
-                        <div className="max-w-xl mx-auto mt-10">
-                            <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 shadow-2xl">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="bg-blue-500/10 p-3 rounded-full text-blue-500">
-                                        <UserPlus size={24} />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-white">Add New Partner</h2>
-                                        <p className="text-slate-400 text-sm">Create credentials for a mess owner</p>
-                                    </div>
-                                </div>
-
-                                {partnerStatus.msg && (
-                                    <div className={`p-4 rounded-xl mb-6 text-sm border ${partnerStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                        partnerStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                            'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                        }`}>
-                                        {partnerStatus.msg}
-                                    </div>
-                                )}
-
-                                <form onSubmit={handleCreatePartner} className="space-y-5">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">Partner Email</label>
-                                        <input
-                                            type="email"
-                                            required
-                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                            value={partnerEmail}
-                                            onChange={(e) => setPartnerEmail(e.target.value)}
-                                            placeholder="owner@example.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">Temporary Password</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                            value={partnerPassword}
-                                            onChange={(e) => setPartnerPassword(e.target.value)}
-                                            placeholder="SecurePassword123"
-                                        />
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            <Shield size={12} className="inline mr-1" />
-                                            Admin account will be created directly in Auth.
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 active:scale-95"
-                                    >
-                                        Create Account
-                                    </button>
-                                </form>
-
-                                {/* Update Password Section */}
-                                <div className="mt-8 pt-8 border-t border-slate-700">
-                                    <h3 className="text-lg font-bold text-white mb-2">Update Partner Password</h3>
-                                    <p className="text-sm text-slate-400 mb-4">Instantly reset a partner's password if they are locked out.</p>
-                                    
-                                    {updatePasswordStatus.msg && (
-                                        <div className={`p-4 rounded-xl mb-4 text-sm border ${updatePasswordStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                                            {updatePasswordStatus.msg}
-                                        </div>
-                                    )}
-
-                                    <form onSubmit={handleUpdatePassword} className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <input
-                                                    type="email"
-                                                    required
-                                                    className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-amber-500 outline-none"
-                                                    value={updatePartnerEmail}
-                                                    onChange={(e) => setUpdatePartnerEmail(e.target.value)}
-                                                    placeholder="Partner Email"
-                                                />
-                                            </div>
-                                            <div>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-amber-500 outline-none"
-                                                    value={updatePartnerPassword}
-                                                    onChange={(e) => setUpdatePartnerPassword(e.target.value)}
-                                                    placeholder="New Password (Min 6 chars)"
-                                                />
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            disabled={updatePasswordStatus.loading}
-                                            className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 disabled:opacity-50"
-                                        >
-                                            {updatePasswordStatus.loading ? 'Updating...' : 'Force Update Password'}
-                                        </button>
-                                    </form>
-                                </div>
-
-                                {/* Migration Tool Section */}
-                                <div className="mt-8 pt-8 border-t border-slate-700">
-                                    <h3 className="text-lg font-bold text-white mb-2">Migrate Existing Partners</h3>
-                                    <p className="text-sm text-slate-400 mb-4">Click this button to automatically fix the login issue for partners whose accounts were created before the security update.</p>
-                                    
-                                    {migrationStatus.msg && (
-                                        <div className={`p-4 rounded-xl mb-4 text-sm border ${migrationStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : migrationStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
-                                            {migrationStatus.msg}
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={handleMigratePartners}
-                                        disabled={migrationStatus.loading}
-                                        type="button"
-                                        className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all border border-slate-600 disabled:opacity-50"
-                                    >
-                                        {migrationStatus.loading ? 'Migrating...' : 'Migrate Existing Partners'}
-                                    </button>
-                                </div>
-
-                                {/* District Backfill Tool Section */}
-                                <div className="mt-8 pt-8 border-t border-slate-700">
-                                    <h3 className="text-lg font-bold text-white mb-2">Backfill Districts for Legacy Messes</h3>
-                                    <p className="text-sm text-slate-400 mb-4">Click this button to assign the default district ('Balasore') to all existing messes that don't have a district field yet.</p>
-                                    
-                                    <button
-                                        onClick={handleBackfillDistricts}
-                                        disabled={migrationStatus.loading}
-                                        type="button"
-                                        className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all border border-slate-600 disabled:opacity-50"
-                                    >
-                                        {migrationStatus.loading ? 'Processing...' : 'Backfill Districts'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* NEW ROOM INQUIRIES TAB */}
-                    {activeTab === 'room_inquiries' && (
-                        <div className="max-w-6xl mx-auto">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-orange-500">
-                                <BedDouble />
-                                Find Your Room Requests
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {roomInquiries.length === 0 ? (
-                                    <div className="col-span-full text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                                        No room inquiries found.
-                                    </div>
-                                ) : (
-                                    roomInquiries.map(inquiry => (
-                                        <div key={inquiry.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm relative group">
-                                            <button
-                                                onClick={async () => {
-                                                    if (window.confirm("Delete this inquiry?")) {
-                                                        try {
-                                                            await deleteDoc(doc(db, "room_inquiries", inquiry.id));
-                                                        } catch { alert("Delete failed"); }
-                                                    }
-                                                }}
-                                                className="absolute top-4 right-4 p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-
-                                            <div className="mb-4">
-                                                <h3 className="text-lg font-bold text-white mb-1">{inquiry.name}</h3>
-                                                <div className="flex items-center gap-2 text-sm text-slate-400">
-                                                    <Phone size={14} className="text-orange-500" />
-                                                    {inquiry.phone}
-                                                    {inquiry.contactMethod && (
-                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${inquiry.contactMethod === 'whatsapp' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                                                            {inquiry.contactMethod.toUpperCase()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-3 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 text-sm">
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <p className="text-[10px] uppercase font-bold text-slate-500">Location</p>
-                                                        <p className="text-slate-200">{inquiry.location}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] uppercase font-bold text-slate-500">Budget</p>
-                                                        <p className="text-emerald-400 font-medium">{inquiry.budget}</p>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-bold text-slate-500">Occupancy</p>
-                                                    <p className="text-slate-200 capitalize">{inquiry.occupancy}</p>
-                                                </div>
-                                                {inquiry.requirements && (
-                                                    <div>
-                                                        <p className="text-[10px] uppercase font-bold text-slate-500">Requirements</p>
-                                                        <p className="text-slate-400 italic">"{inquiry.requirements}"</p>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="mt-4 pt-3 border-t border-slate-700 text-[10px] text-slate-500 flex justify-between">
-                                                <span>Submitted: {inquiry.createdAt?.seconds ? new Date(inquiry.createdAt.seconds * 1000).toLocaleString() : 'Just now'}</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                        <BookingsTab 
+                            bookings={bookings}
+                            revealedIds={revealedIds}
+                            setRevealedIds={setRevealedIds}
+                            bookingRemarks={bookingRemarks}
+                            setBookingRemarks={setBookingRemarks}
+                            bookingActionLoading={bookingActionLoading}
+                            handleBookingAction={handleBookingAction}
+                        />
                     )}
 
                     {/* CLAIMS TAB */}
                     {activeTab === 'claims' && (
-                        <div className="max-w-5xl mx-auto">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-amber-500">
-                                <Briefcase />
-                                Listing Claim Requests
-                            </h2>
-                            <div className="space-y-4">
-                                {claims.length === 0 ? (
-                                    <div className="text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                                        No claim requests found.
-                                    </div>
-                                ) : (
-                                    claims.map(claim => (
-                                        <div key={claim.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm">
-                                            <div className="flex flex-col md:flex-row justify-between gap-4">
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${claim.status === 'resolved' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                                            {claim.status}
-                                                        </span>
-                                                        <span className="text-slate-500 text-xs">Claim ID: {claim.id.slice(0, 8)}</span>
-                                                    </div>
-                                                    <h3 className="font-bold text-white text-xl flex items-center gap-2">
-                                                        {claim.messName}
-                                                        <span className="text-xs font-normal text-slate-400">(ID: {claim.messId?.slice(0, 6)}...)</span>
-                                                    </h3>
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mt-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
-                                                        <div>
-                                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Claimant Name</p>
-                                                            <p className="text-slate-200 font-medium">{claim.userName}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Email Address</p>
-                                                            <p className="text-slate-200 font-medium">{claim.userEmail}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Phone Number</p>
-                                                            <p className="text-slate-200 font-medium">{claim.userPhone}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Request Date</p>
-
-                                                            <p className="text-slate-200 font-medium">
-                                                                {claim.createdAt?.seconds ? new Date(claim.createdAt.seconds * 1000).toLocaleString() : 'N/A'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-row md:flex-col gap-2 self-start md:justify-center">
-                                                    {claim.status === 'pending' ? (
-                                                        <button
-                                                            onClick={async () => {
-                                                                try {
-                                                                    await updateDoc(doc(db, "claims", claim.id), { status: 'resolved' });
-                                                                } catch { alert("Update failed"); }
-                                                            }}
-                                                            className="flex items-center gap-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-emerald-900/20"
-                                                        >
-                                                            <ClipboardCheck size={16} /> Mark Resolved
-                                                        </button>
-                                                    ) : (
-                                                        <>
-                                                            <span className="text-emerald-500 text-sm font-bold flex items-center gap-1 bg-emerald-500/10 px-3 py-2 rounded-lg">
-                                                                <CheckCircle size={16} /> Resolved
-                                                            </span>
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (window.confirm("Delete this resolved claim record?")) {
-                                                                        try {
-                                                                            await deleteDoc(doc(db, "claims", claim.id));
-                                                                        } catch { alert("Delete failed"); }
-                                                                    }
-                                                                }}
-                                                                className="flex items-center gap-1 px-4 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"
-                                                            >
-                                                                <Trash2 size={16} /> Delete
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                        <ClaimsTab claims={claims} />
                     )}
 
-                    {/* Mess Registrations Tab */}
+                    {/* REGISTRATIONS TAB */}
                     {activeTab === 'registrations' && (
-                        <div className="space-y-6">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-500">
-                                <Building2 />
-                                New Mess Registrations
-                            </h2>
-                            <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
-                                {registrations.map(reg => (
-                                    <div key={reg.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-3 bg-blue-500/10 rounded-lg">
-                                                    <Building2 className="text-blue-500" size={24} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-white text-lg">{reg.messName}</h3>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${reg.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
-                                                            {reg.status}
-                                                        </span>
-                                                        <span className="text-slate-500 text-xs flex items-center gap-1">
-                                                            <Calendar size={12} />
-                                                            {reg.createdAt?.seconds ? new Date(reg.createdAt.seconds * 1000).toLocaleDateString() : 'Recently'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={async () => {
-                                                    if (window.confirm("Delete this registration?")) {
-                                                        try {
-                                                            await deleteDoc(doc(db, "mess_registrations", reg.id));
-                                                        } catch { alert("Delete failed"); }
-                                                    }
-                                                }}
-                                                className="p-2 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </div>
-
-                                        <div className="space-y-3 bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <p className="text-slate-500 text-xs uppercase font-bold mb-1">Mess Type</p>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {reg.messType?.map((t, i) => (
-                                                            <span key={i} className="px-2 py-1 bg-slate-800 rounded text-xs text-white border border-slate-700">
-                                                                {t}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <p className="text-slate-500 text-xs uppercase font-bold mb-1">Phone</p>
-                                                    <a href={`tel:${reg.phoneNumber}`} className="text-blue-400 hover:underline flex items-center gap-1 font-mono text-sm">
-                                                        <Phone size={14} /> {reg.phoneNumber}
-                                                    </a>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Location Details</p>
-                                                <div className="space-y-2">
-                                                    <div className="flex items-start gap-2 text-slate-300 text-sm bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/30">
-                                                        <MapPin size={16} className="mt-0.5 shrink-0 text-amber-500" />
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold text-slate-400 uppercase">Landmark / Address</p>
-                                                            <p className="text-slate-200 mt-0.5">{reg.landmark || "Not provided"}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-start gap-2 text-slate-300 text-sm bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/30">
-                                                        <Monitor size={16} className="mt-0.5 shrink-0 text-blue-500" />
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold text-slate-400 uppercase">GPS Coordinates</p>
-                                                            {reg.gpsLatitude !== undefined && reg.gpsLatitude !== null && reg.gpsLongitude !== undefined && reg.gpsLongitude !== null ? (
-                                                                <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                                                                    <span className="font-mono text-slate-200 bg-slate-950 px-2 py-0.5 rounded text-xs">
-                                                                        {Number(reg.gpsLatitude).toFixed(6)}, {Number(reg.gpsLongitude).toFixed(6)}
-                                                                    </span>
-                                                                    {reg.gpsAccuracy !== undefined && reg.gpsAccuracy !== null && (
-                                                                        <span className="text-[10px] text-slate-500">
-                                                                            (Accuracy: ±{Number(reg.gpsAccuracy).toFixed(1)}m)
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                        <p className="text-slate-500 italic mt-0.5">No GPS coordinates captured</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Rooms & Rent</p>
-                                                <div className="flex flex-col gap-1 mt-1">
-                                                    {/* Support both legacy rentInfo and new roomVariants schema */}
-                                                    {reg.roomVariants
-                                                        ? Object.entries(reg.roomVariants).map(([type, variants], i) => {
-                                                            const lowestPrice = Array.isArray(variants)
-                                                                ? Math.min(...variants.map(v => Number(v.price) || 0))
-                                                                : null;
-                                                            const cycleSuffix = reg.rentCycle === 'yearly' ? '/yr' : '/mo';
-                                                            return (
-                                                                <div key={i} className="flex justify-between items-center text-sm bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50">
-                                                                    <span className="text-emerald-400 font-medium">{type}</span>
-                                                                    <span className="text-slate-300 font-mono text-xs">
-                                                                        {lowestPrice ? `₹${lowestPrice}${cycleSuffix}` : 'See variants'}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        })
-                                                        : reg.roomTypes?.map((t, i) => (
-                                                            <div key={i} className="flex justify-between items-center text-sm bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700/50">
-                                                                <span className="text-emerald-400 font-medium">{t}</span>
-                                                                <span className="text-slate-300 font-mono text-xs">
-                                                                    {reg.rentInfo?.[t] ? `₹${reg.rentInfo[t]}${reg.rentCycle === 'yearly' ? '/yr' : '/mo'}` : 'No rent info'}
-                                                                </span>
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            </div>
-
-                                            {reg.vacantRooms && reg.vacantRooms.length > 0 && (
-                                                <p className="text-xs text-slate-400 mt-2">
-                                                    <span className="font-bold text-slate-300">Vacant:</span> {reg.vacantRooms.join(', ')}
-                                                </p>
-                                            )}
-
-                                            {(reg.advancePayment?.type || reg.maintenanceCharge?.taken) && (
-                                                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-700/50">
-                                                    {reg.advancePayment?.type && (
-                                                        <div>
-                                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Advance Payment</p>
-                                                            <p className="text-slate-300 text-sm font-medium">
-                                                                {reg.advancePayment.type === 'Custom Amount' ? `₹${reg.advancePayment.customAmount}` : reg.advancePayment.type}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                    {reg.maintenanceCharge?.taken && (
-                                                        <div>
-                                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Maintenance Charge</p>
-                                                            <p className="text-slate-300 text-sm font-medium">
-                                                                ₹{reg.maintenanceCharge.amount} <span className="text-xs text-slate-500">({reg.maintenanceCharge.frequency})</span>
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            <div>
-                                                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Facilities & Inclusions</p>
-                                                <div className="flex flex-wrap gap-1 mb-2">
-                                                    {reg.facilities?.map((f, i) => (
-                                                        <span key={`fac-${i}`} className="px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-[10px] font-medium">
-                                                            {f}
-                                                        </span>
-                                                    ))}
-                                                    {reg.includedInRent?.map((inc, i) => (
-                                                        <span key={`inc-${i}`} className="px-2 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded text-[10px] font-bold flex items-center gap-1">
-                                                            <CheckCircle size={10} /> {inc}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {reg.status === 'pending' ? (
-                                                <div className="mt-4 pt-4 border-t border-slate-700/50 flex gap-3">
-                                                    <button
-                                                        onClick={() => handleApproveRegistration(reg)}
-                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all text-sm"
-                                                    >
-                                                        <CheckCircle size={16} /> Approve & Register (1-Click)
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-2 text-xs">
-                                                    <div className="flex items-center gap-2 text-green-400 bg-green-500/10 px-3 py-2.5 rounded-lg border border-green-500/20">
-                                                        <CheckCircle size={16} className="shrink-0" />
-                                                        <div>
-                                                            <p className="font-bold">Approved & Mess Registered</p>
-                                                            {reg.partnerId && <p className="text-[10px] text-slate-400 mt-0.5">Partner ID: <code className="text-green-300 bg-slate-950 px-1.5 py-0.5 rounded font-mono">{reg.partnerId}</code></p>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                {registrations.length === 0 && (
-                                    <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
-                                        <Building2 size={48} className="mb-4 opacity-50" />
-                                        <p className="text-lg font-medium">No mess registrations yet</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <RegistrationsTab 
+                            registrations={registrations} 
+                            handleApproveRegistration={handleApproveRegistration}
+                        />
                     )}
 
                     {/* INQUIRIES TAB */}
-
                     {activeTab === 'inquiries' && (
-                        <div className="max-w-5xl mx-auto">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold flex items-center gap-2 text-rose-500">
-                                    <Shield />
-                                    Unregistered Queries
-                                </h2>
-                                <span className="bg-rose-500/10 text-rose-500 px-3 py-1 rounded-full text-sm font-bold border border-rose-500/20">
-                                    {inquiries.length} Total
-                                </span>
-                            </div>
+                        <InquiriesTab inquiries={inquiries} />
+                    )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {inquiries.length === 0 ? (
-                                    <div className="col-span-full text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                                        No unregistered queries found.
-                                    </div>
-                                ) : (
-                                    inquiries.map(inquiry => (
-                                        <div key={inquiry.id} className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl flex flex-col h-full">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${inquiry.status === 'resolved' ? 'bg-green-500/20 text-green-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                                    {inquiry.status}
-                                                </div>
-                                                <span className="text-slate-500 text-[10px] font-mono tracking-tighter">#{inquiry.id.slice(-6)}</span>
-                                            </div>
 
-                                            <div className="mb-4">
-                                                <h3 className="text-lg font-bold text-white mb-1">{inquiry.name}</h3>
-                                                <p className="text-slate-400 text-sm flex items-center gap-2">
-                                                    <Phone size={14} className="text-emerald-500" />
-                                                    {inquiry.phone}
-                                                </p>
-                                            </div>
+                    {/* PARTNERS TAB */}
+                    {activeTab === 'partners' && (
+                        <PartnersTab 
+                            partnerStatus={partnerStatus} partnerEmail={partnerEmail} setPartnerEmail={setPartnerEmail} 
+                            partnerPassword={partnerPassword} setPartnerPassword={setPartnerPassword} handleCreatePartner={handleCreatePartner} 
+                            updatePasswordStatus={updatePasswordStatus} updatePartnerEmail={updatePartnerEmail} setUpdatePartnerEmail={setUpdatePartnerEmail} 
+                            updatePartnerPassword={updatePartnerPassword} setUpdatePartnerPassword={setUpdatePartnerPassword} handleUpdatePassword={handleUpdatePassword} 
+                            migrationStatus={migrationStatus} handleMigratePartners={handleMigratePartners} handleBackfillDistricts={handleBackfillDistricts} handleSyncACAmenities={handleSyncACAmenities}
+                        />
+                    )}
 
-                                            <div className="bg-slate-900/50 rounded-xl p-4 mb-6 border border-slate-700/50 flex-grow">
-                                                <div className="flex flex-col gap-3">
-                                                    <div>
-                                                        <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Target Mess</p>
-                                                        <p className="text-slate-200 text-sm font-medium">{inquiry.messName}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Looking For</p>
-                                                        <p className="text-emerald-400 text-sm font-bold">{inquiry.seating}</p>
-                                                    </div>
-                                                    <div className="pt-2 border-t border-slate-700/50">
-                                                        <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Requested On</p>
-                                                        <p className="text-slate-400 text-[11px]">
-                                                            {inquiry.createdAt?.seconds ? new Date(inquiry.createdAt.seconds * 1000).toLocaleString() : 'Recently'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-3 mt-auto">
-                                                {inquiry.status === 'pending' ? (
-                                                    <button
-                                                        onClick={async () => {
-                                                            try {
-                                                                await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'resolved' });
-                                                            } catch { alert("Failed to resolve"); }
-                                                        }}
-                                                        className="col-span-2 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-900/20"
-                                                    >
-                                                        <CheckCircle size={14} /> Resolve
-                                                    </button>
-                                                ) : (
-                                                    <>
-                                                        <div className="flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-500 py-2.5 rounded-xl text-xs font-bold border border-emerald-500/20">
-                                                            <CheckCircle size={14} /> Done
-                                                        </div>
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (window.confirm("Delete this solved query?")) {
-                                                                    try {
-                                                                        await deleteDoc(doc(db, "inquiries", inquiry.id));
-                                                                    } catch { alert("Delete failed"); }
-                                                                }
-                                                            }}
-                                                            className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 py-2.5 rounded-xl text-xs font-bold transition-all border border-slate-600"
-                                                        >
-                                                            <Trash2 size={14} /> Delete
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                    {/* NEW ROOM INQUIRIES TAB */}
+                    {activeTab === 'room_inquiries' && (
+                        <RoomInquiriesTab roomInquiries={allRoomInquiries} />
                     )}
 
                     {/* FEEDBACKS TAB */}
                     {activeTab === 'feedbacks' && (
-                        <div className="max-w-5xl mx-auto">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold flex items-center gap-2 text-purple-500">
-                                    <MessageSquare />
-                                    User Feedbacks
-                                </h2>
-                                <span className="bg-purple-500/10 text-purple-500 px-3 py-1 rounded-full text-sm font-bold border border-purple-500/20">
-                                    {feedbacks.length} Total
-                                </span>
-                            </div>
-
-                            <div className="space-y-4">
-                                {feedbacks.length === 0 ? (
-                                    <div className="text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                                        No feedbacks submitted yet.
-                                    </div>
-                                ) : (
-                                    feedbacks.map(feedback => (
-                                        <div key={feedback.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm">
-                                            <div className="flex flex-col gap-4">
-                                                {/* Header */}
-                                                <div className="flex justify-between items-start">
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${feedback.status === 'replied' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                                                feedback.status === 'resolved' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                                                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                                                }`}>
-                                                                {feedback.status}
-                                                            </span>
-                                                            <span className="text-slate-500 text-xs">ID: {feedback.id.slice(0, 8)}</span>
-                                                        </div>
-                                                        <div>
-                                                            <h3 className="font-bold text-white text-base">{feedback.userName}</h3>
-                                                            {feedback.userEmail && (
-                                                                <p className="text-slate-400 text-sm">{feedback.userEmail}</p>
-                                                            )}
-                                                            {/* Star Rating Display */}
-                                                            {feedback.rating > 0 && (
-                                                                <div className="flex items-center gap-1 mt-1">
-                                                                    {[1, 2, 3, 4, 5].map((star) => (
-                                                                        <span key={star} className={`text-sm ${star <= feedback.rating ? 'text-yellow-400' : 'text-slate-600'}`}>
-                                                                            ★
-                                                                        </span>
-                                                                    ))}
-                                                                    <span className="text-xs text-slate-500 ml-1">({feedback.rating}/5)</span>
-                                                                </div>
-                                                            )}
-                                                            <p className="text-slate-500 text-xs mt-1">
-                                                                {feedback.createdAt?.seconds ? new Date(feedback.createdAt.seconds * 1000).toLocaleString() : 'Recently'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Delete Button */}
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (window.confirm("Delete this feedback?")) {
-                                                                try {
-                                                                    await deleteDoc(doc(db, "feedbacks", feedback.id));
-                                                                } catch { alert("Delete failed"); }
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-1 px-3 py-2 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-sm font-medium transition-all border border-slate-600"
-                                                    >
-                                                        <Trash2 size={16} /> Delete
-                                                    </button>
-                                                </div>
-
-                                                {/* Feedback Message */}
-                                                <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
-                                                    <p className="text-sm font-bold text-slate-400 uppercase mb-2">Feedback Message</p>
-                                                    <p className="text-white text-sm leading-relaxed">{feedback.message}</p>
-                                                </div>
-
-                                                {/* Operator Reply Display */}
-                                                {feedback.operatorReply && (
-                                                    <div className="p-4 bg-emerald-900/10 rounded-xl border border-emerald-500/20">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <Reply size={14} className="text-emerald-500" />
-                                                            <p className="text-xs font-bold text-emerald-500 uppercase">Your Reply</p>
-                                                        </div>
-                                                        <p className="text-slate-300 text-sm leading-relaxed">{feedback.operatorReply}</p>
-                                                        {feedback.repliedAt?.seconds && (
-                                                            <p className="text-slate-500 text-xs mt-2">
-                                                                Replied: {new Date(feedback.repliedAt.seconds * 1000).toLocaleString()}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {/* Reply Form */}
-                                                {!feedback.operatorReply && (
-                                                    <div className="space-y-3">
-                                                        <textarea
-                                                            placeholder="Write your reply to this feedback..."
-                                                            value={feedbackReplies[feedback.id] || ''}
-                                                            onChange={(e) => setFeedbackReplies(prev => ({ ...prev, [feedback.id]: e.target.value }))}
-                                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none resize-none h-24"
-                                                        />
-                                                        <button
-                                                            onClick={async () => {
-                                                                const reply = feedbackReplies[feedback.id];
-                                                                if (!reply?.trim()) {
-                                                                    alert("Please enter a reply");
-                                                                    return;
-                                                                }
-                                                                try {
-                                                                    await updateDoc(doc(db, "feedbacks", feedback.id), {
-                                                                        operatorReply: reply.trim(),
-                                                                        repliedAt: serverTimestamp(),
-                                                                        repliedBy: auth.currentUser?.email,
-                                                                        status: 'replied'
-                                                                    });
-                                                                    setFeedbackReplies(prev => {
-                                                                        const updated = { ...prev };
-                                                                        delete updated[feedback.id];
-                                                                        return updated;
-                                                                    });
-                                                                } catch (error) {
-                                                                    console.error("Reply failed:", error);
-                                                                    alert("Failed to send reply");
-                                                                }
-                                                            }}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors shadow-lg shadow-purple-900/20 text-sm"
-                                                        >
-                                                            <Reply size={16} /> Send Reply
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                        <FeedbacksTab feedbacks={feedbacks} feedbackReplies={feedbackReplies} setFeedbackReplies={setFeedbackReplies} />
                     )}
 
                     {/* ALL MESSES MANAGEMENT */}
                     {activeTab === 'messes' && (
-                        <div className="max-w-6xl mx-auto">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                                <h2 className="text-2xl font-bold flex items-center gap-3 text-indigo-400">
-                                    <Database size={28} />
-                                    Mess Directory
-                                </h2>
-                                <div className="relative w-full md:w-96">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search by name or address..."
-                                        className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-inner"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                {messes.filter(m =>
-                                    (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    (m.address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    (m.id || '').toLowerCase().includes(searchQuery.toLowerCase())
-                                ).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(mess => (
-                                    <div key={mess.id} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-6 group hover:border-indigo-500/50 transition-all shadow-lg hover:shadow-indigo-500/5">
-                                        <div className="flex items-center gap-5 w-full md:w-auto">
-                                            <div className="relative">
-                                                <div className="w-16 h-16 rounded-2xl bg-slate-700/50 flex items-center justify-center text-indigo-400 overflow-hidden border border-slate-600">
-                                                    {mess.posterUrl ? (
-                                                        <img src={mess.posterUrl} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <Server size={24} />
-                                                    )}
-                                                </div>
-                                                {mess.hidden && (
-                                                    <div className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg border border-rose-600">
-                                                        <EyeOff size={10} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                                    {mess.name || mess.messName || '(No Name)'}
-                                                    {mess.isUserSourced && (
-                                                        <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase font-black">
-                                                            Sourced
-                                                        </span>
-                                                    )}
-                                                </h3>
-                                                <p className="text-slate-400 text-sm line-clamp-1 flex items-center gap-1.5">
-                                                    <MapPin size={12} className="opacity-50" /> {mess.address || mess.landmark || '—'}
-                                                </p>
-                                                <p className="text-slate-500 text-[11px] mt-1 font-mono">{mess.id}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                                            <button
-                                                onClick={() => handleToggleVisibility(mess.id, mess.hidden)}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${mess.hidden
-                                                    ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20'
-                                                    : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
-                                                    }`}
-                                                title={mess.hidden ? "Show Listing" : "Hide Listing"}
-                                            >
-                                                {mess.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
-                                                {mess.hidden ? 'Private' : 'Public'}
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleToggleSponsored(mess.id, mess.isSponsored)}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${mess.isSponsored
-                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
-                                                    : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700'
-                                                    }`}
-                                                title={mess.isSponsored ? "Remove Sponsorship" : "Make Sponsored"}
-                                            >
-                                                {mess.isSponsored ? <CheckCircle size={16} /> : <TrendingUp size={16} />}
-                                                {mess.isSponsored ? 'Sponsored' : 'Sponsor'}
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleEditItem(mess, 'mess')}
-                                                className="p-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl transition-all border border-slate-600"
-                                            >
-                                                <Edit3 size={18} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <MessesTab messes={allMesses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
                     )}
 
                     {/* ALL ROOMS MANAGEMENT */}
                     {activeTab === 'rooms' && (
-                        <div className="max-w-6xl mx-auto">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                                <h2 className="text-2xl font-bold flex items-center gap-3 text-cyan-400">
-                                    <Layout size={28} />
-                                    Global Room Inventory
-                                </h2>
-                                <div className="relative w-full md:w-96">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search by mess name or category..."
-                                        className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-cyan-500 outline-none shadow-inner"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {rooms.filter(r =>
-                                    (r.messName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    (r.category || "").toLowerCase().includes(searchQuery.toLowerCase())
-                                ).map(room => (
-                                    <div key={room.id} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col hover:border-cyan-500/50 transition-all shadow-xl group">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="bg-cyan-500/10 text-cyan-500 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border border-cyan-500/20">
-                                                {room.occupancy} Room
-                                            </div>
-                                            <span className="text-slate-500 text-[10px] font-mono">#{room.id.slice(-6)}</span>
-                                        </div>
-
-                                        <h3 className="text-lg font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors">
-                                            {room.messName}
-                                        </h3>
-                                        <p className="text-slate-400 text-xs mb-4 flex items-center gap-1.5 min-h-[16px]">
-                                            {room.category && <><Layout size={12} className="opacity-50" /> {room.category}</>}
-                                        </p>
-
-                                        <div className="bg-slate-900/50 rounded-xl p-4 mb-5 border border-slate-700/50 flex-grow">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-xs text-slate-500 uppercase font-black">Price</span>
-                                                <span className="text-emerald-400 font-bold">
-                                                    ₹{room.price}/{room.rentCycle === 'yearly' ? 'yr' : 'mo'}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-500 uppercase font-black">Availability</span>
-                                                <span className="text-white font-bold">{room.availableCount} {room.occupancy === 'Single' ? 'Bed' : 'Seats'}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2 mt-auto">
-                                            <button
-                                                onClick={() => handleEditItem(room, 'room')}
-                                                className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-xs font-bold transition-all border border-slate-600"
-                                            >
-                                                <Edit3 size={14} /> Edit
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <RoomsTab rooms={allRooms} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleEditItem={handleEditItem} />
                     )}
 
                     {/* HERO ADS TAB */}
                     {activeTab === 'hero_ads' && (
-                        <div className="max-w-6xl mx-auto">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                                <Image className="text-pink-500" />
-                                Hero Ads Management
-                            </h2>
-
-                            {/* Global Toggle */}
-                            <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8 shadow-xl">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-white">Enable Ad Carousel</h3>
-                                        <p className="text-slate-400 text-sm mt-1">
-                                            {carouselEnabled
-                                                ? 'Carousel is LIVE — users see ad banners on the home page'
-                                                : 'Carousel is OFF — users see the default hero section'}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={handleToggleCarousel}
-                                        className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-lg ${
-                                            carouselEnabled
-                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
-                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
-                                        }`}
-                                    >
-                                        {carouselEnabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                                        {carouselEnabled ? 'ON' : 'OFF'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Two Sections */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                {/* Desktop Banners */}
-                                {[{ section: 'desktop', ads: desktopAds, icon: <Monitor size={20} />, label: 'Desktop Banners', size: '1400 × 500 px', color: 'blue' },
-                                  { section: 'mobile', ads: mobileAds, icon: <Smartphone size={20} />, label: 'Mobile Banners', size: '800 × 600 px', color: 'orange' }].map(({ section, ads: sectionAds, icon, label, size, color }) => (
-                                    <div key={section} className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-                                        {/* Section Header */}
-                                        <div className={`p-5 border-b border-slate-700 bg-${color}-500/5`}>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-lg bg-${color}-500/10 text-${color}-400`}>
-                                                        {icon}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-white text-lg">{label}</h3>
-                                                        <p className="text-slate-500 text-xs">Recommended: {size}</p>
-                                                    </div>
-                                                </div>
-                                                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                                                    sectionAds.length >= 10
-                                                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                                        : 'bg-slate-700 text-slate-300'
-                                                }`}>
-                                                    {sectionAds.length}/10
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Upload Form */}
-                                        <div className="p-5 border-b border-slate-700">
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <input
-                                                        id={`hero-ad-file-${section}`}
-                                                        type="file"
-                                                        accept="image/*"
-                                                        disabled={sectionAds.length >= 10 || heroAdUploading}
-                                                        onChange={(e) => section === 'desktop'
-                                                        ? setDesktopAdFile(e.target.files?.[0] || null)
-                                                        : setMobileAdFile(e.target.files?.[0] || null)
-                                                    }
-                                                        className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-pink-500/10 file:text-pink-400 hover:file:bg-pink-500/20 disabled:opacity-40"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-3">
-                                                    <select
-                                                        value={heroAdForm.district}
-                                                        onChange={(e) => setHeroAdForm({ ...heroAdForm, district: e.target.value })}
-                                                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none capitalize"
-                                                    >
-                                                        <option value="all">Any District</option>
-                                                        <option value="balasore">Balasore</option>
-                                                        <option value="bhadrak">Bhadrak</option>
-                                                    </select>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Link URL (optional)"
-                                                        value={heroAdForm.linkUrl}
-                                                        onChange={(e) => setHeroAdForm({ ...heroAdForm, linkUrl: e.target.value })}
-                                                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none"
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Title (optional)"
-                                                        value={heroAdForm.title}
-                                                        onChange={(e) => setHeroAdForm({ ...heroAdForm, title: e.target.value })}
-                                                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none"
-                                                    />
-                                                </div>
-                                                <button
-                                                    onClick={() => handleHeroAdUpload(section)}
-                                                    disabled={!(section === 'desktop' ? desktopAdFile : mobileAdFile) || heroAdUploading || sectionAds.length >= 10}
-                                                    className="w-full py-2.5 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-pink-500/10"
-                                                >
-                                                    {heroAdUploading ? 'Uploading...' : sectionAds.length >= 10 ? 'Limit Reached (10/10)' : 'Upload Banner'}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Banner List */}
-                                        <div className="p-5 space-y-3 max-h-[600px] overflow-y-auto">
-                                            {sectionAds.length === 0 ? (
-                                                <div className="text-center py-12 text-slate-500 text-sm">
-                                                    No banners uploaded yet.
-                                                </div>
-                                            ) : (
-                                                sectionAds.map((ad, idx) => (
-                                                    <div key={ad.id} className={`bg-slate-900/50 rounded-xl border ${ad.active ? 'border-slate-700' : 'border-slate-700/50 opacity-50'} p-3 flex gap-3 items-center group`}>
-                                                        {/* Thumbnail */}
-                                                        <img
-                                                            src={ad.imageUrl}
-                                                            alt={ad.title || 'Banner'}
-                                                            className="w-24 h-16 object-cover rounded-lg shrink-0 border border-slate-700"
-                                                        />
-
-                                                        {/* Info */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-white text-sm font-bold truncate">{ad.title || 'Untitled'}</p>
-                                                            {ad.linkUrl && <p className="text-slate-500 text-xs truncate">{ad.linkUrl}</p>}
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold mt-1 inline-block ${ad.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                                                                {ad.active ? 'ACTIVE' : 'HIDDEN'}
-                                                            </span>
-                                                            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold mt-1 ml-1 inline-block bg-blue-500/20 text-blue-400 capitalize">
-                                                                {ad.district || 'balasore'}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Actions */}
-                                                        <div className="flex items-center gap-1 shrink-0">
-                                                            <button
-                                                                onClick={() => handleReorderHeroAd(ad.id, 'up', section)}
-                                                                disabled={idx === 0}
-                                                                className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-20"
-                                                                title="Move up"
-                                                            >
-                                                                <ArrowUp size={14} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReorderHeroAd(ad.id, 'down', section)}
-                                                                disabled={idx === sectionAds.length - 1}
-                                                                className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-20"
-                                                                title="Move down"
-                                                            >
-                                                                <ArrowDown size={14} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleToggleHeroAd(ad.id, ad.active, section)}
-                                                                className={`p-1.5 rounded-lg transition-colors ${ad.active ? 'text-emerald-400 hover:bg-emerald-500/20' : 'text-slate-500 hover:bg-slate-700'}`}
-                                                                title={ad.active ? 'Hide' : 'Show'}
-                                                            >
-                                                                {ad.active ? <Eye size={14} /> : <EyeOff size={14} />}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteHeroAd(ad.id, section)}
-                                                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                                title="Delete"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <HeroAdsTab 
+                            carouselEnabled={carouselEnabled} handleToggleCarousel={handleToggleCarousel} 
+                            desktopAds={desktopAds} mobileAds={mobileAds} 
+                            desktopAdFile={desktopAdFile} setDesktopAdFile={setDesktopAdFile} 
+                            mobileAdFile={mobileAdFile} setMobileAdFile={setMobileAdFile} 
+                            heroAdUploading={heroAdUploading} heroAdForm={heroAdForm} setHeroAdForm={setHeroAdForm} 
+                            handleHeroAdUpload={handleHeroAdUpload} handleReorderHeroAd={handleReorderHeroAd} 
+                            handleToggleHeroAd={handleToggleHeroAd} handleDeleteHeroAd={handleDeleteHeroAd} 
+                        />
                     )}
-
                 </main>
             </div>
 

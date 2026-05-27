@@ -1,7 +1,8 @@
 import React, { useState, useEffect, memo } from 'react';
+import PropTypes from 'prop-types';
 import { MapPin, ArrowRight, Info, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { motion } from 'framer-motion';
 import { storage } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 
@@ -66,6 +67,9 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
                                 alt={mess.name}
                                 className={`w-full h-full object-cover transition-opacity duration-500 ${imgLoading ? 'opacity-0' : 'opacity-100'}`}
                                 loading="lazy"
+                                decoding="async"
+                                width={400}
+                                height={225}
                                 onLoad={() => setImgLoading(false)}
                                 onError={() => setImageUrl(null)}
                             />
@@ -160,17 +164,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
                         <ArrowRight size={20} strokeWidth={2.5} />
                     </div>
 
-                    {/* Distance - Hidden for now */}
-                    {/* <div>
-                        {typeof mess.distance === 'number' && isFinite(mess.distance) ? (
-                            <div className="text-base sm:text-lg font-bold text-brand-primary flex items-baseline">
-                                {mess.distance < 1 ? Math.round(mess.distance * 1000) : mess.distance.toFixed(1)}
-                                <span className="text-[10px] ml-0.5 opacity-60 font-normal">{mess.distance < 1 ? 'm' : 'km'}</span>
-                            </div>
-                        ) : (
-                            <div className="text-base sm:text-lg font-bold text-brand-primary opacity-50">--</div>
-                        )}
-                    </div> */}
+
                 </div>
 
 
@@ -178,6 +172,26 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist }) => {
         </motion.div>
     );
 });
+
+MessCard.propTypes = {
+    mess: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string.isRequired,
+        address: PropTypes.string,
+        posterUrl: PropTypes.string,
+        galleryUrls: PropTypes.arrayOf(PropTypes.string),
+        images: PropTypes.arrayOf(PropTypes.string),
+        isUserSourced: PropTypes.bool,
+        isFiltered: PropTypes.bool,
+        matchingBeds: PropTypes.number,
+        minPrice: PropTypes.number,
+        maxPrice: PropTypes.number,
+        rentCycle: PropTypes.string,
+        minStayDuration: PropTypes.number
+    }).isRequired,
+    isWishlisted: PropTypes.bool,
+    onToggleWishlist: PropTypes.func
+};
 
 MessCard.displayName = 'MessCard';
 

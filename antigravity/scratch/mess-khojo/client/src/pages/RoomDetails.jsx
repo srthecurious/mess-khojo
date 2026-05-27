@@ -5,9 +5,10 @@ import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell, Heart, Phone, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { motion, AnimatePresence } from 'framer-motion';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackRoomView, trackBookingInitiated, trackContactOwner, trackAvailabilityInquiry } from '../analytics';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 const RoomDetails = () => {
     const { messId, roomId } = useParams();
@@ -66,18 +67,7 @@ const RoomDetails = () => {
         }
     }, [mess, room, messId, roomId]);
 
-    // Disable body scroll when modals are open
-    useEffect(() => {
-        if (showNotifyModal || showConfirmModal || showPhoneModal) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'auto';
-        }
-
-        return () => {
-            document.body.style.overflow = 'auto';
-        };
-    }, [showNotifyModal, showConfirmModal, showPhoneModal]);
+    useBodyScrollLock(showNotifyModal || showConfirmModal || showPhoneModal);
 
     const [searchParams, setSearchParams] = useSearchParams();
 

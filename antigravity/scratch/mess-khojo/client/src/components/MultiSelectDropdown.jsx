@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { ChevronDown, Check } from 'lucide-react';
 
 const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indigo', theme = 'dark' }) => {
@@ -122,6 +123,18 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
             )}
         </div>
     );
+};
+
+MultiSelectDropdown.propTypes = {
+    label: PropTypes.string.isRequired,
+    options: PropTypes.arrayOf(PropTypes.shape({
+        key: PropTypes.string.isRequired,
+        label: PropTypes.string.isRequired
+    })).isRequired,
+    selected: PropTypes.objectOf(PropTypes.bool).isRequired,
+    onChange: PropTypes.func.isRequired,
+    color: PropTypes.string,
+    theme: PropTypes.string
 };
 
 export default MultiSelectDropdown;

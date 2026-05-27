@@ -21,9 +21,9 @@ const UserSignup = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const redirectUrl = searchParams.get('redirect') || '/profile';
-
-    console.log('🔗 UserSignup redirectUrl:', redirectUrl);
+    const rawRedirect = searchParams.get('redirect') || '/profile';
+    // Prevent open redirect attacks — only allow relative paths
+    const redirectUrl = rawRedirect.startsWith('/') ? rawRedirect : '/profile';
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -105,7 +105,6 @@ const UserSignup = () => {
             });
 
             // 3. Navigate to redirect URL or Profile
-            console.log('✅ Signup successful! Redirecting to:', redirectUrl);
             navigate(redirectUrl);
 
             // Track successful signup

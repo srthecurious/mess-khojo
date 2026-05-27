@@ -23,7 +23,17 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|motion' }],
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    files: ['eslint.config.js', 'vite.config.js', 'playwright.config.js', 'src/test/setup.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
 ])
+

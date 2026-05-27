@@ -1,5 +1,6 @@
 import React from 'react';
 import { Phone, Mail, MapPin, Instagram } from 'lucide-react';
+import { BRAND } from '../constants';
 
 const Footer = () => {
     return (
@@ -25,22 +26,22 @@ const Footer = () => {
                         <h4 className="font-bold text-lg text-white mb-1">Contact Us</h4>
                         <div className="flex items-center gap-3 text-sm text-white/90">
                             <Mail size={16} className="text-brand-accent-green" />
-                            <a href="mailto:messkhojobalasore@gmail.com" className="hover:text-brand-accent-green transition-colors font-medium">messkhojobalasore@gmail.com</a>
+                            <a href={`mailto:${BRAND.email}`} className="hover:text-brand-accent-green transition-colors font-medium">{BRAND.email}</a>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-white/90">
                             <Instagram size={16} className="text-brand-accent-green" />
-                            <a href="https://www.instagram.com/messkhojo?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className="hover:text-brand-accent-green transition-colors font-medium">Follow us on Instagram</a>
+                            <a href={BRAND.instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-brand-accent-green transition-colors font-medium">Follow us on Instagram</a>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-white/90">
                             <Phone size={16} className="text-brand-accent-green" />
-                            <span className="font-medium">+91 96928 19621</span>
+                            <span className="font-medium">{BRAND.phone}</span>
                         </div>
 
                         {/* Community Links */}
                         <div className="pt-2 mt-2 border-t border-white/10 flex flex-col gap-2">
                             <p className="text-xs font-bold text-white/50 uppercase tracking-wider mb-1">Join Our Community</p>
                             <a
-                                href="https://chat.whatsapp.com/LYhQ5jOBMfZItlupwWbrwx"
+                                href={BRAND.whatsappCommunityUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-3 py-2 px-3 text-sm font-medium text-white/90 bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#20b858] hover:to-[#0f6d5f] rounded-lg transition-all shadow-sm hover:shadow-md"
@@ -51,7 +52,7 @@ const Footer = () => {
                                 <span>WhatsApp Community</span>
                             </a>
                             <a
-                                href="https://t.me/messkhojo"
+                                href={BRAND.telegramUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-3 py-2 px-3 text-sm font-medium text-white/90 bg-[#0088cc] hover:bg-[#0077b5] rounded-lg transition-all shadow-sm hover:shadow-md"

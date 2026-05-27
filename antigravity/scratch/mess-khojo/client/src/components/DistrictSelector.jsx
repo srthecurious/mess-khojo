@@ -1,6 +1,6 @@
 import React from 'react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
+
 import { MapPin, CheckCircle2, ChevronRight, Map } from 'lucide-react';
 import { useDistrict } from '../context/DistrictContext';
 

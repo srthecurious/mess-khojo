@@ -28,8 +28,7 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
     // Shuffle ads so multiple sponsors get a fair chance to be seen first
     useEffect(() => {
         if (!rawAds || rawAds.length <= 1) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setAds(rawAds || []);
+            setTimeout(() => setAds(rawAds || []), 0);
             return;
         }
         const shuffled = [...rawAds];
@@ -37,15 +36,17 @@ const HeroCarousel = ({ desktopAds, mobileAds, loadingDesktop, loadingMobile }) 
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setAds(shuffled);
+        setTimeout(() => setAds(shuffled), 0);
     }, [rawAds]);
+
+
 
     // Reset index when ads change or screen switches
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setCurrentIndex(0);
+        setTimeout(() => setCurrentIndex(0), 0);
     }, [isMobile, ads.length]);
+
+
 
     // Auto-scroll
     const startAutoScroll = useCallback(() => {

@@ -56,7 +56,7 @@ const AdminLogin = () => {
             } else if (err.code === 'auth/wrong-password') {
                 errorMessage = "Incorrect password.";
             } else {
-                errorMessage = err.message; // Show detailed error for debugging
+                errorMessage = "An unexpected error occurred. Please try again.";
             }
             setError(errorMessage);
         }

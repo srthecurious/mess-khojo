@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { X, Phone, ShieldCheck, AlertCircle } from 'lucide-react';
 
 const ClaimModal = ({ messName, onSubmit, onClose, loading }) => {
@@ -79,6 +80,13 @@ const ClaimModal = ({ messName, onSubmit, onClose, loading }) => {
             </div>
         </div>
     );
+};
+
+ClaimModal.propTypes = {
+    messName: PropTypes.string.isRequired,
+    onSubmit: PropTypes.func.isRequired,
+    onClose: PropTypes.func.isRequired,
+    loading: PropTypes.bool
 };
 
 export default ClaimModal;

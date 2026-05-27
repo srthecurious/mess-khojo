@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { auth, db, storage } from '../firebase';
+import React, { useState } from 'react';
+import { auth, storage } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 import RoomCard from '../components/RoomCard';
 import { Pencil, Trash2, X } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import imageCompression from 'browser-image-compression';
-import MapPicker from '../components/MapPicker';
-import { useAuth } from '../context/AuthContext';
+const MapPicker = React.lazy(() => import('../components/MapPicker'));
+import { updateMess, addMess, addRoom, updateRoom, deleteRoom } from '../services/messService';
+import { updateBookingStatus } from '../services/bookingService';
+import { useAdminData } from './AdminDashboard/hooks/useAdminData';
+import MessProfileTab from './AdminDashboard/tabs/MessProfileTab';
+import RoomManagementTab from './AdminDashboard/tabs/RoomManagementTab';
+import BookingsOverviewTab from './AdminDashboard/tabs/BookingsOverviewTab';
+
 
 const AdminDashboard = () => {
-    const { userRole } = useAuth();
-    const [user, setUser] = useState(null);
-    const [messProfile, setMessProfile] = useState(null);
-    const [loadingProfile, setLoadingProfile] = useState(true);
+    const adminData = useAdminData();
+    const { user, messProfile, rooms, setRooms, bookings, loadingProfile, setMessProfile } = adminData;
+
+
     const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
 
     const showToast = (message, type = 'success') => {
@@ -76,7 +82,7 @@ const AdminDashboard = () => {
         if (!messProfile) return;
         try {
             const updatedUrls = (messProfile.galleryUrls || []).filter(url => url !== imageUrlToRemove);
-            await updateDoc(doc(db, "messes", messProfile.id), {
+            await updateMess(messProfile.id, {
                 galleryUrls: updatedUrls
             });
             setMessProfile(prev => ({ ...prev, galleryUrls: updatedUrls }));
@@ -101,7 +107,6 @@ const AdminDashboard = () => {
     };
 
     // Room Form State
-    const [rooms, setRooms] = useState([]);
     const [formData, setFormData] = useState({
         occupancy: 'Double', // Single, Double, Triple, Four, Five, Six
         category: '', // Standard, Deluxe, AC, etc.
@@ -119,85 +124,11 @@ const AdminDashboard = () => {
     const [editingRoomId, setEditingRoomId] = useState(null);
 
     // Booking State
-    const [bookings, setBookings] = useState([]);
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
     const [bookingActionLoading, setBookingActionLoading] = useState({}); // { bookingId: true }
 
     const navigate = useNavigate();
 
-    // Real-time mess profile listener (replaces one-shot getDocs)
-    useEffect(() => {
-        let unsubscribeMess = null;
-
-        const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-                // Real-time listener so profile stays fresh even if operator edits it
-                const q = query(collection(db, "messes"), where("adminId", "==", currentUser.uid));
-                unsubscribeMess = onSnapshot(q, (snapshot) => {
-                    if (!snapshot.empty) {
-                        const profile = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-                        setMessProfile(profile);
-                    } else {
-                        setMessProfile(null);
-                    }
-                    setLoadingProfile(false);
-                });
-            } else {
-                navigate('/admin/login');
-            }
-        });
-
-        return () => {
-            unsubscribeAuth();
-            if (unsubscribeMess) unsubscribeMess();
-        };
-    }, [navigate]);
-
-    // Security Check: Ensure user is NOT a student
-    useEffect(() => {
-        if (user && userRole) {
-            if (userRole !== 'admin' && userRole !== 'operator') {
-                signOut(auth).then(() => {
-                    navigate('/?error=access_denied');
-                });
-            }
-        }
-    }, [user, userRole, navigate]);
-
-    // Listen for rooms ONLY if mess profile exists
-    useEffect(() => {
-        if (!messProfile) return;
-
-        const q = query(collection(db, "rooms"), where("messId", "==", messProfile.id));
-        const unsubscribeRooms = onSnapshot(q, (snapshot) => {
-            const roomsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setRooms(roomsData);
-        });
-
-        return () => unsubscribeRooms();
-    }, [messProfile]);
-
-    // Listen for Bookings
-    useEffect(() => {
-        if (!messProfile) return;
-
-        const q = query(collection(db, "bookings"), where("messId", "==", messProfile.id));
-        const unsubscribeBookings = onSnapshot(q, (snapshot) => {
-            const bookingsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            // Sort by Date (Newest First)
-            bookingsData.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-            setBookings(bookingsData);
-        });
-
-        return () => unsubscribeBookings();
-    }, [messProfile]);
 
     const handleLogout = async () => {
         await signOut(auth);
@@ -361,13 +292,12 @@ const AdminDashboard = () => {
             if (isEditingMess && messProfile) {
                 // Preserve the district set by the operator — partners cannot change it
                 delete saveData.district;
-                const messRef = doc(db, "messes", messProfile.id);
-                await updateDoc(messRef, saveData);
+                await updateMess(messProfile.id, saveData);
                 setIsEditingMess(false);
                 showToast('✅ Mess Profile updated successfully!');
             } else {
                 // Create new profile
-                const docRef = await addDoc(collection(db, "messes"), {
+                const docRef = await addMess({
                     ...saveData,
                     adminId: user.uid,
                     createdAt: new Date()
@@ -490,16 +420,17 @@ const AdminDashboard = () => {
                 imageUrl: downloadURLs[0] || "", // Backward compat
                 messId: messProfile.id,
                 messName: messProfile.name,
+                district: messProfile.district || 'balasore',
                 updatedAt: new Date(),
                 rentCycle: messProfile.rentCycle || 'monthly',
                 minStayDuration: messProfile.minStayDuration || 1
             };
 
             if (editingRoomId) {
-                await updateDoc(doc(db, "rooms", editingRoomId), roomData);
+                await updateRoom(editingRoomId, roomData);
                 showToast('✅ Room updated successfully!');
             } else {
-                await addDoc(collection(db, "rooms"), {
+                await addRoom({
                     ...roomData,
                     createdAt: new Date()
                 });
@@ -570,7 +501,7 @@ const AdminDashboard = () => {
             const room = rooms.find(r => r.id === editingRoomId);
             const updatedUrls = (room.imageUrls || [room.imageUrl]).filter(url => url !== imageUrlToRemove);
 
-            await updateDoc(doc(db, "rooms", editingRoomId), {
+            await updateRoom(editingRoomId, {
                 imageUrls: updatedUrls,
                 imageUrl: updatedUrls[0] || ""
             });
@@ -593,7 +524,7 @@ const AdminDashboard = () => {
         setBookingActionLoading(prev => ({ ...prev, [bookingId]: true }));
         try {
             const remark = bookingRemarks[bookingId] || "";
-            await updateDoc(doc(db, "bookings", bookingId), {
+            await updateBookingStatus(bookingId, {
                 status: newStatus,
                 remark: remark,
                 respondedAt: serverTimestamp()
@@ -620,7 +551,7 @@ const AdminDashboard = () => {
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this room?")) {
             try {
-                await deleteDoc(doc(db, "rooms", id));
+                await deleteRoom(id);
             } catch (error) {
                 console.error("Error deleting room:", error);
             }
@@ -655,721 +586,52 @@ const AdminDashboard = () => {
 
             <div className="max-w-4xl mx-auto p-6">
                 {/* Mess Profile Section */}
-                {!messProfile || isEditingMess ? (
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-brand-text-dark">{isEditingMess ? 'Edit Mess Profile' : 'Create Mess Profile'}</h2>
-                            {isEditingMess && (
-                                <button onClick={handleCancelEditMess} className="text-gray-500 hover:text-gray-700">
-                                    <X size={24} />
-                                </button>
-                            )}
-                        </div>
-                        <form onSubmit={handleMessSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Mess Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 border rounded"
-                                    value={messForm.name}
-                                    onChange={(e) => setMessForm({ ...messForm, name: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">District</label>
-                                {/* District is READ-ONLY for partners — only operator can change it */}
-                                <div className="w-full p-2 border border-dashed border-gray-300 rounded bg-gray-50 text-gray-600 capitalize flex items-center gap-2">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                    {messForm.district || 'balasore'}
-                                    <span className="ml-auto text-[10px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded font-medium">Managed by Operator</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Mess Type</label>
-                                <select
-                                    className="w-full p-2 border rounded"
-                                    value={messForm.messType}
-                                    onChange={(e) => setMessForm({ ...messForm, messType: e.target.value })}
-                                >
-                                    <option value="Boys">Boys Mess</option>
-                                    <option value="Girls">Girls Mess</option>
-                                    <option value="Co-ed">Co-ed Mess</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Address</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 border rounded"
-                                    value={messForm.address}
-                                    onChange={(e) => setMessForm({ ...messForm, address: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Description / About Mess</label>
-                                <textarea
-                                    className="w-full p-2 border rounded h-32 resize-none"
-                                    value={messForm.description || ''}
-                                    onChange={(e) => setMessForm({ ...messForm, description: e.target.value })}
-                                    placeholder="Enter a detailed description about your mess..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Contact Number</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 border rounded"
-                                    value={messForm.contact}
-                                    onChange={(e) => setMessForm({ ...messForm, contact: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Google Maps Location URL</label>
-                                <input
-                                    type="url"
-                                    className="w-full p-2 border border-brand-light-gray rounded focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
-                                    value={messForm.locationUrl}
-                                    onChange={(e) => handleLocationUrlChange(e.target.value)}
-                                    placeholder="Paste Google Maps URL (coordinates will auto-extract)"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">💡 Tip: Paste a Google Maps link and coordinates will be extracted automatically!</p>
-                                <button
-                                    type="button"
-                                    onClick={handleGeocode}
-                                    disabled={geocoding || !messForm.address}
-                                    className="mt-2 px-4 py-2 bg-brand-accent-blue text-white rounded-lg hover:bg-brand-accent-blue/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                                        <circle cx="12" cy="10" r="3"></circle>
-                                    </svg>
-                                    {geocoding ? 'Geocoding...' : 'Auto-fill Coordinates'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowMapPicker(true)}
-                                    className="mt-2 ml-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                                        <circle cx="12" cy="10" r="3"></circle>
-                                    </svg>
-                                    Pick on Map
-                                </button>
-                            </div>
-                            <div className="bg-brand-accent-blue/5 border border-brand-accent-blue/20 rounded-lg p-4">
-                                <div className="flex items-start gap-2 mb-3">
-                                    <svg className="w-5 h-5 text-brand-accent-blue mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <div>
-                                        <p className="text-sm font-semibold text-brand-text-dark">Location Coordinates (For Distance Calculation)</p>
-                                        <p className="text-xs text-brand-text-gray mt-1">Use the button above to auto-fill from address, or enter manually</p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1 text-brand-text-dark">Latitude</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            className="w-full p-2 border border-brand-light-gray rounded focus:ring-2 focus:ring-brand-primary"
-                                            value={messForm.latitude || ''}
-                                            onChange={(e) => setMessForm({ ...messForm, latitude: parseFloat(e.target.value) })}
-                                            placeholder="e.g. 23.2599"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1 text-brand-text-dark">Longitude</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            className="w-full p-2 border border-brand-light-gray rounded focus:ring-2 focus:ring-brand-primary"
-                                            value={messForm.longitude || ''}
-                                            onChange={(e) => setMessForm({ ...messForm, longitude: parseFloat(e.target.value) })}
-                                            placeholder="e.g. 77.4126"
-                                        />
-                                    </div>
-                                </div>
-                                {messForm.latitude && messForm.longitude && (
-                                    <p className="text-xs text-brand-accent-green mt-2 font-medium">✓ Coordinates set - distances will be calculated</p>
-                                )}
-                            </div>
-
-                            {/* Managed By */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Managed By</label>
-                                <select
-                                    className="w-full p-2 border rounded"
-                                    value={messForm.managedBy}
-                                    onChange={(e) => setMessForm({ ...messForm, managedBy: e.target.value })}
-                                >
-                                    <option value="Owner">Owner</option>
-                                    <option value="Students">Students</option>
-                                    <option value="Warden">Warden</option>
-                                </select>
-                            </div>
-
-                            {/* Facilities */}
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Facilities Available</label>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].map(f => (
-                                        <label key={f} className="flex items-center gap-2 cursor-pointer text-sm">
-                                            <input
-                                                type="checkbox"
-                                                className="w-4 h-4 accent-brand-primary"
-                                                checked={messForm.facilities.includes(f)}
-                                                onChange={(e) => {
-                                                    const updated = e.target.checked
-                                                        ? [...messForm.facilities, f]
-                                                        : messForm.facilities.filter(x => x !== f);
-                                                    setMessForm({ ...messForm, facilities: updated });
-                                                }}
-                                            />
-                                            {f === 'InverterPower' ? 'Inverter/Backup' : f}
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Included in Rent */}
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Included in Rent</label>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {['electricity', 'food', 'water'].map(item => (
-                                        <label key={item} className="flex items-center gap-2 cursor-pointer text-sm capitalize">
-                                            <input
-                                                type="checkbox"
-                                                className="w-4 h-4 accent-brand-primary"
-                                                checked={messForm.includedInRent.includes(item)}
-                                                onChange={(e) => {
-                                                    const updated = e.target.checked
-                                                        ? [...messForm.includedInRent, item]
-                                                        : messForm.includedInRent.filter(x => x !== item);
-                                                    setMessForm({ ...messForm, includedInRent: updated });
-                                                }}
-                                            />
-                                            {item} bill included
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Advance Payment */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Advance / Security Deposit</label>
-                                <select
-                                    className="w-full p-2 border rounded mb-2"
-                                    value={messForm.advancePayment.type}
-                                    onChange={(e) => setMessForm({ ...messForm, advancePayment: { ...messForm.advancePayment, type: e.target.value } })}
-                                >
-                                    <option value="None">None</option>
-                                    <option value="1 Month">1 Month</option>
-                                    <option value="2 Months">2 Months</option>
-                                    <option value="3 Months">3 Months</option>
-                                    <option value="4 Months">4 Months</option>
-                                    <option value="5 Months">5 Months</option>
-                                    <option value="6 Months">6 Months</option>
-                                    <option value="1 Month Rent">1 Month Rent (Legacy)</option>
-                                    <option value="2 Month Rent">2 Month Rent (Legacy)</option>
-                                    <option value="Custom Amount">Custom Amount</option>
-                                </select>
-                                {messForm.advancePayment.type === 'Custom Amount' && (
-                                    <input
-                                        type="number"
-                                        placeholder="Enter amount (₹)"
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.advancePayment.customAmount}
-                                        onChange={(e) => setMessForm({ ...messForm, advancePayment: { ...messForm.advancePayment, customAmount: e.target.value } })}
-                                    />
-                                )}
-                            </div>
-
-                            {/* Maintenance Charge */}
-                            <div>
-                                <label className="flex items-center gap-2 text-sm font-medium mb-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="w-4 h-4 accent-brand-primary"
-                                        checked={messForm.maintenanceCharge.taken}
-                                        onChange={(e) => setMessForm({ ...messForm, maintenanceCharge: { ...messForm.maintenanceCharge, taken: e.target.checked } })}
-                                    />
-                                    Maintenance Charge Applicable?
-                                </label>
-                                {messForm.maintenanceCharge.taken && (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input
-                                            type="number"
-                                            placeholder="Amount (₹)"
-                                            className="p-2 border rounded"
-                                            value={messForm.maintenanceCharge.amount}
-                                            onChange={(e) => setMessForm({ ...messForm, maintenanceCharge: { ...messForm.maintenanceCharge, amount: e.target.value } })}
-                                        />
-                                        <select
-                                            className="p-2 border rounded"
-                                            value={messForm.maintenanceCharge.frequency}
-                                            onChange={(e) => setMessForm({ ...messForm, maintenanceCharge: { ...messForm.maintenanceCharge, frequency: e.target.value } })}
-                                        >
-                                            <option value="Per Month">Per Month</option>
-                                            <option value="Per Year">Per Year</option>
-                                            <option value="Per Semester">Per Semester</option>
-                                        </select>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Billing Cycle & Stay Commitment */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Rent Billing Cycle</label>
-                                    <select
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.rentCycle || 'monthly'}
-                                        onChange={(e) => setMessForm({ ...messForm, rentCycle: e.target.value })}
-                                    >
-                                        <option value="monthly">Monthly Basis</option>
-                                        <option value="yearly">Yearly Basis</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Minimum Stay (Months)</label>
-                                    <input
-                                        type="number"
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.minStayDuration || 1}
-                                        onChange={(e) => setMessForm({ ...messForm, minStayDuration: parseInt(e.target.value) || 1 })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Extra Electric Appliances</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. Iron, Kettle allowed"
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.extraAppliances}
-                                        onChange={(e) => setMessForm({ ...messForm, extraAppliances: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Food Facility Details</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. 3 Meals, Pure Veg"
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.foodFacility}
-                                        onChange={(e) => setMessForm({ ...messForm, foodFacility: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Security Details</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. CCTV, Guard 24/7"
-                                        className="w-full p-2 border rounded"
-                                        value={messForm.security}
-                                        onChange={(e) => setMessForm({ ...messForm, security: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="bg-brand-secondary p-4 rounded-lg border border-brand-light-gray">
-                                <div className="flex items-center gap-4 mb-3">
-                                    <label className="flex items-center gap-2 cursor-pointer font-medium text-brand-text-dark">
-                                        <input
-                                            type="checkbox"
-                                            className="w-5 h-5 accent-brand-primary"
-                                            checked={messForm.isUserSourced}
-                                            onChange={(e) => setMessForm({ ...messForm, isUserSourced: e.target.checked })}
-                                        />
-                                        Mark as "User Sourced"
-                                    </label>
-                                </div>
-                                {messForm.isUserSourced && (
-                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                        <label className="block text-sm font-medium mb-1 text-brand-text-dark">Last Date of Update</label>
-                                        <input
-                                            type="date"
-                                            className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-primary outline-none"
-                                            value={messForm.lastUpdatedDate}
-                                            onChange={(e) => setMessForm({ ...messForm, lastUpdatedDate: e.target.value })}
-                                            required={messForm.isUserSourced}
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1 italic">Note: This will be shown to users as unverified information.</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <MultiSelectDropdown
-                                    label="Amenities Available"
-                                    options={[
-                                        { key: 'wifi', label: 'Wifi Availability' },
-                                        { key: 'inverter', label: 'Electricity Backup' },
-                                        { key: 'food', label: 'Food Service' }
-                                    ]}
-                                    selected={messForm.amenities}
-                                    onChange={(key, checked) => setMessForm({
-                                        ...messForm,
-                                        amenities: { ...messForm.amenities, [key]: checked }
-                                    })}
-                                    color="indigo"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Mess Poster {isEditingMess && '(Leave empty to keep current)'}</label>
-                                <input
-                                    type="file"
-                                    onChange={(e) => setPosterFile(e.target.files[0])}
-                                    className="w-full"
-                                    accept="image/*"
-                                />
-                                {isEditingMess && messProfile?.posterUrl && (
-                                    <div className="mt-2 text-center md:text-left">
-                                        <p className="text-xs text-gray-500 mb-1">Current Poster:</p>
-                                        <img src={messProfile.posterUrl} alt="Current Poster" className="h-20 w-auto rounded border" />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="pt-2 border-t border-gray-100">
-                                <label className="block text-sm font-medium mb-1 text-brand-primary flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
-                                    Mess Photo Gallery (Max 15 Images)
-                                </label>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={(e) => setGalleryFiles(e.target.files)}
-                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-accent-blue/10 file:text-brand-accent-blue hover:file:bg-brand-accent-blue/20"
-                                />
-                                <p className="text-xs text-gray-400 mt-1 italic">Select multiple stunning photos showcasing your mess (dining area, building exterior, sitting area, etc.)</p>
-
-                                {isEditingMess && messProfile?.galleryUrls?.length > 0 && (
-                                    <div className="mt-4">
-                                        <p className="text-xs text-gray-500 mb-2 font-medium">Current Gallery ({messProfile.galleryUrls.length}/15):</p>
-                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                                            {messProfile.galleryUrls.map((url, idx) => (
-                                                <div key={idx} className="relative group rounded-md overflow-hidden border shadow-sm aspect-square bg-gray-50">
-                                                    <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => { e.preventDefault(); removeGalleryImage(url); }}
-                                                        className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        title="Remove Image"
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <button type="submit" disabled={uploading} className="w-full bg-brand-primary text-white py-2 rounded hover:bg-brand-primary-hover shadow-md transition-all">
-                                {uploading ? 'Saving...' : (isEditingMess ? 'Update Profile' : 'Create Profile')}
-                            </button>
-                        </form>
-                    </div>
-                ) : (
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                        <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-1 flex-wrap">
-                                    <h2 className="text-2xl font-bold text-gray-800">{messProfile.name}</h2>
-                                    <span className="text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded font-semibold capitalize">{messProfile.district || 'balasore'}</span>
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-semibold">{messProfile.messType}</span>
-                                    {messProfile.rentCycle === 'yearly' && (
-                                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-semibold">Yearly Billing</span>
-                                    )}
-                                    {messProfile.minStayDuration > 1 && (
-                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-semibold">{messProfile.minStayDuration}m min stay</span>
-                                    )}
-                                </div>
-                                <p className="text-gray-600 text-sm">{messProfile.address}</p>
-                                <p className="text-gray-600 text-sm">📞 {messProfile.contact}</p>
-                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                                    {messProfile.latitude && messProfile.longitude && (
-                                        <span className="flex items-center gap-1 text-green-600">✓ GPS Set</span>
-                                    )}
-                                    {messProfile.galleryUrls?.length > 0 && (
-                                        <span>🖼️ {messProfile.galleryUrls.length} gallery photos</span>
-                                    )}
-                                    {messProfile.isVerified && (
-                                        <span className="text-blue-600">✓ Verified</span>
-                                    )}
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleEditMessClick}
-                                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors ml-4 shrink-0"
-                            >
-                                <Pencil size={18} /> Edit Profile
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <MessProfileTab 
+                    messProfile={messProfile}
+                    messForm={messForm}
+                    setMessForm={setMessForm}
+                    posterFile={posterFile}
+                    setPosterFile={setPosterFile}
+                    galleryFiles={galleryFiles}
+                    setGalleryFiles={setGalleryFiles}
+                    isEditingMess={isEditingMess}
+                    uploading={uploading}
+                    handleMessSubmit={handleMessSubmit}
+                    handleEditMessClick={handleEditMessClick}
+                    handleCancelEditMess={handleCancelEditMess}
+                    removeGalleryImage={removeGalleryImage}
+                    geocoding={geocoding}
+                    handleGeocode={handleGeocode}
+                    setShowMapPicker={setShowMapPicker}
+                    handleLocationUrlChange={handleLocationUrlChange}
+                />
 
                 {/* Room Management Section */}
                 {messProfile && !isEditingMess && (
                     <>
-                        <div className="bg-white p-6 rounded-lg shadow-md mb-8 border-t-4 border-brand-primary">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold">{editingRoomId ? 'Edit Room' : 'Add New Room'}</h2>
-                                {editingRoomId && (
-                                    <button onClick={handleCancelEditRoom} className="text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                                        <X size={18} /> Cancel Edit
-                                    </button>
-                                )}
-                            </div>
+                        <RoomManagementTab 
+                            rooms={rooms}
+                            formData={formData}
+                            setFormData={setFormData}
+                            editingRoomId={editingRoomId}
+                            imageFiles={imageFiles}
+                            setImageFiles={setImageFiles}
+                            uploading={uploading}
+                            handleRoomSubmit={handleRoomSubmit}
+                            handleEditRoomClick={handleEditRoomClick}
+                            handleCancelEditRoom={handleCancelEditRoom}
+                            removeImage={removeImage}
+                            handleDelete={handleDelete}
+                            messProfile={messProfile}
+                        />
 
-                            <form onSubmit={handleRoomSubmit} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Occupancy Type</label>
-                                        <select
-                                            className="w-full p-2 border rounded"
-                                            value={formData.occupancy}
-                                            onChange={e => setFormData({ ...formData, occupancy: e.target.value })}
-                                        >
-                                            <option value="1">1 Seater</option>
-                                            <option value="2">2 Seater</option>
-                                            <option value="3">3 Seater</option>
-                                            <option value="4">4 Seater</option>
-                                            <option value="5">5 Seater</option>
-                                            <option value="6">6 Seater</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Category (Optional)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Deluxe, AC, Balcony"
-                                            className="w-full p-2 border rounded"
-                                            value={formData.category}
-                                            onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            Price per Student
-                                            <span className="ml-1 text-xs font-normal text-brand-primary">
-                                                ({messProfile?.rentCycle === 'yearly' ? '₹/year' : '₹/month'})
-                                            </span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            className="w-full p-2 border rounded"
-                                            value={formData.price}
-                                            onChange={e => setFormData({ ...formData, price: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Total Rooms of this Type</label>
-                                        <input
-                                            type="number"
-                                            className="w-full p-2 border rounded"
-                                            value={formData.totalInventory}
-                                            onChange={e => setFormData({ ...formData, totalInventory: parseInt(e.target.value) })}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1 text-brand-accent-green">Available Beds/Seats</label>
-                                        <input
-                                            type="number"
-                                            className="w-full p-2 border border-brand-accent-green/20 bg-brand-accent-green/5 outline-none rounded"
-                                            value={formData.availableCount}
-                                            onChange={e => setFormData({ ...formData, availableCount: parseInt(e.target.value) })}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <MultiSelectDropdown
-                                        label="Amenities Included"
-                                        options={[
-                                            { key: 'ac', label: 'AC' },
-                                            { key: 'attachedBathroom', label: 'Attached Bathroom' }
-                                        ]}
-                                        selected={formData.amenities}
-                                        onChange={(key, checked) => setFormData({
-                                            ...formData,
-                                            amenities: { ...formData.amenities, [key]: checked }
-                                        })}
-                                        color="cyan"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Other Details</label>
-                                    <textarea
-                                        placeholder="Additional info about this room type..."
-                                        className="w-full p-2 border rounded"
-                                        value={formData.otherInfo}
-                                        onChange={e => setFormData({ ...formData, otherInfo: e.target.value })}
-                                        rows="3"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Room Images (Max 5)</label>
-                                    <input
-                                        type="file"
-                                        onChange={e => setImageFiles(e.target.files)}
-                                        className="w-full"
-                                        accept="image/*"
-                                        multiple
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Select multiple files to upload.</p>
-
-                                    {editingRoomId && (
-                                        <div className="mt-4">
-                                            <p className="text-sm font-medium mb-2">Current Images:</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {(() => {
-                                                    const room = rooms.find(r => r.id === editingRoomId);
-                                                    const images = room.imageUrls || (room.imageUrl ? [room.imageUrl] : []);
-                                                    return images.map((url, index) => (
-                                                        <div key={index} className="relative group">
-                                                            <img src={url} alt={`Room ${index + 1}`} className="w-20 h-20 object-cover rounded border" />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeImage(url)}
-                                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            >
-                                                                <X size={12} />
-                                                            </button>
-                                                        </div>
-                                                    ));
-                                                })()}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <button type="submit" disabled={uploading} className={`w-full text-white py-2 rounded shadow-md hover:bg-opacity-90 transition-all ${editingRoomId ? 'bg-brand-amber font-bold' : 'bg-brand-primary'}`}>
-                                    {uploading ? 'Saving...' : (editingRoomId ? 'Update Room Type' : 'Add Room Type')}
-                                </button>
-                            </form>
-                        </div>
-
-                        <h2 className="text-2xl font-bold mb-4">Your Room Types</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {rooms.map(room => (
-                                <div key={room.id} className={`relative group ${editingRoomId === room.id ? 'ring-2 ring-brand-amber rounded-xl' : ''}`}>
-                                    <RoomCard room={room} isAdmin={true} />
-                                    <div className="absolute top-2 right-2 flex gap-2">
-                                        <button
-                                            onClick={() => handleEditRoomClick(room)}
-                                            className="bg-white text-brand-amber p-1.5 rounded-full hover:bg-brand-amber/10 shadow-sm border border-brand-light-gray"
-                                            title="Edit Room"
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(room.id)}
-                                            className="bg-white text-brand-red p-1.5 rounded-full hover:bg-brand-red/10 shadow-sm border border-brand-light-gray"
-                                            title="Delete Room"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Booking Requests Section */}
-                        <div className="mt-12 mb-8 border-t border-brand-light-gray pt-8">
-                            <h2 className="text-2xl font-bold mb-6 text-brand-text-dark flex items-center gap-3">
-                                Booking Requests
-                                {bookings.filter(b => b.status === 'pending').length > 0 && (
-                                    <span className="text-sm font-normal bg-brand-primary text-white px-3 py-1 rounded-full">
-                                        {bookings.filter(b => b.status === 'pending').length} New
-                                    </span>
-                                )}
-                            </h2>
-
-                            {bookings.length === 0 ? (
-                                <div className="bg-white p-8 rounded-xl text-center border-2 border-dashed border-gray-200 text-gray-400">
-                                    <p>No booking requests yet.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {bookings.map(booking => (
-                                        <div key={booking.id} className="bg-white p-5 rounded-xl shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between gap-4">
-                                            <div>
-                                                <div className="flex items-center gap-3 mb-1">
-                                                    <h3 className="font-bold text-lg text-brand-text-dark">{booking.userName || 'Unknown User'}</h3>
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                                        booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                            'bg-yellow-100 text-yellow-700'
-                                                        }`}>
-                                                        {booking.status}
-                                                    </span>
-                                                </div>
-                                                <p className="text-sm text-gray-600 mb-2">📞 {booking.userPhone}</p>
-                                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                                    <span>🛏️ {({
-                                                        'Single': '1',
-                                                        'Double': '2',
-                                                        'Triple': '3',
-                                                        'Four': '4',
-                                                        'Five': '5',
-                                                        'Six': '6'
-                                                    })[booking.roomType] || booking.roomType} Seater</span>
-                                                    <span>💰 ₹{booking.price}{booking.rentCycle === 'yearly' ? '/yr' : '/mo'}</span>
-                                                    <span>📅 {booking.createdAt ? new Date(booking.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
-                                                </div>
-                                            </div>
-
-                                            {booking.status === 'pending' && (
-                                                <div className="flex flex-col gap-2 min-w-[200px]">
-                                                    <textarea
-                                                        placeholder="Remark (optional)"
-                                                        value={bookingRemarks[booking.id] || ''}
-                                                        onChange={(e) => setBookingRemarks(prev => ({ ...prev, [booking.id]: e.target.value }))}
-                                                        className="w-full px-3 py-1.5 border border-brand-light-gray rounded-lg text-sm focus:ring-1 focus:ring-brand-primary outline-none resize-none h-16"
-                                                    />
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => handleUpdateBookingStatus(booking.id, 'confirmed')}
-                                                            disabled={!!bookingActionLoading[booking.id]}
-                                                            className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-sm transition-colors text-sm"
-                                                        >
-                                                            {bookingActionLoading[booking.id] ? '...' : 'Approve'}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleUpdateBookingStatus(booking.id, 'rejected')}
-                                                            disabled={!!bookingActionLoading[booking.id]}
-                                                            className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed text-red-600 rounded-lg font-medium transition-colors text-sm"
-                                                        >
-                                                            {bookingActionLoading[booking.id] ? '...' : 'Reject'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {booking.status !== 'pending' && booking.remark && (
-                                                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100 text-xs text-gray-500 italic md:max-w-xs">
-                                                    Remark: {booking.remark}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        <BookingsOverviewTab 
+                            bookings={bookings}
+                            bookingRemarks={bookingRemarks}
+                            setBookingRemarks={setBookingRemarks}
+                            bookingActionLoading={bookingActionLoading}
+                            handleUpdateBookingStatus={handleUpdateBookingStatus}
+                        />
                     </>
                 )}
             </div>
@@ -1378,15 +640,22 @@ const AdminDashboard = () => {
                 showMapPicker && (
                     <div className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                         <div className="bg-white w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col">
-                            <MapPicker
-                                onConfirm={handleMapConfirm}
-                                onCancel={() => setShowMapPicker(false)}
-                                initialLocation={
-                                    messForm.latitude && messForm.longitude
-                                        ? { lat: parseFloat(messForm.latitude), lng: parseFloat(messForm.longitude), address: messForm.address }
-                                        : null
-                                }
-                            />
+                            <React.Suspense fallback={
+                                <div className="w-full h-full flex flex-col items-center justify-center">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-primary border-t-transparent mb-4"></div>
+                                    <p className="text-brand-text-dark font-bold text-lg">Loading Map Picker...</p>
+                                </div>
+                            }>
+                                <MapPicker
+                                    onConfirm={handleMapConfirm}
+                                    onCancel={() => setShowMapPicker(false)}
+                                    initialLocation={
+                                        messForm.latitude && messForm.longitude
+                                            ? { lat: parseFloat(messForm.latitude), lng: parseFloat(messForm.longitude), address: messForm.address }
+                                            : null
+                                    }
+                                />
+                            </React.Suspense>
                         </div>
                     </div>
                 )

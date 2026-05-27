@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
-import { motion } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { motion } from 'framer-motion';
 
 const AboutUs = () => {
     return (

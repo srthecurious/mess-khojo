@@ -127,10 +127,10 @@ const UserProfile = () => {
             navigate('/user-login');
         } catch (error) {
             console.error("Failed to delete account:", error);
-            if (error.code === 'auth/requires-recent-login') {
+            if (error.code === 'auth/requires-recent-login' || error.message?.includes('requires-recent-login')) {
                 setDeleteError("For security reasons, please log out and log back in before deleting your account.");
             } else {
-                setDeleteError("Failed to delete account. Please try again later.");
+                setDeleteError(error.message || "Failed to delete account. Please try again later.");
             }
         } finally {
             setDeletingAccount(false);
@@ -187,25 +187,7 @@ const UserProfile = () => {
     return (
         <div className="min-h-screen bg-brand-secondary p-4 md:p-8 flex flex-col">
             <div className="max-w-4xl mx-auto space-y-8 flex-grow w-full">
-                {/* Role Warning for Admin/Operator */}
-                {userRole === 'admin' && (
-                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 text-amber-800">
-                            <div className="bg-amber-100 p-2 rounded-full">
-                                <User size={20} />
-                            </div>
-                            <p className="text-sm font-medium">
-                                You are signed in with an <strong>Operator/Partner</strong> account.
-                            </p>
-                        </div>
-                        <button
-                            onClick={handleLogout}
-                            className="text-amber-700 text-xs font-bold uppercase tracking-wider hover:underline"
-                        >
-                            Switch to Student Account
-                        </button>
-                    </div>
-                )}
+
 
                 {/* Profile Header Card */}
                 <div className="bg-gradient-to-br from-white via-white to-brand-primary/5 rounded-3xl shadow-2xl p-6 md:p-10 border border-brand-primary/10 relative overflow-hidden backdrop-blur-sm">
@@ -419,12 +401,14 @@ const UserProfile = () => {
                         Sign Out Account
                     </button>
 
-                    <button
-                        onClick={() => setShowDeleteModal(true)}
-                        className="text-xs text-brand-text-gray hover:text-red-500 transition-colors mt-2 font-medium"
-                    >
-                        Delete My Account
-                    </button>
+                    {userRole !== 'admin' && userRole !== 'operator' && (
+                        <button
+                            onClick={() => setShowDeleteModal(true)}
+                            className="text-xs text-brand-text-gray hover:text-red-500 transition-colors mt-2 font-medium"
+                        >
+                            Delete My Account
+                        </button>
+                    )}
                 </div>
             </div>
 
