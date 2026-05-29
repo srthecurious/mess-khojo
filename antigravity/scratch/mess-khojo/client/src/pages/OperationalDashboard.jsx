@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -7,7 +7,7 @@ import { collection, updateDoc, doc, serverTimestamp, addDoc, getDoc, setDoc, ge
 
 
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
@@ -23,6 +23,7 @@ import FeedbacksTab from './OperationalDashboard/tabs/FeedbacksTab';
 import MessesTab from './OperationalDashboard/tabs/MessesTab';
 import RoomsTab from './OperationalDashboard/tabs/RoomsTab';
 import HeroAdsTab from './OperationalDashboard/tabs/HeroAdsTab';
+import OwnerCallsTab from './OperationalDashboard/tabs/OwnerCallsTab';
 
 // Hooks
 import { useOperationalData } from './OperationalDashboard/hooks/useOperationalData';
@@ -78,6 +79,7 @@ const OperationalDashboard = () => {
     const [updatePasswordStatus, setUpdatePasswordStatus] = useState({ loading: false, msg: '', type: '' });
     
     const [migrationStatus, setMigrationStatus] = useState({ loading: false, msg: '', type: '' });
+    const [sheetsSyncStatus, setSheetsSyncStatus] = useState({ loading: false, msg: '', type: '' });
 
     // Approval Modal State
     const [approveModal, setApproveModal] = useState({
@@ -495,6 +497,84 @@ const OperationalDashboard = () => {
         }
     };
 
+    const handleSyncAllToSheets = async () => {
+        if (!window.confirm("Are you sure you want to sync all 130 active messes to Google Sheets?")) return;
+        
+        setSheetsSyncStatus({ loading: true, msg: 'Starting sync...', type: 'info' });
+        try {
+            const sheetsWebhook = import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL;
+            if (!sheetsWebhook) {
+                throw new Error("Google Sheets Webhook URL is not configured in environment variables (.env).");
+            }
+            
+            if (!allMesses || allMesses.length === 0) {
+                setSheetsSyncStatus({ loading: false, msg: 'No messes found to sync.', type: 'info' });
+                return;
+            }
+            
+            setSheetsSyncStatus({ loading: true, msg: `Syncing ${allMesses.length} messes to Google Sheets...`, type: 'info' });
+            
+            const payload = allMesses.map(mess => {
+                // Find all rooms for this mess in the database
+                const messRooms = allRooms ? allRooms.filter(r => r.messId === mess.id) : [];
+                
+                // Reconstruct roomTypes array
+                const roomTypes = [...new Set(messRooms.map(r => r.category || (r.occupancy ? r.occupancy + ' Seater' : 'Standard')))];
+                
+                // Reconstruct roomVariants mapping
+                const roomVariants = {};
+                messRooms.forEach(r => {
+                    const rt = r.category || (r.occupancy ? r.occupancy + ' Seater' : 'Standard');
+                    if (!roomVariants[rt]) roomVariants[rt] = [];
+                    
+                    let label = '';
+                    if (r.category && r.category.includes('(')) {
+                        label = r.category.split('(')[1].replace(')', '');
+                    }
+                    
+                    roomVariants[rt].push({
+                        label: label,
+                        price: r.price || 0,
+                        isVacant: (r.availableCount || 0) > 0
+                    });
+                });
+                
+                return {
+                    messName: mess.name || mess.messName || 'N/A',
+                    phoneNumber: mess.contact || mess.phoneNumber || 'N/A',
+                    district: mess.district || 'balasore',
+                    messType: mess.messType || [],
+                    roomTypes: roomTypes,
+                    roomVariants: roomVariants,
+                    landmark: mess.landmark || mess.address || 'N/A',
+                    facilities: mess.facilities || [],
+                    rentCycle: mess.rentCycle || 'monthly',
+                    gpsLatitude: mess.latitude !== undefined ? mess.latitude : (mess.gpsLatitude || null),
+                    gpsLongitude: mess.longitude !== undefined ? mess.longitude : (mess.gpsLongitude || null),
+                    createdAt: mess.createdAt?.seconds ? mess.createdAt.seconds * 1000 : (mess.createdAt || new Date().toISOString())
+                };
+            });
+            
+            await fetch(sheetsWebhook, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            setSheetsSyncStatus({ 
+                loading: false, 
+                msg: `✅ Successfully synced ${allMesses.length} active messes in one single batch!`, 
+                type: 'success' 
+            });
+        } catch (error) {
+            console.error("Sheets bulk sync failed:", error);
+            setSheetsSyncStatus({ loading: false, msg: `❌ Sync failed: ${error.message}`, type: 'error' });
+        }
+    };
+
     const generatePartnerId = () => {
         const now = new Date();
         const yy = String(now.getFullYear()).slice(-2);
@@ -676,6 +756,32 @@ const OperationalDashboard = () => {
                 ownerEmail: email
             });
 
+            // Sync to Google Sheets dynamically (Free Webhook)
+            const sheetsWebhook = import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL;
+            if (sheetsWebhook) {
+                fetch(sheetsWebhook, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify({
+                        messName: reg.messName || 'N/A',
+                        phoneNumber: reg.phoneNumber || 'N/A',
+                        district: reg.district || 'balasore',
+                        messType: reg.messType || [],
+                        roomTypes: roomTypes,
+                        roomVariants: reg.roomVariants || {},
+                        landmark: reg.landmark || '',
+                        facilities: facilities,
+                        rentCycle: reg.rentCycle || 'monthly',
+                        gpsLatitude: reg.gpsLatitude || null,
+                        gpsLongitude: reg.gpsLongitude || null,
+                        createdAt: new Date().toISOString()
+                    })
+                }).catch(err => console.error("Google Sheets sync failed:", err));
+            }
+
             try {
                 const message = `🎉 <b>MESS REGISTRATION APPROVED!</b>\n\n` +
                     `🏢 <b>Mess:</b> ${reg.messName}\n` +
@@ -718,6 +824,50 @@ const OperationalDashboard = () => {
     const claims = allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId) === opFilterDistrict);
     const messes = allMesses.filter(m => opFilterDistrict === 'all' || (m.district || 'balasore') === opFilterDistrict);
     const rooms = allRooms.filter(r => opFilterDistrict === 'all' || getMessDistrict(r.messId) === opFilterDistrict);
+
+    // Live Metrics Calculations for Stats Overview Bar
+    const statsTotalMesses = messes.length;
+    const statsActiveMesses = messes.filter(m => !m.hidden).length;
+    const statsHiddenMesses = messes.filter(m => m.hidden).length;
+
+    const statsPendingBookings = bookings.filter(b => b.status === 'pending').length;
+    const statsPendingRegistrations = registrations.filter(r => r.status === 'pending').length;
+    const statsPendingClaims = claims.filter(c => c.status === 'pending').length;
+    const statsPendingInquiries = inquiries.filter(i => i.status === 'pending').length;
+    const statsPendingFeedbacks = feedbacks.filter(f => f.status === 'pending').length;
+
+    // Calculate unique messes contacted in the previous calendar month whose outreach status is pending or unset
+    const statsPendingOwnerCalls = useMemo(() => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const prevMonthStart = new Date(y, m - 1, 1);
+        const prevMonthEnd = new Date(y, m, 0, 23, 59, 59, 999);
+
+        // Filter bookings in previous month
+        const prevMonthBookings = bookings.filter(b => {
+            if (!b.createdAt) return false;
+            const date = b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+            return date >= prevMonthStart && date <= prevMonthEnd;
+        });
+
+        // Group by messId
+        const messIdsWithBookings = new Set(prevMonthBookings.map(b => b.messId).filter(Boolean));
+
+        // Count how many of these messes are pending (meaning mess.ownerCallStatus is unset or 'pending')
+        let pendingCount = 0;
+        messIdsWithBookings.forEach(messId => {
+            const mess = messes.find(m => m.id === messId);
+            const status = mess?.ownerCallStatus || 'pending';
+            if (status === 'pending') {
+                pendingCount++;
+            }
+        });
+        return pendingCount;
+    }, [bookings, messes]);
+
+    const statsTotalRooms = rooms.length;
+    const statsAvailableRooms = rooms.reduce((acc, r) => acc + (Number(r.availableCount) || 0), 0);
 
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -766,6 +916,21 @@ const OperationalDashboard = () => {
                     >
                         <Calendar size={20} />
                         Call Requests
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('owner_calls')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'owner_calls'
+                            ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            }`}
+                    >
+                        <PhoneCall size={20} />
+                        Owner Calls
+                        {statsPendingOwnerCalls > 0 && (
+                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold animate-pulse">
+                                {statsPendingOwnerCalls}
+                            </span>
+                        )}
                     </button>
                     <button
                         onClick={() => setActiveTab('partners')}
@@ -907,6 +1072,85 @@ const OperationalDashboard = () => {
                 {/* Main Content */}
                 <main className="flex-1 p-4 md:p-8 overflow-y-auto">
 
+                    {/* Live Metrics Overview Bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Total Messes</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className="text-2xl font-extrabold text-indigo-400">{statsTotalMesses}</span>
+                                <span className="text-[10px] text-slate-500 font-bold">{statsActiveMesses} pub / {statsHiddenMesses} priv</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Pending Calls</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className={`text-2xl font-extrabold ${statsPendingBookings > 0 ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`}>
+                                    {statsPendingBookings}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Requests</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Outbound Calls</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className={`text-2xl font-extrabold ${statsPendingOwnerCalls > 0 ? 'text-indigo-400 animate-pulse' : 'text-slate-400'}`}>
+                                    {statsPendingOwnerCalls}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Pending Owner</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">New Registrations</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className={`text-2xl font-extrabold ${statsPendingRegistrations > 0 ? 'text-blue-400 animate-pulse' : 'text-slate-400'}`}>
+                                    {statsPendingRegistrations}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Applications</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Pending Claims</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className={`text-2xl font-extrabold ${statsPendingClaims > 0 ? 'text-amber-400 animate-pulse' : 'text-slate-400'}`}>
+                                    {statsPendingClaims}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Claims</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Pending Queries</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className={`text-2xl font-extrabold ${statsPendingInquiries > 0 ? 'text-rose-400 animate-pulse' : 'text-slate-400'}`}>
+                                    {statsPendingInquiries}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Unregistered</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">User Feedbacks</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className={`text-2xl font-extrabold ${statsPendingFeedbacks > 0 ? 'text-purple-400 animate-pulse' : 'text-slate-400'}`}>
+                                    {statsPendingFeedbacks}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Feedbacks</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Total Rooms</span>
+                            <div className="flex flex-col gap-0.5 mt-1.5">
+                                <span className="text-2xl font-extrabold text-cyan-400">{statsTotalRooms}</span>
+                                <span className="text-[10px] text-slate-550 font-bold">{statsAvailableRooms} Beds Avail</span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* BOOKINGS TAB */}
                     {activeTab === 'bookings' && (
                         <BookingsTab 
@@ -917,6 +1161,14 @@ const OperationalDashboard = () => {
                             setBookingRemarks={setBookingRemarks}
                             bookingActionLoading={bookingActionLoading}
                             handleBookingAction={handleBookingAction}
+                        />
+                    )}
+
+                    {/* OWNER OUTBOUND CALLS TAB */}
+                    {activeTab === 'owner_calls' && (
+                        <OwnerCallsTab 
+                            bookings={bookings}
+                            messes={messes}
                         />
                     )}
 
@@ -947,12 +1199,13 @@ const OperationalDashboard = () => {
                             updatePasswordStatus={updatePasswordStatus} updatePartnerEmail={updatePartnerEmail} setUpdatePartnerEmail={setUpdatePartnerEmail} 
                             updatePartnerPassword={updatePartnerPassword} setUpdatePartnerPassword={setUpdatePartnerPassword} handleUpdatePassword={handleUpdatePassword} 
                             migrationStatus={migrationStatus} handleMigratePartners={handleMigratePartners} handleBackfillDistricts={handleBackfillDistricts} handleSyncACAmenities={handleSyncACAmenities}
+                            sheetsSyncStatus={sheetsSyncStatus} handleSyncAllToSheets={handleSyncAllToSheets}
                         />
                     )}
 
                     {/* NEW ROOM INQUIRIES TAB */}
                     {activeTab === 'room_inquiries' && (
-                        <RoomInquiriesTab roomInquiries={allRoomInquiries} />
+                        <RoomInquiriesTab roomInquiries={roomInquiries} />
                     )}
 
                     {/* FEEDBACKS TAB */}
@@ -962,12 +1215,12 @@ const OperationalDashboard = () => {
 
                     {/* ALL MESSES MANAGEMENT */}
                     {activeTab === 'messes' && (
-                        <MessesTab messes={allMesses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
+                        <MessesTab messes={messes} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
                     )}
 
                     {/* ALL ROOMS MANAGEMENT */}
                     {activeTab === 'rooms' && (
-                        <RoomsTab rooms={allRooms} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleEditItem={handleEditItem} />
+                        <RoomsTab rooms={rooms} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleEditItem={handleEditItem} />
                     )}
 
                     {/* HERO ADS TAB */}
