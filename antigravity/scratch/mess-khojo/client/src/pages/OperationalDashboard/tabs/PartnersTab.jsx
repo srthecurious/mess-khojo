@@ -1,5 +1,4 @@
-import React from 'react';
-import { UserPlus, Shield } from 'lucide-react';
+import { UserPlus, Shield, FileSpreadsheet } from 'lucide-react';
 
 const PartnersTab = ({
     partnerStatus,
@@ -17,7 +16,9 @@ const PartnersTab = ({
     migrationStatus,
     handleMigratePartners,
     handleBackfillDistricts,
-    handleSyncACAmenities
+    handleSyncACAmenities,
+    sheetsSyncStatus,
+    handleSyncAllToSheets
 }) => {
     return (
         <div className="max-w-xl mx-auto mt-10">
@@ -169,6 +170,37 @@ const PartnersTab = ({
                         className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-indigo-600/20 disabled:opacity-50"
                     >
                         {migrationStatus.loading ? 'Syncing...' : 'Sync AC Amenities'}
+                    </button>
+                </div>
+
+                {/* Google Sheets Sync Tool Section */}
+                <div className="mt-8 pt-8 border-t border-slate-700">
+                    <div className="flex items-center gap-2 mb-2">
+                        <FileSpreadsheet className="text-emerald-400" size={20} />
+                        <h3 className="text-lg font-bold text-white">Google Sheets Integration</h3>
+                    </div>
+                    <p className="text-sm text-slate-400 mb-4">
+                        Perform a batch import of all existing mess registrations in Firestore into your Google Sheets. Uses high-performance writing for zero delay.
+                    </p>
+
+                    {sheetsSyncStatus.msg && (
+                        <div className={`p-4 rounded-xl mb-4 text-sm border ${
+                            sheetsSyncStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                            sheetsSyncStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                            'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        }`}>
+                            {sheetsSyncStatus.msg}
+                        </div>
+                    )}
+
+                    <button
+                        onClick={handleSyncAllToSheets}
+                        disabled={sheetsSyncStatus.loading}
+                        type="button"
+                        className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        <FileSpreadsheet size={18} />
+                        {sheetsSyncStatus.loading ? 'Syncing Records...' : 'Sync Historical Messes to Sheets'}
                     </button>
                 </div>
             </div>
