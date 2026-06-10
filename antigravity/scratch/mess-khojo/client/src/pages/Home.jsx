@@ -778,7 +778,7 @@ const Home = () => {
                         <div className="relative z-10 text-center px-6 max-w-2xl">
                             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
                                 {(() => {
-                                    const titleStr = districtConfig?.heroTitle || "Find Your Comfortable Stay";
+                                    const titleStr = districtConfig?.heroTitle || "Find Boys & Girls Mess in Balasore";
                                     const parts = titleStr.split(' ');
                                     const lastWord = parts.pop();
                                     return (
