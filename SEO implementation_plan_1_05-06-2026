@@ -1,0 +1,90 @@
+# MessKhojo SEO Implementation Plan — Core Content & Technical Tweaks
+
+This plan focuses on immediate SEO improvements for the MessKhojo React SPA (Vite) hosted on Netlify, addressing key items from the audit while deferring sitemaps, robots.txt, and keyword tags as requested.
+
+## User Review Required
+
+Please review the proposed optimizations to titles, descriptions, heading structures, fallback content, and the **District Selection SEO fix**:
+
+> [!IMPORTANT]
+> **Forced District Modal SEO Impact**: Currently, visiting the base URL `https://messkhojo.com/` without a saved district in `localStorage` forces a full-screen selector modal to open. 
+> * **The Issue**: Search engine bots (like Googlebot) crawl with clean state and get blocked by this JS modal, indexing only generic metadata and missing the city-specific listings and pages.
+> * **The Fix**: We will add query parameter support (`?district=balasore` / `?district=bhadrak`) to `DistrictProvider`. If a district parameter is present in the URL search params, the modal is automatically bypassed, and the homepage renders city-specific listings and localized metadata.
+> * **Static Crawl Paths**: We will list links to these city-specific search URLs (`/?district=balasore` and `/?district=bhadrak`) inside the static fallback `<div id="root">` to ensure Googlebot crawls, indexes, and ranks both city homepages separately.
+
+---
+
+## Proposed Changes
+
+### [District Context & Routing]
+
+#### [MODIFY] [DistrictContext.jsx](file:///C:/Users/soren/.gemini/antigravity/scratch/mess-khojo/client/src/context/DistrictContext.jsx)
+- **URL Parameter Detection**: Initialize `selectedDistrict` state by checking `URLSearchParams` first:
+  ```javascript
+  const params = new URLSearchParams(window.location.search);
+  const districtParam = params.get('district')?.toLowerCase();
+  if (districtParam && DISTRICTS_CONFIG[districtParam]?.active) {
+      localStorage.setItem('selectedDistrict', districtParam);
+      return districtParam;
+  }
+  ```
+- **Syncing URL on Selection**: Update `setSelectedDistrict` function to sync the URL parameter using `window.history.replaceState` when a district is selected or reset:
+  ```javascript
+  const url = new URL(window.location.href);
+  if (districtId) {
+      url.searchParams.set('district', districtId);
+  } else {
+      url.searchParams.delete('district');
+  }
+  window.history.replaceState({}, '', url.toString());
+  ```
+
+---
+
+### [HTML & Meta Structure]
+
+#### [MODIFY] [index.html](file:///C:/Users/soren/.gemini/antigravity/scratch/mess-khojo/client/index.html)
+- **Title Length Optimization**: Shorten the default `<title>` from `MessKhojo - Boys & Ladies Mess in Balasore | Near FM College | No Broker` to `MessKhojo — Find Boys & Girls Mess in Balasore`.
+- **Meta Tag Alignment**: Update `<meta name="title">`, `og:title`, and `twitter:title` to match the new shortened title exactly.
+- **LocalBusiness Schema additions**:
+  - Add missing `telephone` and `openingHoursSpecification` (09:00 - 21:00, Monday to Sunday) fields.
+  - Add `logo` reference.
+- **Static HTML Fallback inside `<div id="root">`**:
+  - Place a semantic structure containing:
+    - `<h1>Find Boys & Girls Mess and PGs — MessKhojo</h1>`
+    - A brief paragraph containing primary keywords (boys mess, ladies/girls mess, hostels in Balasore near FM College, Nuapadhi, Balia, Remuna, no broker).
+    - **Crawlable City Links**: Link directly to `/?district=balasore` and `/?district=bhadrak` so bots can bypass the modal and index both cities.
+
+---
+
+### [Homepage Component]
+
+#### [MODIFY] [Home.jsx](file:///C:/Users/soren/.gemini/antigravity/scratch/mess-khojo/client/src/pages/Home.jsx)
+- Ensure that the dynamic spotlight hero section H1 has a strong search-friendly fallback value (`Find Boys & Girls Mess in Balasore`) when `districtConfig?.heroTitle` is not defined or is generic.
+
+---
+
+### [Room Details Page]
+
+#### [MODIFY] [RoomDetails.jsx](file:///C:/Users/soren/.gemini/antigravity/scratch/mess-khojo/client/src/pages/RoomDetails.jsx)
+- **Page SEO Setup**: Import and integrate the `usePageSEO` hook to handle page title and description updates dynamically.
+- **Title Template**: Set the dynamic title structure to:
+  `${room.occupancy} Seater Room at ${mess.name} | MessKhojo`
+- **Description Template (District-Aware)**: Set the meta description to:
+  `${room.occupancy} Seater ${room.category || 'Standard'} room in ${mess.name}, ${mess.address || ''}, ${mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore'}. Rent: ₹${room.price}/month, available beds: ${room.availableCount || 0}. No Broker, direct contact.`
+- **Structured Data Integration**:
+  - Implement structured schema injection using the `Accommodation` schema type nested within a `LodgingBusiness` offer.
+  - Expose fields for rent (`price`), occupancy (`numberOfRooms` / occupancy), local address, and contact details.
+
+---
+
+## Verification Plan
+
+### Automated Verification
+- Verify the build compiles correctly with `npm run build` inside the `client` directory.
+
+### Manual Verification
+- Check the page source code when JS is disabled in the browser to ensure the fallback HTML inside `<div id="root">` is present.
+- Inspect the generated DOM to verify that visiting `/?district=balasore` automatically loads Balasore-specific listings and meta tags without showing the district selector modal.
+- Validate dynamic SEO meta changes when navigating between Home, Mess Details, and Room Details.
+- Use Google's Rich Results Test tool or schema validators to test the newly updated LocalBusiness schema and Room Details schema markup.
