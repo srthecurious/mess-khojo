@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackRoomView, trackBookingInitiated, trackContactOwner, trackAvailabilityInquiry } from '../analytics';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const RoomDetails = () => {
     const { messId, roomId } = useParams();
@@ -35,6 +36,86 @@ const RoomDetails = () => {
     const [similarRooms, setSimilarRooms] = useState([]);
     const [loadingSimilar, setLoadingSimilar] = useState(false);
 
+    // Generate Room Structured Schema
+    const getRoomSchema = () => {
+        if (!mess || !room) return null;
+        const occupancyVal = {
+            'Single': 1, 'Double': 2, 'Triple': 3,
+            'Four': 4, 'Five': 5, 'Six': 6
+        }[room.occupancy] || 1;
+
+        const schema = {
+            "@context": "https://schema.org",
+            "@type": "LodgingBusiness",
+            "name": mess.name,
+            "description": `${room.occupancy} Seater ${room.category || 'Standard'} room in ${mess.name}, ${mess.address || ''}.`,
+            "url": `https://messkhojo.com/room/${mess.id}/${room.id}`,
+            "image": room.imageUrls?.[0] || room.imageUrl || mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/preview.png",
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": mess.address || "",
+                "addressLocality": mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore',
+                "addressRegion": "Odisha",
+                "addressCountry": "IN"
+            },
+            "priceRange": `₹${room.price}`,
+            "numberOfRooms": room.availableCount || 0,
+            "containsPlace": {
+                "@type": "Accommodation",
+                "name": `${room.occupancy} Seater Room`,
+                "description": room.otherInfo || `${room.occupancy} Seater room.`,
+                "numberOfRooms": 1,
+                "occupancy": {
+                    "@type": "QuantitativeValue",
+                    "value": occupancyVal
+                },
+                "offers": {
+                    "@type": "Offer",
+                    "priceCurrency": "INR",
+                    "price": room.price,
+                    "priceSpecification": {
+                        "@type": "UnitPriceSpecification",
+                        "price": room.price,
+                        "priceCurrency": "INR",
+                        "unitText": "MONTH"
+                    },
+                    "availability": room.availableCount > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                    "validFrom": new Date().toISOString().split('T')[0]
+                }
+            }
+        };
+
+        if (mess.contact && !mess.hideContact) {
+            schema.telephone = mess.contact;
+        }
+
+        return schema;
+    };
+
+    const occupancyName = room ? (({
+        'Single': '1', 'Double': '2', 'Triple': '3',
+        'Four': '4', 'Five': '5', 'Six': '6'
+    })[room.occupancy] || room.occupancy) : '';
+
+    const pageTitle = room && mess 
+        ? `${occupancyName} Seater Room at ${mess.name} | MessKhojo`
+        : 'Room Details | MessKhojo';
+
+    const pageDescription = room && mess
+        ? `${occupancyName} Seater ${room.category || 'Standard'} room in ${mess.name}, ${mess.address || ''}, ${mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore'}. Rent: ₹${room.price}/month, available beds: ${room.availableCount || 0}. No Broker, direct contact.`
+        : 'View room details, rent, occupancy and availability on MessKhojo.';
+
+    const pageKeywords = room && mess
+        ? `${room.occupancy} seater room, ${mess.name}, room rent ${mess.district || 'Balasore'}, PG room rent, hostel room`
+        : 'room details, rent, mess room';
+
+    usePageSEO({
+        title: pageTitle,
+        description: pageDescription,
+        keywords: pageKeywords,
+        canonicalUrl: room && mess ? `https://messkhojo.com/room/${mess.id}/${room.id}` : undefined,
+        structuredData: room && mess ? getRoomSchema() : null
+    });
 
     useEffect(() => {
         const fetchDetails = async () => {

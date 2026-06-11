@@ -46,8 +46,16 @@ export const useDistrict = () => {
 
 export const DistrictProvider = ({ children }) => {
     const [selectedDistrict, setSelectedDistrictState] = useState(() => {
-        // Try to load from localStorage on initial render
+        // Try to load from URL param first (for SEO / direct linking)
         if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const districtParam = params.get('district')?.toLowerCase();
+            if (districtParam && DISTRICTS_CONFIG[districtParam]?.active) {
+                localStorage.setItem('selectedDistrict', districtParam);
+                return districtParam;
+            }
+
+            // Try to load from localStorage on initial render
             const saved = localStorage.getItem('selectedDistrict');
             if (saved && DISTRICTS_CONFIG[saved] && DISTRICTS_CONFIG[saved].active) {
                 return saved;
@@ -63,10 +71,24 @@ export const DistrictProvider = ({ children }) => {
             setSelectedDistrictState(districtId);
             localStorage.setItem('selectedDistrict', districtId);
             setIsDistrictSelectorOpen(false);
+
+            // Sync URL parameter
+            if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('district', districtId);
+                window.history.replaceState({}, '', url.toString());
+            }
         } else if (districtId === null) {
             setSelectedDistrictState(null);
             localStorage.removeItem('selectedDistrict');
             setIsDistrictSelectorOpen(true);
+
+            // Remove URL parameter
+            if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('district');
+                window.history.replaceState({}, '', url.toString());
+            }
         }
     };
 
