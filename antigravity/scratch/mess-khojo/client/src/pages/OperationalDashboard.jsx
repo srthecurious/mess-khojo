@@ -11,6 +11,8 @@ import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
+import { usePageSEO } from '../hooks/usePageSEO';
+import { DISTRICTS_CONFIG } from '../context/DistrictContext';
 
 // Tab Components
 import BookingsTab from './OperationalDashboard/tabs/BookingsTab';
@@ -46,6 +48,7 @@ const compressImage = async (file) => {
 };
 
 const OperationalDashboard = () => {
+    usePageSEO({ title: 'Operational Dashboard | MessKhojo', noindex: true });
     const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
     const [feedbackReplies, setFeedbackReplies] = useState({}); // { feedbackId: replyText }
     const opData = useOperationalData();
@@ -56,7 +59,8 @@ const OperationalDashboard = () => {
 
     const [opFilterDistrict, setOpFilterDistrict] = useState('all');
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
-    const [searchQuery, setSearchQuery] = useState('');
+    const [messesSearchQuery, setMessesSearchQuery] = useState('');
+    const [roomsSearchQuery, setRoomsSearchQuery] = useState('');
 
 
     // Editing State
@@ -817,13 +821,13 @@ const OperationalDashboard = () => {
         return mess?.district || 'balasore';
     };
 
-    const registrations = allRegistrations.filter(r => opFilterDistrict === 'all' || (r.district || 'balasore') === opFilterDistrict);
-    const bookings = allBookings.filter(b => opFilterDistrict === 'all' || getMessDistrict(b.messId) === opFilterDistrict);
-    const inquiries = allInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId) === opFilterDistrict);
-    const roomInquiries = allRoomInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId) === opFilterDistrict);
-    const claims = allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId) === opFilterDistrict);
-    const messes = allMesses.filter(m => opFilterDistrict === 'all' || (m.district || 'balasore') === opFilterDistrict);
-    const rooms = allRooms.filter(r => opFilterDistrict === 'all' || getMessDistrict(r.messId) === opFilterDistrict);
+    const registrations = allRegistrations.filter(r => opFilterDistrict === 'all' || (r.district || 'balasore').toLowerCase() === opFilterDistrict.toLowerCase());
+    const bookings = allBookings.filter(b => opFilterDistrict === 'all' || getMessDistrict(b.messId).toLowerCase() === opFilterDistrict.toLowerCase());
+    const inquiries = allInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId).toLowerCase() === opFilterDistrict.toLowerCase());
+    const roomInquiries = allRoomInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId).toLowerCase() === opFilterDistrict.toLowerCase());
+    const claims = allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId).toLowerCase() === opFilterDistrict.toLowerCase());
+    const messes = allMesses.filter(m => opFilterDistrict === 'all' || (m.district || 'balasore').toLowerCase() === opFilterDistrict.toLowerCase());
+    const rooms = allRooms.filter(r => opFilterDistrict === 'all' || (r.district || getMessDistrict(r.messId)).toLowerCase() === opFilterDistrict.toLowerCase());
 
     // Live Metrics Calculations for Stats Overview Bar
     const statsTotalMesses = messes.length;
@@ -888,8 +892,9 @@ const OperationalDashboard = () => {
                         className="bg-slate-700 text-slate-200 border border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 capitalize"
                     >
                         <option value="all">All Districts</option>
-                        <option value="balasore">Balasore</option>
-                        <option value="bhadrak">Bhadrak</option>
+                        {Object.values(DISTRICTS_CONFIG).map(district => (
+                            <option key={district.id} value={district.id}>{district.name}</option>
+                        ))}
                     </select>
                     <span className="text-sm text-slate-400 hidden md:block">
                         Operator: {auth.currentUser?.email}
@@ -1215,12 +1220,12 @@ const OperationalDashboard = () => {
 
                     {/* ALL MESSES MANAGEMENT */}
                     {activeTab === 'messes' && (
-                        <MessesTab messes={messes} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
+                        <MessesTab messes={messes} searchQuery={messesSearchQuery} setSearchQuery={setMessesSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
                     )}
 
                     {/* ALL ROOMS MANAGEMENT */}
                     {activeTab === 'rooms' && (
-                        <RoomsTab rooms={rooms} searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleEditItem={handleEditItem} />
+                        <RoomsTab rooms={rooms} searchQuery={roomsSearchQuery} setSearchQuery={setRoomsSearchQuery} handleEditItem={handleEditItem} />
                     )}
 
                     {/* HERO ADS TAB */}
@@ -1312,8 +1317,9 @@ const OperationalDashboard = () => {
                                             value={editForm.district || 'balasore'}
                                             onChange={e => setEditForm({ ...editForm, district: e.target.value })}
                                         >
-                                            <option value="balasore">Balasore</option>
-                                            <option value="bhadrak">Bhadrak</option>
+                                            {Object.values(DISTRICTS_CONFIG).map(district => (
+                                                <option key={district.id} value={district.id}>{district.name}</option>
+                                            ))}
                                         </select>
                                     </div>
 

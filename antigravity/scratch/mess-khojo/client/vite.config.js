@@ -88,12 +88,13 @@ export default defineConfig(({ mode }) => {
 
     // ── Dev Server Headers ────────────────────────────────────────────────
     server: {
+      port: 5173,
       headers: {
         'Content-Security-Policy': [
           "default-src 'self' https://*.firebaseio.com https://*.googleapis.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.firebaseio.com https://www.googletagmanager.com https://*.googleapis.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.google.com https://*.gstatic.com",
-          "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net wss://*.firebaseio.com https://api.telegram.org https://*.nsvcs.net https://accounts.google.com https://apis.google.com https://www.google-analytics.com https://*.google.com https://*.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://script.google.com https://script.googleusercontent.com",
-          "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.firebaseapp.com https://firebasestorage.googleapis.com http://maps.google.com https://*.googleusercontent.com",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.firebaseio.com https://www.googletagmanager.com https://*.googleapis.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.google.com https://*.gstatic.com https://*.clarity.ms https://c.bing.com",
+          "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.google-analytics.com https://*.analytics.google.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.cloudfunctions.net https://api.telegram.org https://*.nsvcs.net https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://script.google.com https://script.googleusercontent.com https://*.clarity.ms https://c.bing.com",
+          "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.firebaseapp.com https://firebasestorage.googleapis.com http://maps.google.com https://*.googleusercontent.com https://*.clarity.ms https://c.bing.com",
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://*.google.com https://*.gstatic.com",
           "font-src 'self' https://fonts.gstatic.com",
           "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.google.com",

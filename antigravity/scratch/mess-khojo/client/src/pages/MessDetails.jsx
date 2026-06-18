@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2 } from 'lucide-react';
 import { auth } from '../firebase';
-import { serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp, collection, getDocs, query, orderBy, startAt, endAt } from 'firebase/firestore';
+import { db } from '../firebase';
 import { getMess, watchRoomsByMess } from '../services/messService';
 import { addClaim, addInquiry } from '../services/bookingService';
 import { getUserDoc } from '../services/userService';
@@ -16,9 +17,18 @@ import { useToast } from '../context/ToastContext';
 import { BRAND } from '../constants';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toMessSlug, isSlug, idSuffixFromSlug } from '../utils/slugify';
 
 const MessDetails = () => {
-    const { id: messId } = useParams();
+    // Support both new slug-based URLs (/mess/aryan-boys-mess-a3f9)
+    // and legacy raw Firestore ID URLs (/mess/ABC123xyz)
+    const { messSlug } = useParams();
+    const [resolvedMessId, setResolvedMessId] = useState(() => {
+        // If it looks like a raw Firestore ID (no hyphens), use it directly
+        if (messSlug && !isSlug(messSlug)) return messSlug;
+        return null; // will be resolved via slug suffix lookup
+    });
+    const messId = resolvedMessId;
     const navigate = useNavigate();
     const { currentUser } = useAuth();
     const { success: toastSuccess, error: toastError } = useToast();
@@ -167,19 +177,52 @@ const MessDetails = () => {
         toggleMessWishlist(messId);
     };
 
+    // Resolve slug to full Firestore document ID using the 4-char suffix
     useEffect(() => {
+        if (!messSlug) return;
+        if (!isSlug(messSlug)) {
+            // Already a raw Firestore ID, no lookup needed
+            setResolvedMessId(messSlug);
+            return;
+        }
+        // Extract the 4-char suffix (which is the prefix of the Firestore document ID)
+        const suffix = idSuffixFromSlug(messSlug);
+        if (!suffix) return;
+
+        // Query Firestore: find all docs whose ID starts with this prefix
+        getDocs(query(
+            collection(db, 'messes'),
+            orderBy('__name__'),
+            startAt(suffix),
+            endAt(suffix + '\uf8ff')
+        )).then(snap => {
+            if (!snap.empty) {
+                // Find the exact matching document where slug matches
+                const matchedDoc = snap.docs.find(doc => {
+                    return toMessSlug(doc.data().name, doc.id) === messSlug;
+                });
+                setResolvedMessId(matchedDoc ? matchedDoc.id : snap.docs[0].id);
+            } else {
+                // Fallback: treat the whole slug as a raw ID (handles edge cases)
+                setResolvedMessId(messSlug);
+            }
+        }).catch(() => setResolvedMessId(messSlug));
+    }, [messSlug]);
+
+    useEffect(() => {
+        if (!resolvedMessId) return;
         let unsubscribeRooms = null;
 
         const fetchMessAndRooms = async () => {
             try {
                 // 1. Fetch Mess Details
-                const messDoc = await getMess(messId);
+                const messDoc = await getMess(resolvedMessId);
                 if (messDoc.exists()) {
                     setMess({ id: messDoc.id, ...messDoc.data() });
                 }
 
                 // 2. Fetch Rooms for this Mess (real-time)
-                unsubscribeRooms = watchRoomsByMess(messId, (roomsData) => {
+                unsubscribeRooms = watchRoomsByMess(resolvedMessId, (roomsData) => {
                     setRooms(roomsData);
                     setLoading(false);
                 });
@@ -194,7 +237,7 @@ const MessDetails = () => {
         return () => {
             if (unsubscribeRooms) unsubscribeRooms();
         };
-    }, [messId]);
+    }, [resolvedMessId]);
 
     // Scroll to top on mount/change
     useEffect(() => {
@@ -214,10 +257,10 @@ const MessDetails = () => {
         title: mess ? `${mess.name} - ${mess.messType || 'Mess'} in ${mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore'} | MessKhojo` : 'Loading... | MessKhojo',
         description: mess ? `${mess.name} offers ${mess.messType || 'quality'} accommodation in ${mess.address || 'Balasore'}. ${mess.description ? mess.description.substring(0, 120) + '...' : `Check amenities, pricing & availability. ${mess.amenities?.food ? 'Food available. ' : ''}${mess.amenities?.wifi ? 'WiFi included. ' : ''}`}` : 'Find mess accommodation on MessKhojo',
         keywords: mess ? `${mess.name}, ${mess.name} balasore, ${mess.name} ${mess.address || ''}, ${mess.messType} mess balasore, mess near ${mess.address || 'fm college'}, ${mess.name} hostel, student accommodation balasore` : undefined,
-        canonicalUrl: mess ? `https://messkhojo.com/mess/${messId}` : undefined,
+        canonicalUrl: mess ? `https://messkhojo.com/mess/${toMessSlug(mess.name, mess.id)}` : undefined,
         ogImage: mess?.posterUrl || mess?.images?.[0] || 'https://messkhojo.com/logo.png',
         ogType: 'business.business',
-        structuredData: mess ? generateMessSchema(mess) : null
+        structuredData: mess ? generateMessSchema({ ...mess, _slug: toMessSlug(mess.name, mess.id) }) : null
     });
 
     useBodyScrollLock(showInquiryModal);
@@ -402,7 +445,7 @@ const MessDetails = () => {
                             <div className="relative w-full h-56 sm:h-72 md:h-80">
                                 <img
                                     src={bannerImage}
-                                    alt={mess.name}
+                                    alt={`${mess.name} — ${Array.isArray(mess.messType) ? mess.messType.join(' & ') : (mess.messType || 'Mess')} in ${mess.city ? mess.city.charAt(0).toUpperCase() + mess.city.slice(1) : 'Balasore'}, Odisha`}
                                     className="w-full h-full object-cover"
                                 />
                                 {/* Darkening overlay so text is always readable */}
@@ -567,6 +610,7 @@ const MessDetails = () => {
                                     isRoomWishlisted={isRoomWishlisted}
                                     onToggleRoomWishlist={handleRoomWishlistToggle}
                                     isUserSourced={mess.isUserSourced}
+                                    messName={mess.name}
                                 />
                             ))}
                         </div>
@@ -773,7 +817,7 @@ const MessDetails = () => {
                                     <div key={idx} className="relative shadow-sm aspect-square group rounded-2xl overflow-hidden border border-brand-light-gray cursor-pointer" onClick={() => { trackGalleryView(messId); window.open(url, '_blank'); }}>
                                         <img
                                             src={url}
-                                            alt={`${mess.name} Gallery ${idx + 1}`}
+                                            alt={`${mess.name} — Street View Photo ${idx + 1}`}
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                             loading="lazy"
                                         />
@@ -993,7 +1037,7 @@ const MessDetails = () => {
     );
 };
 
-const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlist, isUserSourced }) => {
+const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlist, isUserSourced, messName }) => {
     // Calculate price range
     const prices = rooms.map(r => Number(r.price || r.rent)).sort((a, b) => a - b);
     const minPrice = prices[0];
@@ -1050,6 +1094,7 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
                             isWishlisted={isRoomWishlisted(room.id)}
                             onToggleWishlist={onToggleRoomWishlist}
                             isUserSourced={isUserSourced}
+                            messName={messName || ''}
                         />
                     </div>
                 ))}

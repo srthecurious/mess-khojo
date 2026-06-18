@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users, CalendarDays, ChevronRight, MessageSquareText } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users, CalendarDays, ChevronRight, MessageSquareText, Building2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePageSEO } from '../hooks/usePageSEO';
+import { DISTRICTS_CONFIG } from '../context/DistrictContext';
 
 const popularAreas = [
     "Azimabad", "Mansingh Bazar", "FM College Road", "ITI Chhak", "Remuna", "Station Square"
 ];
 
 const BookRoomComingSoon = () => {
+    usePageSEO({
+        title: 'Find Your Room - Tell Us What You Need | MessKhojo',
+        description: 'Share your room requirements and our team will manually find the best mess, PG or hostel for you in Odisha. No broker, no hassle.',
+        canonicalUrl: 'https://messkhojo.com/find-your-room',
+    });
     const [searchParams, setSearchParams] = useSearchParams();
     const stepParam = parseInt(searchParams.get('step'));
     const step = !isNaN(stepParam) && stepParam >= 1 && stepParam <= 3 ? stepParam : 1;
@@ -17,6 +24,7 @@ const BookRoomComingSoon = () => {
         name: '',
         phone: '',
         contactMethod: 'whatsapp',
+        city: searchParams.get('city') || '',
         location: '',
         budget: '',
         gender: 'boys',
@@ -49,8 +57,8 @@ const BookRoomComingSoon = () => {
     const nextStep = () => {
         // Validation for step 1
         if (step === 1) {
-            if (!formData.location || !formData.budget) {
-                setError('Please fill in your preferred area and budget to continue.');
+            if (!formData.city || !formData.location || !formData.budget) {
+                setError('Please select your preferred city, area and budget to continue.');
                 return;
             }
         }
@@ -91,7 +99,7 @@ const BookRoomComingSoon = () => {
             setIsSuccess(true);
             setFormData({
                 name: '', phone: '', contactMethod: 'whatsapp',
-                location: '', budget: '', gender: 'boys',
+                city: '', location: '', budget: '', gender: 'boys',
                 occupancy: 'single', expectedMoveIn: 'immediately',
                 requirements: '', consent: false
             });
@@ -237,6 +245,26 @@ const BookRoomComingSoon = () => {
                                                 {renderRadioCard("gender", "girls", "Girls", <User size={20} />, formData.gender)}
                                             </div>
                                         </div>
+
+                                         {/* Preferred City */}
+                                         <div className="space-y-3">
+                                             <label className="text-sm font-semibold text-brand-text-dark flex items-center gap-2">
+                                                 <Building2 size={16} className="text-brand-primary" />
+                                                 Preferred City
+                                             </label>
+                                             <select
+                                                 name="city"
+                                                 required
+                                                 value={formData.city}
+                                                 onChange={handleChange}
+                                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
+                                             >
+                                                 <option value="">Select your city</option>
+                                                 {Object.values(DISTRICTS_CONFIG).flatMap(dist => dist.cities || []).map(city => (
+                                                     <option key={city.id} value={city.id}>{city.name}</option>
+                                                 ))}
+                                             </select>
+                                         </div>
 
                                         {/* Location */}
                                         <div className="space-y-3">

@@ -4,8 +4,10 @@ import { auth, db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const AdminLogin = () => {
+    usePageSEO({ title: 'Partner Login | MessKhojo', noindex: true });
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);

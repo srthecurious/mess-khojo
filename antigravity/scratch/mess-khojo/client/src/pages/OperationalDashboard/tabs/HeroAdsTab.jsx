@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, ToggleRight, ToggleLeft, Monitor, Smartphone, ArrowUp, ArrowDown, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { DISTRICTS_CONFIG } from '../../../context/DistrictContext';
 
 const HeroAdsTab = ({
     carouselEnabled,
@@ -101,8 +102,9 @@ const HeroAdsTab = ({
                                         className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-1 focus:ring-pink-500 outline-none capitalize"
                                     >
                                         <option value="all">Any District</option>
-                                        <option value="balasore">Balasore</option>
-                                        <option value="bhadrak">Bhadrak</option>
+                                        {Object.values(DISTRICTS_CONFIG).map(district => (
+                                            <option key={district.id} value={district.id}>{district.name}</option>
+                                        ))}
                                     </select>
                                     <input
                                         type="text"

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Navigation, ExternalLink, Loader2, ChevronLeft } from 'lucide-react';
-import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, useMap, useApiLoadingStatus, APILoadingStatus } from '@vis.gl/react-google-maps';
+import AdvancedMarker from './SafeAdvancedMarker';
 import { useNavigate } from 'react-router-dom';
 import { trackMessExplorer } from '../analytics';
 import { useDistrict, DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { toMessSlug } from '../utils/slugify';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -21,6 +23,76 @@ const MapCameraHandler = ({ center, zoom }) => {
     }, [map, zoom]);
 
     return null;
+};
+
+// MapMarkers component to safely wrap AdvancedMarker rendering.
+// ROOT CAUSE: map is non-null even during AUTH_FAILURE, so useMap() check is insufficient.
+// We must check APILoadingStatus === LOADED before rendering markers, otherwise the
+// Google Maps SDK's internal set map() setter calls getRootNode() on an undefined node.
+const MapMarkers = ({ filteredMesses, selectedMess, handleMarkerClick, localUserLocation }) => {
+    const status = useApiLoadingStatus();
+    if (status !== APILoadingStatus.LOADED) return null;
+
+    return (
+        <>
+            {/* User Location Marker */}
+            {localUserLocation?.lat && localUserLocation?.lng && (
+                <AdvancedMarker
+                    position={{ lat: localUserLocation.lat, lng: localUserLocation.lng }}
+                    title="Your Location"
+                    zIndex={9999}
+                >
+                    <div className="relative flex items-center justify-center">
+                        <div className="absolute w-8 h-8 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
+                        <div className="relative w-5 h-5 bg-yellow-500 border-2 border-white rounded-full shadow-[0_0_10px_rgba(234,179,8,0.8)] z-10 flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                        </div>
+                    </div>
+                </AdvancedMarker>
+            )}
+
+            {/* Mess Markers */}
+            {filteredMesses.map((mess) => {
+                const isSelected = selectedMess?.id === mess.id;
+                let priceText = '₹---';
+                if (mess.minPrice && mess.maxPrice && mess.minPrice !== mess.maxPrice) {
+                    priceText = `₹${mess.minPrice} - ₹${mess.maxPrice}`;
+                } else if (mess.minPrice) {
+                    priceText = `₹${mess.minPrice}`;
+                }
+
+                return (
+                    <AdvancedMarker
+                        key={mess.id}
+                        position={{ lat: mess.latitude, lng: mess.longitude }}
+                        onClick={() => handleMarkerClick(mess)}
+                        zIndex={isSelected ? 999 : 1}
+                    >
+                        {isSelected ? (
+                            <div className="relative flex items-center justify-center rounded-full font-extrabold cursor-pointer transition-all duration-300 transform border px-2.5 py-1 text-[11px] sm:text-xs tracking-tight scale-110 bg-[#059669] text-white border-transparent shadow-[0_8px_30px_rgba(5,150,105,0.4)]">
+                                {priceText}
+                                <div 
+                                    className="absolute left-1/2 -translate-x-1/2 rotate-45 border-b border-r bg-[#059669] border-transparent w-3 h-3 -bottom-1.5"
+                                    style={{ zIndex: -1 }}
+                                ></div>
+                            </div>
+                        ) : (
+                            <div className="relative group cursor-pointer transition-all duration-300 active:scale-95 pb-1 hover:-translate-y-1 z-10">
+                                <MapPin 
+                                    size={34} 
+                                    strokeWidth={1.5} 
+                                    strokeLinejoin="miter"
+                                    strokeLinecap="butt"
+                                    className="text-white relative z-10 [&>circle]:fill-transparent"
+                                    fill="#7C3AED"
+                                />
+                            </div>
+                        )}
+                    </AdvancedMarker>
+                );
+            })}
+        </>
+    );
 };
 
 const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
@@ -170,9 +242,9 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
         }
     }, [selectedMess]);
 
-    const handleViewDetails = (messId) => {
+    const handleViewDetails = (messId, mess) => {
         trackMessExplorer('view_details', messId);
-        navigate(`/mess/${messId}`);
+        navigate(`/mess/${toMessSlug(mess?.name || '', messId)}`);
         onClose();
     };
 
@@ -279,62 +351,12 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                             fullscreenControl={false}
                         >
                             <MapCameraHandler center={mapCenter} zoom={currentZoom} />
-                            {/* User Location Marker */}
-                            {localUserLocation?.lat && localUserLocation?.lng && (
-                                <AdvancedMarker
-                                    position={{ lat: localUserLocation.lat, lng: localUserLocation.lng }}
-                                    title="Your Location"
-                                    zIndex={9999}
-                                >
-                                    <div className="relative flex items-center justify-center">
-                                        <div className="absolute w-8 h-8 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
-                                        <div className="relative w-5 h-5 bg-yellow-500 border-2 border-white rounded-full shadow-[0_0_10px_rgba(234,179,8,0.8)] z-10 flex items-center justify-center">
-                                            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                                        </div>
-                                    </div>
-                                </AdvancedMarker>
-                            )}
-
-                            {/* Mess Markers */}
-                            {filteredMesses.map((mess) => {
-                                const isSelected = selectedMess?.id === mess.id;
-                                let priceText = '₹---';
-                                if (mess.minPrice && mess.maxPrice && mess.minPrice !== mess.maxPrice) {
-                                    priceText = `₹${mess.minPrice} - ₹${mess.maxPrice}`;
-                                } else if (mess.minPrice) {
-                                    priceText = `₹${mess.minPrice}`;
-                                }
-
-                                return (
-                                    <AdvancedMarker
-                                        key={mess.id}
-                                        position={{ lat: mess.latitude, lng: mess.longitude }}
-                                        onClick={() => handleMarkerClick(mess)}
-                                        zIndex={isSelected ? 999 : 1}
-                                    >
-                                        {isSelected ? (
-                                            <div className="relative flex items-center justify-center rounded-full font-extrabold cursor-pointer transition-all duration-300 transform border px-2.5 py-1 text-[11px] sm:text-xs tracking-tight scale-110 bg-[#059669] text-white border-transparent shadow-[0_8px_30px_rgba(5,150,105,0.4)]">
-                                                {priceText}
-                                                <div 
-                                                    className="absolute left-1/2 -translate-x-1/2 rotate-45 border-b border-r bg-[#059669] border-transparent w-3 h-3 -bottom-1.5"
-                                                    style={{ zIndex: -1 }}
-                                                ></div>
-                                            </div>
-                                        ) : (
-                                            <div className="relative group cursor-pointer transition-all duration-300 active:scale-95 pb-1 hover:-translate-y-1 z-10">
-                                                <MapPin 
-                                                    size={34} 
-                                                    strokeWidth={1.5} 
-                                                    strokeLinejoin="miter"
-                                                    strokeLinecap="butt"
-                                                    className="text-white relative z-10 [&>circle]:fill-transparent"
-                                                    fill="#7C3AED"
-                                                />
-                                            </div>
-                                        )}
-                                    </AdvancedMarker>
-                                );
-                            })}
+                            <MapMarkers
+                                filteredMesses={filteredMesses}
+                                selectedMess={selectedMess}
+                                handleMarkerClick={handleMarkerClick}
+                                localUserLocation={localUserLocation}
+                            />
                         </Map>
                     </APIProvider>
 
@@ -476,7 +498,7 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleViewDetails(mess.id);
+                                                        handleViewDetails(mess.id, mess);
                                                     }}
                                                     className={`w-full py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all
                                                         ${isSelected 

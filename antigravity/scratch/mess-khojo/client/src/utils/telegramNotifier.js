@@ -165,6 +165,7 @@ export const telegramTemplates = {
             `👤 <b>Name:</b> ${esc(inquiry.name)}\n` +
             `📱 <b>Phone:</b> ${esc(inquiry.phone)}\n` +
             `🚻 <b>Gender:</b> ${esc(inquiry.gender)}\n` +
+            `${inquiry.city ? `🏙️ <b>City:</b> ${esc(inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1))}\n` : ''}` +
             `📍 <b>Location:</b> ${esc(inquiry.location)}\n` +
             `💰 <b>Budget:</b> ${esc(inquiry.budget)}\n` +
             `👥 <b>Occupancy:</b> ${esc(inquiry.occupancy)}\n` +

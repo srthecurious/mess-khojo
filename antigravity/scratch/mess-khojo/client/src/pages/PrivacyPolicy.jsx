@@ -1,7 +1,13 @@
 import React from 'react';
 import Header from '../components/Header';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const PrivacyPolicy = () => {
+    usePageSEO({
+        title: 'Privacy Policy | MessKhojo',
+        description: 'Read the MessKhojo Privacy Policy to understand how we handle your personal information when you use our student accommodation discovery platform.',
+        canonicalUrl: 'https://messkhojo.com/privacy-policy',
+    });
     return (
         <div className="min-h-screen bg-brand-secondary">
             <Header />

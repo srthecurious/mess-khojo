@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 export const DISTRICTS_CONFIG = {
     balasore: {
@@ -9,6 +9,10 @@ export const DISTRICTS_CONFIG = {
         heroTitle: "Find Your Comfortable Stay in Balasore",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
         gpsCenter: { lat: 21.4934, lng: 86.9294 },
+        cities: [
+            { id: "baleshwar", name: "Baleshwar (Balasore City)", busStand: { lat: 21.4950, lng: 86.9427, name: "Sahadevkhunta Bus Stand" } },
+            { id: "remuna", name: "Remuna", busStand: { lat: 21.5265, lng: 86.8712, name: "Remuna Bus Stand" } }
+        ],
         landmarks: [
             { name: 'Mansingh Bazar', type: 'landmark' },
             { name: 'Fakir Mohan Golei', type: 'landmark' },
@@ -26,7 +30,11 @@ export const DISTRICTS_CONFIG = {
         active: true,
         heroTitle: "Find Your Comfortable Stay in Bhadrak",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
-        gpsCenter: { lat: 21.0672, lng: 86.4886 }, 
+        gpsCenter: { lat: 21.0672, lng: 86.4886 },
+        cities: [
+            { id: "bhadrak", name: "Bhadrak", busStand: { lat: 21.0733, lng: 86.5022, name: "Bhadrak Bus Stand" } },
+            { id: "basudevpur", name: "Basudevpur", busStand: { lat: 21.1400, lng: 86.7200, name: "Basudevpur Bus Stand" } }
+        ],
         landmarks: [
             { name: 'Bhadrak Station', type: 'landmark' },
             { name: 'Charampa', type: 'landmark' },
@@ -35,7 +43,30 @@ export const DISTRICTS_CONFIG = {
             { name: 'Dakshinakali', type: 'landmark' },
             { name: 'Bhadrak', type: 'landmark' }
         ]
+    },
+    mayurbhanj: {
+        id: "mayurbhanj",
+        name: "Mayurbhanj",
+        active: true,
+        heroTitle: "Find Your Comfortable Stay in Mayurbhanj",
+        heroSubtitle: "Mess Dhundo, Ghar Baithe",
+        gpsCenter: { lat: 21.9320, lng: 86.7513 },
+        cities: [
+            { id: "baripada", name: "Baripada", busStand: { lat: 21.9380, lng: 86.7450, name: "Baripada Bus Stand" } }
+        ],
+        landmarks: [
+            { name: 'Baripada Station', type: 'landmark' },
+            { name: 'Lal Bazar', type: 'landmark' },
+            { name: 'Palbani', type: 'landmark' },
+            { name: 'Baghra Road', type: 'landmark' },
+            { name: 'MKC High School', type: 'landmark' },
+            { name: 'Baripada', type: 'landmark' }
+        ]
     }
+};
+
+export const getCitiesForDistrict = (districtId) => {
+    return DISTRICTS_CONFIG[districtId]?.cities || [];
 };
 
 const DistrictContext = createContext();
@@ -92,13 +123,6 @@ export const DistrictProvider = ({ children }) => {
         }
     };
 
-    // If no district is selected on mount, open the selector
-    useEffect(() => {
-        if (!selectedDistrict) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setIsDistrictSelectorOpen(true);
-        }
-    }, [selectedDistrict]);
 
     const districtConfig = selectedDistrict ? DISTRICTS_CONFIG[selectedDistrict] : null;
     const availableDistricts = Object.values(DISTRICTS_CONFIG);

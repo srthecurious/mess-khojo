@@ -1,8 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, MessageCircle, Home, Calendar } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const BookingSuccess = () => {
+    usePageSEO({ title: 'Booking Request Sent | MessKhojo', noindex: true });
     const navigate = useNavigate();
     const whatsappNumber = "+919692819621";
     const whatsappLink = `https://wa.me/${whatsappNumber.replace('+', '')}?text=${encodeURIComponent("Hello Mess Khojo, I just sent a booking request. Can you please help me with the next steps?")}`;

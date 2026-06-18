@@ -4,8 +4,8 @@
 
 
 :root {
-  --brand-primary: #4B2E83;
-  --brand-primary-hover: #3F256F;
+  --brand-primary: #300868;
+  --brand-primary-hover: #250552;
   --brand-secondary: #F8F7F3;
   --brand-accent-blue: #3B82F6;
   --brand-accent-green: #22C55E;
@@ -260,4 +260,19 @@ h6 {
 @keyframes backToTopIn {
   from { opacity: 0; transform: translateY(20px) scale(0.8); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bounceHorizontal {
+  0%, 100% {
+    transform: translateX(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateX(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+.animate-bounceHorizontal {
+  animation: bounceHorizontal 1.2s infinite;
 }

@@ -2,8 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const AboutUs = () => {
+    usePageSEO({
+        title: 'About MessKhojo — Find Student Mess & PG in Odisha',
+        description: 'MessKhojo helps students and working professionals find verified boys and girls mess, PG, and hostel accommodations in Balasore and Bhadrak, Odisha.',
+        canonicalUrl: 'https://messkhojo.com/about',
+    });
     return (
         <div className="min-h-screen bg-brand-secondary py-12 px-4 sm:px-6 lg:px-8 font-sans">
             <div className="max-w-3xl mx-auto mt-16">

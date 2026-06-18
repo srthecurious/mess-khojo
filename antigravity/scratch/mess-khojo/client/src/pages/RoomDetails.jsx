@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, startAt, endAt } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell, Heart, Phone, AlertCircle } from 'lucide-react';
@@ -10,9 +10,34 @@ import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackRoomView, trackBookingInitiated, trackContactOwner, trackAvailabilityInquiry } from '../analytics';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { toMessSlug, toRoomSlug, isSlug, idSuffixFromSlug } from '../utils/slugify';
+
+const getCleanOccupancy = (val) => {
+    if (!val) return '';
+    const s = String(val).toLowerCase().trim();
+    if (s === '1' || s === 'single' || s === '1 seater' || s.includes('single')) return '1';
+    if (s === '2' || s === 'double' || s === '2 seater' || s.includes('double')) return '2';
+    if (s === '3' || s === 'triple' || s === '3 seater' || s.includes('triple')) return '3';
+    if (s === '4' || s === 'four' || s === '4 seater' || s.includes('four')) return '4';
+    if (s === '5' || s === 'five' || s === '5 seater' || s.includes('five')) return '5';
+    if (s === '6' || s === 'six' || s === '6 seater' || s.includes('six')) return '6';
+    if (s === '8' || s === 'eight' || s === '8 seater' || s.includes('eight')) return '8';
+    
+    return val.toString().replace(/\s*(?:seater|sharing|room|beds?|seats?)\b/gi, '').trim();
+};
 
 const RoomDetails = () => {
-    const { messId, roomId } = useParams();
+    // Support both new slug-based URLs (/room/mess-slug/room-slug)
+    // and legacy raw Firestore ID URLs (/room/messId/roomId)
+    const { messSlug, roomSlug } = useParams();
+    const [resolvedMessId, setResolvedMessId] = useState(() =>
+        (messSlug && !isSlug(messSlug)) ? messSlug : null
+    );
+    const [resolvedRoomId, setResolvedRoomId] = useState(() =>
+        (roomSlug && !isSlug(roomSlug)) ? roomSlug : null
+    );
+    const messId = resolvedMessId;
+    const roomId = resolvedRoomId;
     const navigate = useNavigate();
     const { currentUser, userRole } = useAuth();
 
@@ -49,7 +74,7 @@ const RoomDetails = () => {
             "@type": "LodgingBusiness",
             "name": mess.name,
             "description": `${room.occupancy} Seater ${room.category || 'Standard'} room in ${mess.name}, ${mess.address || ''}.`,
-            "url": `https://messkhojo.com/room/${mess.id}/${room.id}`,
+            "url": `https://messkhojo.com/room/${toMessSlug(mess.name, mess.id)}/${toRoomSlug(room.occupancy, room.id)}`,
             "image": room.imageUrls?.[0] || room.imageUrl || mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/preview.png",
             "address": {
                 "@type": "PostalAddress",
@@ -92,10 +117,7 @@ const RoomDetails = () => {
         return schema;
     };
 
-    const occupancyName = room ? (({
-        'Single': '1', 'Double': '2', 'Triple': '3',
-        'Four': '4', 'Five': '5', 'Six': '6'
-    })[room.occupancy] || room.occupancy) : '';
+    const occupancyName = room ? getCleanOccupancy(room.occupancy) : '';
 
     const pageTitle = room && mess 
         ? `${occupancyName} Seater Room at ${mess.name} | MessKhojo`
@@ -113,21 +135,58 @@ const RoomDetails = () => {
         title: pageTitle,
         description: pageDescription,
         keywords: pageKeywords,
-        canonicalUrl: room && mess ? `https://messkhojo.com/room/${mess.id}/${room.id}` : undefined,
+        canonicalUrl: room && mess ? `https://messkhojo.com/room/${toMessSlug(mess.name, mess.id)}/${toRoomSlug(room.occupancy, room.id)}` : undefined,
         structuredData: room && mess ? getRoomSchema() : null
     });
 
+    // Resolve mess slug → Firestore ID
     useEffect(() => {
+        if (!messSlug) return;
+        if (!isSlug(messSlug)) { setResolvedMessId(messSlug); return; }
+        const suffix = idSuffixFromSlug(messSlug);
+        if (!suffix) return;
+        getDocs(query(collection(db, 'messes'), orderBy('__name__'), startAt(suffix), endAt(suffix + '\uf8ff')))
+            .then(snap => {
+                if (!snap.empty) {
+                    const matchedDoc = snap.docs.find(doc => toMessSlug(doc.data().name, doc.id) === messSlug);
+                    setResolvedMessId(matchedDoc ? matchedDoc.id : snap.docs[0].id);
+                } else {
+                    setResolvedMessId(messSlug);
+                }
+            })
+            .catch(() => setResolvedMessId(messSlug));
+    }, [messSlug]);
+
+    // Resolve room slug → Firestore ID
+    useEffect(() => {
+        if (!roomSlug) return;
+        if (!isSlug(roomSlug)) { setResolvedRoomId(roomSlug); return; }
+        const suffix = idSuffixFromSlug(roomSlug);
+        if (!suffix) return;
+        getDocs(query(collection(db, 'rooms'), orderBy('__name__'), startAt(suffix), endAt(suffix + '\uf8ff')))
+            .then(snap => {
+                if (!snap.empty) {
+                    const matchedDoc = snap.docs.find(doc => toRoomSlug(doc.data().occupancy, doc.id) === roomSlug);
+                    setResolvedRoomId(matchedDoc ? matchedDoc.id : snap.docs[0].id);
+                } else {
+                    setResolvedRoomId(roomSlug);
+                }
+            })
+            .catch(() => setResolvedRoomId(roomSlug));
+    }, [roomSlug]);
+
+    useEffect(() => {
+        if (!resolvedMessId || !resolvedRoomId) return;
         const fetchDetails = async () => {
             try {
                 // Fetch Mess
-                const messDoc = await getDoc(doc(db, "messes", messId));
+                const messDoc = await getDoc(doc(db, "messes", resolvedMessId));
                 if (messDoc.exists()) {
                     setMess({ id: messDoc.id, ...messDoc.data() });
                 }
 
                 // Fetch Room
-                const roomDoc = await getDoc(doc(db, "rooms", roomId));
+                const roomDoc = await getDoc(doc(db, "rooms", resolvedRoomId));
                 if (roomDoc.exists()) {
                     setRoom({ id: roomDoc.id, ...roomDoc.data() });
                 }
@@ -139,7 +198,7 @@ const RoomDetails = () => {
         };
 
         fetchDetails();
-    }, [messId, roomId]);
+    }, [resolvedMessId, resolvedRoomId]);
 
     // Track room view when component mounts
     useEffect(() => {
@@ -154,7 +213,7 @@ const RoomDetails = () => {
 
     const handleNotifyClick = () => {
         if (!currentUser) {
-            const returnUrl = `/room/${messId}/${roomId}?action=notify`;
+            const returnUrl = `/room/${messSlug}/${roomSlug}?action=notify`;
             console.log('🔗 Redirecting to login with return URL:', returnUrl);
             navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
             return;
@@ -509,7 +568,7 @@ const RoomDetails = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <img
                                 src={room.imageUrls[0]}
-                                alt="Room Main"
+                                alt={`${occupancyName} Seater ${room.category || 'Standard'} Room at ${mess ? mess.name : ''}, ${mess ? (mess.address || '') : ''}`}
                                 className="w-full h-64 object-cover rounded-xl col-span-2 cursor-pointer hover:opacity-95 transition-opacity"
                                 onClick={() => window.open(room.imageUrls[0], '_blank')}
                             />
@@ -517,7 +576,7 @@ const RoomDetails = () => {
                                 <img
                                     key={idx}
                                     src={url}
-                                    alt={`Room ${idx + 1}`}
+                                    alt={`${occupancyName} Seater Room at ${mess ? mess.name : ''} — Photo ${idx + 2}`}
                                     className="w-full h-32 object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
                                     onClick={() => window.open(url, '_blank')}
                                 />
@@ -526,7 +585,7 @@ const RoomDetails = () => {
                     ) : (
                         <img
                             src={room.imageUrl || "/default-room.jpg"}
-                            alt="Room"
+                            alt={`${occupancyName} Seater Room at ${mess ? mess.name : ''}`}
                             className="w-full h-64 object-cover rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
                             onClick={() => window.open(room.imageUrl || "/default-room.jpg", '_blank')}
                         />
@@ -537,14 +596,7 @@ const RoomDetails = () => {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-light-gray flex flex-col md:flex-row justify-between md:items-start gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
-                            <h2 className="text-2xl font-bold text-brand-text-dark">{({
-                                'Single': '1',
-                                'Double': '2',
-                                'Triple': '3',
-                                'Four': '4',
-                                'Five': '5',
-                                'Six': '6'
-                            })[room.occupancy] || room.occupancy} Seater</h2>
+                            <h2 className="text-2xl font-bold text-brand-text-dark">{occupancyName} Seater</h2>
                             <span className="bg-brand-accent-green/10 text-brand-accent-green text-xs font-bold px-2 py-0.5 rounded-full border border-brand-accent-green/20">
                                 {room.category || 'Standard'}
                             </span>
@@ -1001,11 +1053,7 @@ const RoomDetailsSkeleton = () => {
 const SimilarRoomCard = ({ room, currentMess, onClose }) => {
     const navigate = useNavigate();
     
-    const occupancyMap = {
-        'Single': '1', 'Double': '2', 'Triple': '3',
-        'Four': '4', 'Five': '5', 'Six': '6'
-    };
-    const seats = occupancyMap[room.occupancy] || room.occupancy;
+    const seats = getCleanOccupancy(room.occupancy);
     const displayImg = room.imageUrls?.[0] || room.imageUrl || '/default-room.jpg';
     const isSameMess = room.messId === currentMess.id;
     
@@ -1016,12 +1064,12 @@ const SimilarRoomCard = ({ room, currentMess, onClose }) => {
                     trackEvent('SimilarRooms', 'similar_room_clicked', room.messId, room.id);
                 });
                 onClose();
-                navigate(`/room/${room.messId}/${room.id}`);
+                navigate(`/room/${toMessSlug(currentMess.name, room.messId)}/${toRoomSlug(room.occupancy, room.id)}`);
             }}
             className="shrink-0 w-60 sm:w-64 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden text-left hover:shadow-md hover:-translate-y-1 transition-all active:scale-95 flex flex-col"
         >
             <div className="relative h-32 bg-gray-100 shrink-0">
-                <img src={displayImg} alt="" className="w-full h-full object-cover" />
+                <img src={displayImg} alt={`${seats} Seater Room at ${room.messId !== currentMess.id ? (room.messName || 'Other Mess') : currentMess.name}`} className="w-full h-full object-cover" />
                 {isSameMess && (
                     <div className="absolute top-3 left-3 bg-brand-primary text-white text-[10px] font-bold px-2 py-1 rounded-full">
                         Same Mess

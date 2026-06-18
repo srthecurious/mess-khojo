@@ -8,8 +8,10 @@ import { trackPageView } from './analytics';
 import DistrictSelector from './components/DistrictSelector';
 import ErrorBoundary from './components/ErrorBoundary';
 
+import CityLandingPage from './pages/CityLandingPage';
+
 // Route-level code splitting — only the visited page's code is downloaded
-const Home = React.lazy(() => import('./pages/Home'));
+const CityPage = React.lazy(() => import('./pages/CityPage'));
 const MessDetails = React.lazy(() => import('./pages/MessDetails'));
 const RoomDetails = React.lazy(() => import('./pages/RoomDetails'));
 const AdminLogin = React.lazy(() => import('./pages/AdminLogin'));
@@ -68,38 +70,49 @@ function AppContent() {
       <DistrictSelector />
       <ErrorBoundary>
         <Suspense fallback={<RouteLoader />}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/explorer" element={<Home />} />
-            <Route path="/mess/:id" element={<MessDetails />} />
-            <Route path="/room/:messId/:roomId" element={<RoomDetails />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <div className="flex-grow flex flex-col">
+            <Routes>
+              <Route path="/" element={<CityLandingPage />} />
+              <Route path="/explorer" element={<CityLandingPage />} />
 
-            {/* Operational Interface (Single Operator) */}
-            <Route path="/operational/login" element={<OperationalLogin />} />
-            <Route path="/operational/dashboard" element={<OperationalDashboard />} />
+              {/* Canonical SEO-friendly city URLs */}
+              <Route path="/district/:districtId/city/:cityId" element={<CityPage />} />
+              {/* Legacy city alias — keeps old links alive */}
+              <Route path="/city/:cityId" element={<CityPage />} />
 
-            {/* User Routes */}
-            <Route path="/user-signup" element={<UserSignup />} />
-            <Route path="/user-login" element={<UserLogin />} />
-            <Route path="/profile" element={<UserProfile />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/booking-success" element={<BookingSuccess />} />
-            <Route path="/register-mess" element={<MessRegistration />} />
-            <Route path="/find-your-room" element={<BookRoomComingSoon />} />
+              {/* Canonical SEO-friendly mess URLs (slug contains mess name) */}
+              <Route path="/mess/:messSlug" element={<MessDetails />} />
 
-            {/* Legal Pages */}
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-            <Route path="/about-us" element={<AboutUs />} />
+              {/* Canonical SEO-friendly room URLs */}
+              <Route path="/room/:messSlug/:roomSlug" element={<RoomDetails />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-            {/* 404 Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Operational Interface (Single Operator) */}
+              <Route path="/operational/login" element={<OperationalLogin />} />
+              <Route path="/operational/dashboard" element={<OperationalDashboard />} />
+
+              {/* User Routes */}
+              <Route path="/user-signup" element={<UserSignup />} />
+              <Route path="/user-login" element={<UserLogin />} />
+              <Route path="/profile" element={<UserProfile />} />
+              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/booking-success" element={<BookingSuccess />} />
+              <Route path="/register-mess" element={<MessRegistration />} />
+              <Route path="/find-your-room" element={<BookRoomComingSoon />} />
+
+              {/* Legal Pages */}
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+              <Route path="/about-us" element={<AboutUs />} />
+
+              {/* 404 Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            {!isRoomDetails && <Footer />}
+          </div>
         </Suspense>
       </ErrorBoundary>
-      {!isRoomDetails && <Footer />}
     </div>
   );
 }

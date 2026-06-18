@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { ChevronDown, Check } from 'lucide-react';
 
-const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indigo', theme = 'dark' }) => {
+const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indigo', theme = 'dark', placeholder = 'Select options...', prefixIcon: PrefixIcon = null, showLabel = true }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -30,7 +30,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
 
     const displayText = selectedLabels.length > 0
         ? selectedLabels.join(', ')
-        : 'Select amenities...';
+        : placeholder;
 
     const getThemeClasses = () => {
         const isLight = theme === 'light';
@@ -38,7 +38,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
         // Base styles based on theme
         const base = {
             button: isLight
-                ? 'bg-white/90 backdrop-blur-sm border-2 border-purple-100 text-black shadow-sm hover:shadow-md'
+                ? 'bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-700 shadow-sm hover:shadow-md'
                 : 'bg-slate-900 border border-slate-700 text-white',
             dropdown: isLight
                 ? 'bg-white border-purple-100'
@@ -81,14 +81,18 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
 
     return (
         <div className="relative min-w-[200px]" ref={dropdownRef}>
-            <label className={`block text-sm font-bold mb-2 ${styles.label}`}>{label}</label>
+            {showLabel && <label className={`block text-sm font-bold mb-2 ${styles.label}`}>{label}</label>}
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full rounded-xl px-4 py-2 text-left text-sm outline-none focus:ring-2 flex justify-between items-center transition-all ${styles.button} ${styles.focus}`}
+                className={`w-full rounded-xl px-4 py-2.5 text-left text-sm outline-none focus:ring-2 flex justify-between items-center transition-all ${styles.button} ${styles.focus}`}
+                style={{ height: '48px' }}
             >
-                <span className={`block truncate ${selectedLabels.length === 0 ? 'opacity-70' : ''}`}>
-                    {displayText}
+                <span className="flex items-center gap-2 truncate">
+                    {PrefixIcon && <PrefixIcon size={16} className="text-gray-400 shrink-0" />}
+                    <span className={`block truncate ${selectedLabels.length === 0 ? 'opacity-70' : ''}`}>
+                        {displayText}
+                    </span>
                 </span>
                 <ChevronDown size={16} className={`opacity-70 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -134,7 +138,10 @@ MultiSelectDropdown.propTypes = {
     selected: PropTypes.objectOf(PropTypes.bool).isRequired,
     onChange: PropTypes.func.isRequired,
     color: PropTypes.string,
-    theme: PropTypes.string
+    theme: PropTypes.string,
+    placeholder: PropTypes.string,
+    prefixIcon: PropTypes.elementType,
+    showLabel: PropTypes.bool
 };
 
 export default MultiSelectDropdown;

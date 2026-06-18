@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import MessCard from '../components/MessCard';
 import RoomCard from '../components/RoomCard';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const Wishlist = () => {
+    usePageSEO({ title: 'My Wishlist | MessKhojo', noindex: true });
     const { currentUser, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const {

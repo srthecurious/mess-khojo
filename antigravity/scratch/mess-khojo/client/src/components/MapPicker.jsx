@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import SafeAdvancedMarker from './SafeAdvancedMarker';
 import { Search, MapPin, Navigation, Crosshair } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -61,6 +62,8 @@ const MapSearch = ({ onPlaceSelect }) => {
         </div>
     );
 };
+
+
 
 const MapPicker = ({ onConfirm, onCancel, initialLocation }) => {
     // Default to Baleshwar/Balasore, Odisha coordinates
@@ -141,7 +144,7 @@ const MapPicker = ({ onConfirm, onCancel, initialLocation }) => {
                         style={{ width: '100%', height: '100%' }}
                     >
                         {position && (
-                            <AdvancedMarker
+                            <SafeAdvancedMarker
                                 position={position}
                             />
                         )}

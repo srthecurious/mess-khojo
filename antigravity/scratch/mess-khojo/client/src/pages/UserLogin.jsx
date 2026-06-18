@@ -6,8 +6,10 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackLoginAttempt } from '../analytics';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const UserLogin = () => {
+    usePageSEO({ title: 'Login | MessKhojo', noindex: true });
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);

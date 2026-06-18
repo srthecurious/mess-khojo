@@ -1,7 +1,13 @@
 import React from 'react';
 import Header from '../components/Header';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const TermsAndConditions = () => {
+    usePageSEO({
+        title: 'Terms and Conditions | MessKhojo',
+        description: 'Read the MessKhojo Terms and Conditions governing your use of our student mess, PG and hostel discovery platform in Odisha.',
+        canonicalUrl: 'https://messkhojo.com/terms-and-conditions',
+    });
     return (
         <div className="min-h-screen bg-brand-secondary">
             <Header />

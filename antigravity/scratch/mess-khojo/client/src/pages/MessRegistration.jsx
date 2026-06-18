@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { trackMessRegistration } from '../analytics';
 import usePageSEO from '../hooks/usePageSEO';
 import { useToast } from '../context/ToastContext';
+import { DISTRICTS_CONFIG } from '../context/DistrictContext';
 
 const MessRegistration = () => {
     const navigate = useNavigate();
@@ -16,6 +17,7 @@ const MessRegistration = () => {
     const [gpsLoading, setGpsLoading] = useState(false);
     const [formData, setFormData] = useState({
         district: '',
+        city: '',
         messName: '',
         messType: [],
         managedBy: '',
@@ -592,34 +594,67 @@ const MessRegistration = () => {
                         </div>
                     </div>
                 );
-            case 8:
+            case 8: {
+                const availableCities = formData.district ? DISTRICTS_CONFIG[formData.district]?.cities || [] : [];
                 return (
                     <div className="space-y-6">
                         <div className="text-center space-y-3">
                             <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-[28px] shadow-inner flex items-center justify-center mx-auto mb-2 relative group">
                                 <MapPin size={36} className="text-indigo-600 group-hover:scale-110 transition-transform" />
                             </div>
-                            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 leading-tight">
-                                Select District
+                            <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 leading-tight">
+                                Select Location
                             </h2>
-                            <p className="text-gray-500 font-medium">Which district is your mess located in?</p>
+                            <p className="text-gray-500 font-medium text-sm">Which district and city is your mess located in?</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {['balasore', 'bhadrak'].map(dist => (
-                                <button
-                                    key={dist}
-                                    onClick={() => handleChange('district', dist)}
-                                    className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${formData.district === dist
-                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-lg shadow-indigo-500/10'
-                                        : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
-                                        }`}
-                                >
-                                    <span className="font-bold text-lg capitalize">{dist}</span>
-                                </button>
-                            ))}
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Step 1: Select District</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {Object.keys(DISTRICTS_CONFIG).map(dist => (
+                                        <button
+                                            key={dist}
+                                            type="button"
+                                            onClick={() => {
+                                                handleChange('district', dist);
+                                                handleChange('city', ''); // reset city if district changes
+                                            }}
+                                            className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${formData.district === dist
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md shadow-indigo-500/10'
+                                                : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
+                                                }`}
+                                        >
+                                            <span className="font-bold capitalize">{dist}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {formData.district && availableCities.length > 0 && (
+                                <div className="animate-fadeIn mt-4 border-t border-gray-100 pt-4">
+                                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Step 2: Select City / Town</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {availableCities.map(city => (
+                                            <button
+                                                key={city.id}
+                                                type="button"
+                                                onClick={() => handleChange('city', city.id)}
+                                                className={`p-3 rounded-xl border-2 text-xs transition-all flex flex-col items-center justify-center text-center leading-snug ${formData.city === city.id
+                                                    ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm shadow-purple-500/10'
+                                                    : 'border-gray-100 bg-white hover:border-purple-200 text-gray-600'
+                                                    }`}
+                                            >
+                                                <span className="font-bold">{city.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
+            }
             case 9:
                 return (
                     <div className="space-y-6">
@@ -697,7 +732,7 @@ const MessRegistration = () => {
                 return true;
             case 6: return formData.landmark.trim().length > 0;
             case 7: return formData.facilities.length > 0;
-            case 8: return formData.district !== '';
+            case 8: return formData.district !== '' && formData.city !== '';
             case 9: return formData.phoneNumber.length === 10 && formData.consent;
             default: return true;
         }

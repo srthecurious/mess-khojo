@@ -8,8 +8,8 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary: '#4B2E83',
-          'primary-hover': '#3F256F',
+          primary: '#300868',
+          'primary-hover': '#250552',
           secondary: '#F8F7F3',
           'accent-blue': '#3B82F6',
           'accent-green': '#22C55E',

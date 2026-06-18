@@ -3,8 +3,10 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Server, Eye, EyeOff } from 'lucide-react';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const OperationalLogin = () => {
+    usePageSEO({ title: 'Operational Access | MessKhojo', noindex: true });
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);

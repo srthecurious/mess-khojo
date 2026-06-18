@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, MapPin, Check } from 'lucide-react';
-import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
+import { APIProvider, Map } from '@vis.gl/react-google-maps';
+import SafeAdvancedMarker from './SafeAdvancedMarker';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -95,7 +96,7 @@ const MapLocationModal = ({ initialLocation, onLocationSelect, onClose }) => {
                                 disableDefaultUI={false}
                                 style={{ width: '100%', height: '100%' }}
                             >
-                                <AdvancedMarker
+                                <SafeAdvancedMarker
                                     position={{ lat: selectedLocation.lat, lng: selectedLocation.lng }}
                                 />
                             </Map>

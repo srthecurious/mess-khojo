@@ -43,6 +43,7 @@ const RoomInquiriesTab = ({ roomInquiries }) => {
         const matchesSearch = !q ||
             (inquiry.name || '').toLowerCase().includes(q) ||
             (inquiry.phone || '').toLowerCase().includes(q) ||
+            (inquiry.city || '').toLowerCase().includes(q) ||
             (inquiry.location || '').toLowerCase().includes(q) ||
             (inquiry.requirements || '').toLowerCase().includes(q) ||
             (inquiry.occupancy || '').toLowerCase().includes(q);
@@ -151,7 +152,10 @@ const RoomInquiriesTab = ({ roomInquiries }) => {
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <p className="text-[10px] uppercase font-bold text-slate-500">Location</p>
-                                                <p className="text-slate-200 font-semibold">{inquiry.location}</p>
+                                                <p className="text-slate-200 font-semibold">
+                                                    {inquiry.city ? `${inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}, ` : ''}
+                                                    {inquiry.location}
+                                                </p>
                                             </div>
                                             <div>
                                                 <p className="text-[10px] uppercase font-bold text-slate-500">Budget</p>

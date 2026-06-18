@@ -194,7 +194,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                             <Link to="/" className="flex items-center gap-1 sm:gap-1.5 py-1">
                                 <img
                                     src="/logo.png"
-                                    alt="Mess Khojo Logo"
+                                    alt="MessKhojo - Find Boys and Girls Hostel/Mess/PG in Odisha"
                                     className="h-11 sm:h-12 w-auto object-contain drop-shadow-sm"
                                 />
                                 <span className="text-[22px] sm:text-[26px] font-bold text-white tracking-normal leading-none" style={{ fontFamily: 'Outfit, sans-serif' }}>
@@ -310,24 +310,26 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                                             setShowInstallGuide(true);
                                         }
                                     }}
-                                    className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 mr-0.5 sm:mr-1 bg-brand-accent-green hover:bg-emerald-500 text-white text-sm font-bold rounded-full transition-colors shadow-sm"
+                                    className="p-2 text-white hover:bg-brand-primary-hover rounded-full transition-colors relative"
                                     title="Install App"
                                 >
-                                    <Download size={14} strokeWidth={2.5} />
-                                    <span className="hidden sm:inline">Install App</span>
+                                    <Download size={20} strokeWidth={2} />
                                 </button>
                             )}
 
-                            <button
-                                onClick={handleOpenNotifications}
-                                className="p-2 text-white hover:bg-brand-primary-hover rounded-full transition-colors relative"
-                                title="Notifications"
-                            >
-                                <Bell size={20} strokeWidth={2} />
-                                {hasUnread && (
-                                    <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-brand-accent-green rounded-full border-2 border-brand-primary animate-pulse"></span>
-                                )}
-                            </button>
+                            {/* Notifications Bell Button - hidden on homepage */}
+                            {location.pathname !== '/' && location.pathname !== '/explorer' && (
+                                <button
+                                    onClick={handleOpenNotifications}
+                                    className="p-2 text-white hover:bg-brand-primary-hover rounded-full transition-colors relative"
+                                    title="Notifications"
+                                >
+                                    <Bell size={20} strokeWidth={2} />
+                                    {hasUnread && (
+                                        <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-brand-accent-green rounded-full border-2 border-brand-primary animate-pulse"></span>
+                                    )}
+                                </button>
+                            )}
 
                             {/* Hamburger Menu Button */}
                             <button

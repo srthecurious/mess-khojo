@@ -15,9 +15,11 @@ import { useAdminData } from './AdminDashboard/hooks/useAdminData';
 import MessProfileTab from './AdminDashboard/tabs/MessProfileTab';
 import RoomManagementTab from './AdminDashboard/tabs/RoomManagementTab';
 import BookingsOverviewTab from './AdminDashboard/tabs/BookingsOverviewTab';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 
 const AdminDashboard = () => {
+    usePageSEO({ title: 'Admin Dashboard | MessKhojo', noindex: true });
     const adminData = useAdminData();
     const { user, messProfile, rooms, setRooms, bookings, loadingProfile, setMessProfile } = adminData;
 

@@ -5,8 +5,10 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc, deleteDoc } 
 import { useNavigate } from 'react-router-dom';
 import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const UserProfile = () => {
+    usePageSEO({ title: 'My Profile | MessKhojo', noindex: true });
     const { currentUser, logout, userRole, deleteAccount, loading: authLoading } = useAuth();
     const [userData, setUserData] = useState(null);
     const [bookings, setBookings] = useState([]);

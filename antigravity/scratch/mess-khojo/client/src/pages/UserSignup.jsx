@@ -6,8 +6,10 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { User, Mail, Lock, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
 import { trackSignupAttempt } from '../analytics';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const UserSignup = () => {
+    usePageSEO({ title: 'Sign Up | MessKhojo', noindex: true });
     const [formData, setFormData] = useState({
         name: '',
         email: '',

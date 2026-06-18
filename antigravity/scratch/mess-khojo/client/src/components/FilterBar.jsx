@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Filter, X, Check, Search, MapPin, Loader2, TrendingUp } from 'lucide-react';
+import { Filter, X, Check, Search, MapPin, Loader2, TrendingUp, Map, Home } from 'lucide-react';
 import MultiSelectDropdown from './MultiSelectDropdown';
 
-const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, userLocation, messes = [] }) => {
+const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocation, userLocation, messes = [] }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showSuggestionsMobile, setShowSuggestionsMobile] = useState(false);
     const [showSuggestionsDesktop, setShowSuggestionsDesktop] = useState(false);
@@ -233,7 +233,8 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
             },
             availableOnly: false,
             messType: '',
-            maxDistance: ''
+            maxDistance: '',
+            occupancy: ''
         });
     };
 
@@ -248,24 +249,13 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
 
     return (
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* 3D Glassmorphic Filter Container */}
+            {/* Filter Container */}
             <div
-                className="relative z-30 bg-gradient-to-br from-white/95 via-white/90 to-purple-50/80 backdrop-blur-xl rounded-3xl border border-white/60"
+                className="relative z-30 md:bg-transparent md:border-none md:shadow-none bg-gradient-to-br from-white/95 via-white/90 to-purple-50/80 backdrop-blur-xl rounded-3xl border border-white/60"
                 style={{
-                    boxShadow: `
-                        0 8px 32px rgba(139, 92, 246, 0.15),
-                        0 2px 8px rgba(0, 0, 0, 0.05),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.8),
-                        inset 0 -1px 0 rgba(0, 0, 0, 0.05)
-                    `,
                     transform: 'translateZ(0)',
                 }}
             >
-                {/* Subtle gradient overlay for depth */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/5 via-transparent to-blue-400/5 pointer-events-none rounded-3xl overflow-hidden"></div>
-                
-
-
                 {/* Mobile Filter Toggle */}
                 <div className="md:hidden p-3 flex justify-between items-center sticky top-0 z-10 bg-white rounded-3xl">
                     <div className="flex items-center gap-2 w-full">
@@ -328,6 +318,17 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                             </button>
                         )}
 
+                        {/* Map Button — between GPS/Search and filter */}
+                        {onMap && (
+                            <button
+                                onClick={onMap}
+                                title="Select location on Map"
+                                className="p-2.5 rounded-xl shrink-0 transition-all shadow-md bg-white border border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-400"
+                            >
+                                <Map size={18} />
+                            </button>
+                        )}
+
                         <button
                             onClick={() => {
                                 setIsOpen(!isOpen);
@@ -348,79 +349,152 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                 </div>
 
                 {/* Filter Content */}
-                <div className={`${isOpen ? 'block' : 'hidden'} md:block p-6 md:p-8 relative z-10 rounded-b-3xl`}>
-                    <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
-
-                        {/* Search Bar - Desktop */}
-                        <div className="hidden md:block w-full md:w-1/3">
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Search Mess</label>
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex-1" ref={desktopSearchRef}>
-                                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        ref={desktopInputRef}
-                                        type="text"
-                                        placeholder="Search by landmark or mess name..."
-                                        className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-purple-100 bg-white/70 backdrop-blur-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-100 outline-none transition-all shadow-sm hover:shadow-md font-serif text-black"
-                                        value={filters.location}
-                                        onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                                        onFocus={() => {
-                                            setShowSuggestionsDesktop(true);
-                                            desktopJustFocused.current = true;
-                                        }}
-                                        onBlur={() => setTimeout(() => {
-                                            setShowSuggestionsDesktop(false);
+                <div className={`${isOpen ? 'block' : 'hidden'} md:block p-4 md:p-0 relative z-10 rounded-b-3xl`}>
+                    
+                    {/* Desktop Search Bar (Horizontal Aligned Row) */}
+                    <div className="hidden md:flex flex-row gap-3 items-center w-full">
+                        {/* Search Input field */}
+                        <div className="flex-grow max-w-sm relative" ref={desktopSearchRef}>
+                            <div className="relative">
+                                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    ref={desktopInputRef}
+                                    type="text"
+                                    placeholder="Search for Mess Name or Landmark"
+                                    className="w-full pl-10 pr-10 bg-white border border-gray-200 rounded-xl text-sm focus:border-purple-300 focus:ring-2 focus:ring-purple-200/50 outline-none transition-all shadow-sm placeholder:text-gray-400 text-black font-sans"
+                                    style={{ height: '48px' }}
+                                    value={filters.location}
+                                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                                    onFocus={() => {
+                                        setShowSuggestionsDesktop(true);
+                                        desktopJustFocused.current = true;
+                                    }}
+                                    onBlur={() => setTimeout(() => {
+                                        setShowSuggestionsDesktop(false);
+                                        desktopJustFocused.current = false;
+                                    }, 200)}
+                                    onClick={() => {
+                                        if (desktopJustFocused.current) {
                                             desktopJustFocused.current = false;
-                                        }, 200)}
-                                        onClick={() => {
-                                            if (desktopJustFocused.current) {
-                                                desktopJustFocused.current = false;
-                                            } else {
-                                                setShowSuggestionsDesktop(prev => !prev);
-                                            }
-                                        }}
-                                    />
-                                    {filters.location && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setFilters({ ...filters, location: '' });
-                                            }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    )}
-                                    {renderSuggestionsDropdown(showSuggestionsDesktop)}
-                                </div>
-                                {/* Desktop GPS Button */}
-                                {onGps && (
+                                        } else {
+                                            setShowSuggestionsDesktop(prev => !prev);
+                                        }
+                                    }}
+                                />
+                                {filters.location && (
                                     <button
-                                        onClick={onGps}
-                                        disabled={loadingLocation}
-                                        title={userLocation ? 'Location Active' : 'Use GPS'}
-                                        className={`p-2 rounded-xl shrink-0 transition-all shadow-sm flex items-center justify-center ${
-                                            userLocation
-                                                ? 'bg-green-500 text-white shadow-green-500/30'
-                                                : 'bg-white border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-400'
-                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                        style={{ height: '44px', width: '44px' }}
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setFilters({ ...filters, location: '' });
+                                        }}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
                                     >
-                                        {loadingLocation
-                                            ? <Loader2 size={20} className="animate-spin" />
-                                            : <MapPin size={20} />}
+                                        <X size={14} />
                                     </button>
                                 )}
                             </div>
+                            {renderSuggestionsDropdown(showSuggestionsDesktop)}
                         </div>
 
+                        {/* GPS Location Button */}
+                        {onGps && (
+                            <button
+                                onClick={onGps}
+                                disabled={loadingLocation}
+                                title={userLocation ? 'Location Active' : 'Use GPS'}
+                                className={`flex items-center justify-center rounded-xl shrink-0 transition-all shadow-sm ${
+                                    userLocation
+                                        ? 'bg-[#300868] text-white'
+                                        : 'bg-[#300868] text-white hover:bg-[#250453]'
+                                } disabled:opacity-50`}
+                                style={{ height: '48px', width: '48px' }}
+                            >
+                                {loadingLocation
+                                    ? <Loader2 size={18} className="animate-spin" />
+                                    : <MapPin size={18} />}
+                            </button>
+                        )}
 
+                        {/* Select on Map Button */}
+                        {onMap && (
+                            <button
+                                onClick={onMap}
+                                title="Select location on Map"
+                                className="flex items-center justify-center rounded-xl shrink-0 transition-all shadow-sm bg-white border border-gray-200 text-purple-900 hover:bg-gray-50"
+                                style={{ height: '48px', width: '48px' }}
+                            >
+                                <Map size={18} />
+                            </button>
+                        )}
 
-                        {/* Distance Filter Removed */}
+                        {/* Amenities Dropdown */}
+                        <div className="min-w-[160px]">
+                            <MultiSelectDropdown
+                                label="Amenities"
+                                options={[
+                                    { key: 'wifi', label: 'WiFi' },
+                                    { key: 'ac', label: 'AC' },
+                                    { key: 'food', label: 'Food' },
+                                    { key: 'inverter', label: 'Inverter' },
+                                ]}
+                                selected={filters.amenities}
+                                onChange={(key, checked) => setFilters(prev => ({
+                                    ...prev,
+                                    amenities: { ...prev.amenities, [key]: checked }
+                                }))}
+                                theme="light"
+                                color="purple"
+                                showLabel={false}
+                                placeholder="Amenities"
+                                prefixIcon={Home}
+                            />
+                        </div>
 
+                        {/* Available Only Toggle */}
+                        <div className="flex items-center gap-2 select-none shrink-0 px-2">
+                            <span className="text-sm text-gray-400 font-medium">Available Only</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={filters.availableOnly}
+                                    onChange={(e) => setFilters({ ...filters, availableOnly: e.target.checked })}
+                                />
+                                <div className="relative w-12 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#300868]"></div>
+                            </label>
+                        </div>
+
+                        {/* Search Action Button */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (document.activeElement) {
+                                    document.activeElement.blur();
+                                }
+                            }}
+                            className="flex items-center justify-center px-6 rounded-xl text-sm font-bold bg-[#300868] hover:bg-[#250453] text-white transition-all shadow-sm hover:shadow-md shrink-0"
+                            style={{ height: '48px' }}
+                        >
+                            Search &rarr;
+                        </button>
+
+                        {/* Clear Filters (Text link) */}
+                        {activeFilterCount > 0 && (
+                            <button
+                                onClick={clearFilters}
+                                className="text-red-500 hover:text-red-700 font-bold text-xs transition-colors shrink-0 ml-2"
+                                title="Clear all filters"
+                            >
+                                Clear All
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Mobile/Tablet Stacked Content (Only visible when toggled open on mobile) */}
+                    <div className="flex flex-col gap-4 md:hidden">
                         {/* Amenities */}
-                        <div className="w-full md:flex-1">
+                        <div className="w-full">
                             <MultiSelectDropdown
                                 label="Amenities"
                                 options={[
@@ -439,37 +513,31 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, loadingLocation, use
                             />
                         </div>
 
-                        {/* Availability Toggle - Text First, then Toggle Button */}
-                        <div className="flex items-center gap-3 pb-2 w-full md:w-auto justify-between md:justify-start">
-                            <label className="relative inline-flex items-center cursor-pointer group select-none flex-grow md:flex-grow-0 justify-start w-full md:w-auto">
-                                <span className="mr-3 text-sm font-bold text-gray-700 group-hover:text-purple-600 transition-colors whitespace-nowrap flex-shrink-0">Available Only</span>
+                        {/* Available Only */}
+                        <div className="flex items-center gap-3 justify-between py-1 border-t border-gray-100">
+                            <label className="relative inline-flex items-center cursor-pointer group select-none flex-grow justify-between w-full">
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-purple-600 transition-colors">Available Only</span>
                                 <input
                                     type="checkbox"
                                     className="sr-only peer"
                                     checked={filters.availableOnly}
                                     onChange={(e) => setFilters({ ...filters, availableOnly: e.target.checked })}
                                 />
-                                <div className="relative w-14 h-7 bg-gradient-to-r from-gray-200 to-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-200 rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border-2 after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-purple-600 shadow-inner"></div>
+                                <div className="relative w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border-2 after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-purple-600"></div>
                             </label>
                         </div>
 
-                        {/* Clear Filters Button */}
+                        {/* Clear Filters (Mobile) */}
                         {activeFilterCount > 0 && (
-                            <div className="pb-2">
-                                <button
-                                    onClick={clearFilters}
-                                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-bold rounded-xl hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
-                                    title="Clear all filters"
-                                >
-                                    <X size={16} />
-                                    Clear All
-                                </button>
-                            </div>
+                            <button
+                                onClick={clearFilters}
+                                className="w-full py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"
+                            >
+                                <X size={16} /> Clear All Filters
+                            </button>
                         )}
                     </div>
                 </div>
-
-                {/* 3D Bottom Edge Effect - REMOVED */}
             </div>
         </div>
     );

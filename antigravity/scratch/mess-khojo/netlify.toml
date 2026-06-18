@@ -13,7 +13,27 @@
 # Dynamic Sitemap (served by Netlify Function)
 [[redirects]]
   from = "/sitemap.xml"
-  to = "/.netlify/functions/sitemap"
+  to = "/.netlify/functions/sitemap?type=index"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-static.xml"
+  to = "/.netlify/functions/sitemap?type=static"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-cities.xml"
+  to = "/.netlify/functions/sitemap?type=cities"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-messes.xml"
+  to = "/.netlify/functions/sitemap?type=messes"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-rooms.xml"
+  to = "/.netlify/functions/sitemap?type=rooms"
   status = 200
 
 # Redirects for Single Page Application
