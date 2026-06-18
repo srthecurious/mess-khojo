@@ -1,8 +1,18 @@
 User-agent: *
 Allow: /
 
-# Disallow admin and operational routes
+# Disallow private user routes
+Disallow: /user-login
+Disallow: /user-signup
+Disallow: /profile
+Disallow: /wishlist
+Disallow: /booking-success
+
+# Disallow administrative and operational dashboards
+Disallow: /admin
 Disallow: /admin/
+Disallow: /operational
 Disallow: /operational/
 
+# Sitemap reference
 Sitemap: https://messkhojo.com/sitemap.xml

@@ -632,14 +632,22 @@ const CityPage = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {loading ? (
                         filters.occupancy ? (
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto w-full">
-                                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <SkeletonCard key={i} compact={true} />)}
+                            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full">
+                                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                                    <div key={i} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0">
+                                        <SkeletonCard compact={true} />
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <>
                                 {/* Desktop UI loader */}
-                                <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <SkeletonCard key={i} compact={true} />)}
+                                <div className="hidden md:flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
+                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                                        <div key={i} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0">
+                                            <SkeletonCard compact={true} />
+                                        </div>
+                                    ))}
                                 </div>
                                 {/* Mobile UI loader */}
                                 <div className="flex md:hidden flex-col gap-4 max-w-3xl mx-auto w-full">
@@ -676,31 +684,33 @@ const CityPage = () => {
                     ) : (
                         <>
                             {filters.occupancy ? (
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
+                                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
                                     {paginatedItems.map(room => (
-                                        <RoomCard
-                                            key={room.id}
-                                            room={room}
-                                            messName={room.messName}
-                                            isWishlisted={isRoomWishlisted(room.id)}
-                                            onToggleWishlist={handleRoomWishlistToggle}
-                                            compact={true}
-                                        />
+                                        <div key={room.id} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
+                                            <RoomCard
+                                                room={room}
+                                                messName={room.messName}
+                                                isWishlisted={isRoomWishlisted(room.id)}
+                                                onToggleWishlist={handleRoomWishlistToggle}
+                                                compact={true}
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             ) : (
                                 <>
-                                    {/* Desktop UI: Grid of compact MessCards */}
-                                    <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
+                                    {/* Desktop UI: Centered Flex of compact MessCards */}
+                                    <div className="hidden md:flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
                                         {paginatedItems.map(mess => (
-                                            <MessCard
-                                                key={mess.id}
-                                                mess={mess}
-                                                rooms={rooms.filter(r => r.messId === mess.id)}
-                                                onWishlistToggle={handleMessWishlistToggle}
-                                                isWishlisted={isMessWishlisted(mess.id)}
-                                                compact={true}
-                                            />
+                                            <div key={mess.id} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
+                                                <MessCard
+                                                    mess={mess}
+                                                    rooms={rooms.filter(r => r.messId === mess.id)}
+                                                    onWishlistToggle={handleMessWishlistToggle}
+                                                    isWishlisted={isMessWishlisted(mess.id)}
+                                                    compact={true}
+                                                />
+                                            </div>
                                         ))}
                                     </div>
                                     {/* Mobile UI: Vertical list of horizontal MessCards */}

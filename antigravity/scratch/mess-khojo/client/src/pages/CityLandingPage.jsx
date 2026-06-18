@@ -162,8 +162,12 @@ const CityLandingPage = () => {
                     {[1, 2].map((section) => (
                         <div key={section} className="mb-12">
                             <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-6" />
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                            <div className="flex flex-wrap justify-center gap-6 w-full">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="w-[calc(50%-12px)] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
+                                        <SkeletonCard />
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     ))}
@@ -404,17 +408,18 @@ const CityLandingPage = () => {
                                             </Link>
                                         </div>
 
-                                        {/* Mess Cards Grid */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
+                                        {/* Mess Cards Centered Flex */}
+                                        <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full">
                                             {previewMesses.map((mess) => (
-                                                <MessCard 
-                                                    key={mess.id} 
-                                                    mess={mess} 
-                                                    rooms={rooms.filter(r => r.messId === mess.id)} 
-                                                    onToggleWishlist={handleMessWishlistToggle}
-                                                    isWishlisted={isMessWishlisted(mess.id)}
-                                                    compact={true}
-                                                />
+                                                <div key={mess.id} className="w-[calc(50%-12px)] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
+                                                    <MessCard 
+                                                        mess={mess} 
+                                                        rooms={rooms.filter(r => r.messId === mess.id)} 
+                                                        onToggleWishlist={handleMessWishlistToggle}
+                                                        isWishlisted={isMessWishlisted(mess.id)}
+                                                        compact={true}
+                                                    />
+                                                </div>
                                             ))}
                                         </div>
 

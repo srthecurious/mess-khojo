@@ -22,7 +22,6 @@ const STATIC_PAGES = [
     { path: '/find-your-room', priority: '0.8', changefreq: 'monthly' },
     { path: '/explorer', priority: '0.9', changefreq: 'weekly' },
     { path: '/about-us', priority: '0.7', changefreq: 'yearly' },
-    { path: '/wishlist', priority: '0.8', changefreq: 'monthly' },
     { path: '/privacy-policy', priority: '0.7', changefreq: 'yearly' },
     { path: '/terms-and-conditions', priority: '0.7', changefreq: 'yearly' },
 ];

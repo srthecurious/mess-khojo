@@ -29,6 +29,7 @@ const TermsAndConditions = React.lazy(() => import('./pages/TermsAndConditions')
 const AboutUs = React.lazy(() => import('./pages/AboutUs'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const Wishlist = React.lazy(() => import('./pages/Wishlist'));
+const Sitemap = React.lazy(() => import('./pages/Sitemap'));
 
 // Branded loading fallback for route transitions
 const RouteLoader = () => (
@@ -105,6 +106,7 @@ function AppContent() {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
               <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/sitemap" element={<Sitemap />} />
 
               {/* 404 Catch-all */}
               <Route path="*" element={<NotFound />} />

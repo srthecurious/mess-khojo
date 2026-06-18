@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Phone, Mail, Instagram } from 'lucide-react';
 import { BRAND } from '../constants';
 
@@ -33,9 +34,9 @@ const Footer = () => {
                             <a href="/privacy-policy" className="text-[15px] font-bold text-white hover:text-white/80 transition-colors">
                                 Privacy Policy
                             </a>
-                            <a href="/sitemap.xml" className="text-[15px] font-bold text-white hover:text-white/80 transition-colors">
+                            <Link to="/sitemap" className="text-[15px] font-bold text-white hover:text-white/80 transition-colors">
                                 Sitemap
-                            </a>
+                            </Link>
                         </div>
                     </div>
 
