@@ -21,11 +21,13 @@ body {
   color: var(--brand-text-dark);
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
 }
 
 html {
   scroll-behavior: smooth;
   scrollbar-width: none;
+  overflow-x: hidden;
 }
 
 /* ============================================

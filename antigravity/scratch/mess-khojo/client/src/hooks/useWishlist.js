@@ -3,9 +3,11 @@ import { db } from '../firebase';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { trackWishlistToggle } from '../analytics';
+import { useToast } from '../context/ToastContext';
 
 export const useWishlist = () => {
     const { currentUser } = useAuth();
+    const { success, info } = useToast();
     const [wishlistedMesses, setWishlistedMesses] = useState(new Set());
     const [wishlistedRooms, setWishlistedRooms] = useState(new Set());
     const [loading, setLoading] = useState(false);
@@ -57,6 +59,11 @@ export const useWishlist = () => {
             await updateDoc(userRef, {
                 wishlistedMesses: isAdding ? arrayUnion(messId) : arrayRemove(messId)
             });
+            if (isAdding) {
+                success("Added to wishlist ❤️");
+            } else {
+                info("Removed from wishlist");
+            }
         } catch (err) {
             // Rollback on error
             console.error('Wishlist update failed:', err);
@@ -68,7 +75,7 @@ export const useWishlist = () => {
         }
 
         return true;
-    }, [currentUser, wishlistedMesses]);
+    }, [currentUser, wishlistedMesses, success, info]);
 
     // Toggle room in wishlist
     const toggleRoomWishlist = useCallback(async (roomId) => {
@@ -88,6 +95,11 @@ export const useWishlist = () => {
             await updateDoc(userRef, {
                 wishlistedRooms: isAdding ? arrayUnion(roomId) : arrayRemove(roomId)
             });
+            if (isAdding) {
+                success("Added to wishlist ❤️");
+            } else {
+                info("Removed from wishlist");
+            }
         } catch (err) {
             console.error('Room wishlist update failed:', err);
             setWishlistedRooms(prev => {
@@ -98,7 +110,7 @@ export const useWishlist = () => {
         }
 
         return true;
-    }, [currentUser, wishlistedRooms]);
+    }, [currentUser, wishlistedRooms, success, info]);
 
     return {
         wishlistedMesses,

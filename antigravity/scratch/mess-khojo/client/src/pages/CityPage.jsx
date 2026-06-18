@@ -179,6 +179,7 @@ const CityPage = () => {
                 address: coords.address || "Pinned Location"
             });
             setFilters(prev => ({ ...prev, location: '' }));
+            setIsLocationModalOpen(false);
         }
     };
 

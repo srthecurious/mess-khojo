@@ -336,15 +336,15 @@ const CityLandingPage = () => {
                         </div>
 
                         {/* Right: Quick Action Category Cards */}
-                        <div className="flex items-center gap-4 shrink-0">
+                        <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 shrink-0 w-full sm:w-auto">
                             {/* Find Your Room Card */}
                             <Link
                                 to="/find-your-room"
-                                className="relative overflow-hidden flex items-center justify-between px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-4 min-w-[200px]"
+                                className="relative overflow-hidden flex items-center justify-between px-3 sm:px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-2 sm:gap-4 w-full sm:min-w-[200px]"
                             >
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5">Find Your Room</span>
-                                    <span className="text-[10px] font-medium text-white/80">Convenient Rooms Available!</span>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5 truncate">Find Your Room</span>
+                                    <span className="text-[10px] font-medium text-white/80 truncate">Convenient Rooms Available!</span>
                                 </div>
                                 <div className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
                                     <BedDouble size={16} />
@@ -354,11 +354,11 @@ const CityLandingPage = () => {
                             {/* Register Your Mess Card */}
                             <Link
                                 to="/register-mess"
-                                className="relative overflow-hidden flex items-center justify-between px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-4 min-w-[200px]"
+                                className="relative overflow-hidden flex items-center justify-between px-3 sm:px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-2 sm:gap-4 w-full sm:min-w-[200px]"
                             >
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5">Register Your Mess</span>
-                                    <span className="text-[10px] font-medium text-white/80">Enroll Today!</span>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5 truncate">Register Your Mess</span>
+                                    <span className="text-[10px] font-medium text-white/80 truncate">Enroll Today!</span>
                                 </div>
                                 <div className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
                                     <Home size={16} />
