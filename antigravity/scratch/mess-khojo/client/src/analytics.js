@@ -29,14 +29,25 @@ export const initializeAnalytics = () => {
 };
 
 // Track page views
-export const trackPageView = (path, title) => {
-    if (!isInitialized) return;
+let isFirstPageView = true;
 
-    ReactGA.send({
-        hitType: 'pageview',
-        page: path,
-        title: title || document.title
-    });
+export const trackPageView = (path, title) => {
+    if (isInitialized) {
+        ReactGA.send({
+            hitType: 'pageview',
+            page: path,
+            title: title || document.title
+        });
+    }
+
+    if (window.fbq) {
+        if (isFirstPageView) {
+            // The HTML base code already tracked the initial PageView
+            isFirstPageView = false;
+        } else {
+            window.fbq('track', 'PageView');
+        }
+    }
 
     if (import.meta.env.DEV) {
         console.log('📊 Page View:', path, title);
@@ -64,6 +75,12 @@ export const trackEvent = (category, action, label, value) => {
 // Track search behavior
 export const trackSearch = (searchTerm, resultsCount) => {
     trackEvent('Search', 'mess_search', searchTerm, resultsCount);
+    if (window.fbq) {
+        window.fbq('track', 'Search', {
+            search_string: searchTerm,
+            content_category: 'Mess'
+        });
+    }
 };
 
 // Track filter usage
@@ -80,22 +97,55 @@ export const trackLocationUsage = (method) => {
 // Track mess views
 export const trackMessView = (messId, messName) => {
     trackEvent('Mess', 'mess_viewed', `${messName} (${messId})`);
+    if (window.fbq) {
+        window.fbq('track', 'ViewContent', {
+            content_name: messName,
+            content_ids: [String(messId)],
+            content_type: 'product',
+            content_category: 'Mess'
+        });
+    }
 };
 
 // Track room views
 export const trackRoomView = (roomId, messId, price) => {
     trackEvent('Room', 'room_viewed', `Room ${roomId} in Mess ${messId}`, Number(price) || undefined);
+    if (window.fbq) {
+        window.fbq('track', 'ViewContent', {
+            content_name: `Room ${roomId}`,
+            content_ids: [String(roomId)],
+            content_type: 'product',
+            content_category: 'Room',
+            value: Number(price) || undefined,
+            currency: 'INR'
+        });
+    }
 };
 
 // Track contact clicks
 export const trackContactClick = (contactType, messId) => {
     // contactType: 'phone' or 'whatsapp'
     trackEvent('Contact', 'contact_clicked', contactType, messId);
+    if (window.fbq) {
+        window.fbq('track', 'Contact', {
+            content_name: contactType,
+            content_ids: [String(messId)],
+            content_type: 'product'
+        });
+    }
 };
 
 // Track booking attempts
 export const trackBookingInitiated = (roomId, messId, price) => {
     trackEvent('Booking', 'booking_initiated', `Room ${roomId}`, Number(price) || undefined);
+    if (window.fbq) {
+        window.fbq('track', 'InitiateCheckout', {
+            content_ids: [String(roomId)],
+            content_type: 'product',
+            value: Number(price) || undefined,
+            currency: 'INR'
+        });
+    }
 };
 
 // Track availability checks
@@ -111,6 +161,11 @@ export const trackLoginAttempt = (success) => {
 // Track signup attempts
 export const trackSignupAttempt = (success) => {
     trackEvent('Authentication', 'signup_attempted', success ? 'success' : 'failure');
+    if (window.fbq && success) {
+        window.fbq('track', 'CompleteRegistration', {
+            status: 'success'
+        });
+    }
 };
 
 // Track mess registration
@@ -119,6 +174,12 @@ export const trackMessRegistration = (started, messId = null) => {
         trackEvent('Registration', 'mess_registration_started');
     } else {
         trackEvent('Registration', 'mess_registration_completed', `Mess ${messId}`);
+        if (window.fbq) {
+            window.fbq('track', 'CompleteRegistration', {
+                content_name: 'Mess Registration',
+                content_ids: messId ? [String(messId)] : undefined
+            });
+        }
     }
 };
 
@@ -151,12 +212,24 @@ export const trackGalleryView = (messId) => {
 // Track Wishlist Interactions
 export const trackWishlistToggle = (type, id, isAdding) => {
     trackEvent('Wishlist', isAdding ? 'added_to_wishlist' : 'removed_from_wishlist', `${type}_${id}`);
+    if (window.fbq && isAdding) {
+        window.fbq('track', 'AddToWishlist', {
+            content_ids: [`${type}_${id}`],
+            content_type: 'product'
+        });
+    }
 };
 
 // Track Contact Owner feature
 export const trackContactOwner = (action, messId, roomId) => {
     // action: 'button_clicked', 'call_confirmed', 'call_cancelled'
     trackEvent('ContactOwner', action, `mess_${messId}_room_${roomId}`);
+    if (window.fbq && action === 'call_confirmed') {
+        window.fbq('track', 'Contact', {
+            content_name: 'Call Confirmed',
+            content_ids: [`mess_${messId}_room_${roomId}`]
+        });
+    }
 };
 
 // Track Availability Inquiry (sold-out rooms)

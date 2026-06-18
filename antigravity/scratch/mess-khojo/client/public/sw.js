@@ -1,8 +1,8 @@
 // A production-grade PWA Service Worker with Stale-While-Revalidate and Network-First caching strategies.
-const CACHE_NAME = 'messkhojo-cache-v1';
-const STATIC_CACHE = 'messkhojo-static-v1';
-const IMAGE_CACHE = 'messkhojo-images-v1';
-const SHELL_CACHE = 'messkhojo-shell-v1';
+const CACHE_NAME = 'messkhojo-cache-v2';
+const STATIC_CACHE = 'messkhojo-static-v2';
+const IMAGE_CACHE = 'messkhojo-images-v2';
+const SHELL_CACHE = 'messkhojo-shell-v2';
 
 // Assets to pre-cache on service worker install
 const SHELL_ASSETS = [
@@ -58,6 +58,9 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('identitytoolkit.googleapis.com') ||
     url.hostname.includes('google-analytics.com') ||
     url.hostname.includes('analytics.google.com') ||
+    url.hostname.includes('facebook.com') ||
+    url.hostname.includes('facebook.net') ||
+    url.hostname.includes('clarity.ms') ||
     url.pathname.startsWith('/.netlify/functions/')
   ) {
     return;
