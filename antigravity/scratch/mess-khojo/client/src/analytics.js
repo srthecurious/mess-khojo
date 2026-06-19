@@ -183,6 +183,18 @@ export const trackMessRegistration = (started, messId = null) => {
     }
 };
 
+// Track click on "Register Your Mess" button
+export const trackRegisterMessClick = (source = 'city_landing_page') => {
+    trackEvent('Registration', 'register_mess_button_clicked', source);
+    if (window.fbq) {
+        window.fbq('track', 'Lead', {
+            content_name: 'Register Your Mess Button Click',
+            content_category: 'Registration',
+            content_ids: [source]
+        });
+    }
+};
+
 // Track mess explorer
 export const trackMessExplorer = (action, messId = null) => {
     // action: 'opened' or 'mess_selected'
@@ -266,4 +278,5 @@ export default {
     trackContactOwner,
     trackAvailabilityInquiry,
     trackHeroAdClick,
+    trackRegisterMessClick,
 };

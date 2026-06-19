@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, UserCircle, Heart, Building2, ChevronRight, Home, LogIn, Server, BedDouble, MessageSquare, Info, Phone, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { trackRegisterMessClick } from '../../analytics';
 
 const MobileMenu = ({
     isMenuOpen,
@@ -135,7 +136,10 @@ const MobileMenu = ({
 
                             <Link
                                 to="/register-mess"
-                                onClick={() => setIsMenuOpen(false)}
+                                onClick={() => {
+                                    setIsMenuOpen(false);
+                                    trackRegisterMessClick('mobile_menu');
+                                }}
                                 className={`group w-full flex items-center gap-4 py-4 px-5 text-base font-bold border-r-4 rounded-l-xl transition-all relative overflow-hidden text-left ${isActive("/register-mess") || isActive("/register-mess-success")
                                     ? "text-white bg-white/10 border-blue-400"
                                     : "text-white/90 hover:text-white hover:bg-white/5 border-transparent hover:border-blue-400"

@@ -12,6 +12,7 @@ import { PAGINATION } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { trackRegisterMessClick } from '../analytics';
 
 const CITY_NAMES = Object.values(DISTRICTS_CONFIG).reduce((acc, district) => {
     (district.cities || []).forEach(city => {
@@ -358,6 +359,7 @@ const CityLandingPage = () => {
                             {/* Register Your Mess Card */}
                             <Link
                                 to="/register-mess"
+                                onClick={() => trackRegisterMessClick('city_landing_page')}
                                 className="relative overflow-hidden flex items-center justify-between px-3 sm:px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-2 sm:gap-4 w-full sm:min-w-[200px]"
                             >
                                 <div className="flex flex-col min-w-0">

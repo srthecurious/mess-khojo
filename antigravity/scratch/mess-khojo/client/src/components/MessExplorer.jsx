@@ -1,7 +1,7 @@
 import React, { useState, Suspense, useEffect } from 'react';
 import { MapPin, Home, ArrowRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { trackMessExplorer } from '../analytics';
+import { trackMessExplorer, trackRegisterMessClick } from '../analytics';
 
 // Lazy-load the heavy Google Maps component (~200KB) — only downloaded when user opens the map
 const MessExplorerMap = React.lazy(() => import('./MessExplorerMap.jsx'));
@@ -83,7 +83,10 @@ const MessExplorer = ({ messes, rooms, userLocation, cityId, compact = false }) 
 
                         {/* Register Your Mess Card */}
                         <button
-                            onClick={() => navigate('/register-mess')}
+                            onClick={() => {
+                                trackRegisterMessClick('mess_explorer');
+                                navigate('/register-mess');
+                            }}
                             className="relative overflow-hidden flex items-center justify-between p-4 rounded-2xl bg-[#300868] text-white hover:bg-[#250453] active:scale-[0.98] transition-all duration-300 shadow-md text-left group"
                         >
                             <div className="flex flex-col">
