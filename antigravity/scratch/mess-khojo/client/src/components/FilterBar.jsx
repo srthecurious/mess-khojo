@@ -141,7 +141,7 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
         return <span>{text}</span>;
     };
 
-    const renderSuggestionsDropdown = (show) => {
+    const renderSuggestionsDropdown = (show, isMobile = false) => {
         if (!show) return null;
         const searchTerm = filters.location;
         const fuzzyMatched = searchTerm 
@@ -187,7 +187,9 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
         );
 
         return (
-            <div className="absolute z-50 w-full bg-white rounded-xl shadow-lg border border-gray-100 mt-2 overflow-hidden top-full left-0">
+            <div className={`absolute z-50 bg-white rounded-xl shadow-lg border border-gray-100 mt-2 overflow-hidden top-full ${
+                isMobile ? 'left-3 right-3 w-auto' : 'left-0 w-full'
+            }`}>
                 <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
                     
                     {sponsored.length > 0 && (
@@ -257,9 +259,9 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                 }}
             >
                 {/* Mobile Filter Toggle */}
-                <div className="md:hidden p-3 flex justify-between items-center sticky top-0 z-10 bg-white rounded-3xl">
+                <div className="md:hidden p-3 flex justify-between items-center sticky top-0 z-10 bg-white rounded-3xl relative" ref={mobileSearchRef}>
                     <div className="flex items-center gap-2 w-full">
-                        <div className="relative flex-1" ref={mobileSearchRef}>
+                        <div className="relative flex-1">
                                 <input
                                     ref={mobileInputRef}
                                     type="text"
@@ -297,7 +299,6 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                                     <X size={14} />
                                 </button>
                             )}
-                            {renderSuggestionsDropdown(showSuggestionsMobile)}
                         </div>
 
                         {/* GPS Button — between search and filter */}
@@ -346,6 +347,7 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                             {activeFilterCount > 0 && <span className="bg-white text-purple-600 text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{activeFilterCount}</span>}
                         </button>
                     </div>
+                    {renderSuggestionsDropdown(showSuggestionsMobile, true)}
                 </div>
 
                 {/* Filter Content */}

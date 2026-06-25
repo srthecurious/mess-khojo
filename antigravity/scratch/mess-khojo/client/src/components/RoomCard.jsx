@@ -92,7 +92,7 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
                         </div>
                         <div className="flex justify-between items-center mt-0.5 text-xs text-gray-500">
                             <span className="truncate flex-grow">{messName ? title : (room.category || "Room")}</span>
-                            <span className="shrink-0">/month</span>
+                            <span className="shrink-0">{room.rentCycle === 'yearly' ? '/year' : '/month'}</span>
                         </div>
                     </div>
                 ) : (

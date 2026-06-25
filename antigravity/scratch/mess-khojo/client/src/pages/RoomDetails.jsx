@@ -124,7 +124,7 @@ const RoomDetails = () => {
         : 'Room Details | MessKhojo';
 
     const pageDescription = room && mess
-        ? `${occupancyName} Seater ${room.category || 'Standard'} room in ${mess.name}, ${mess.address || ''}, ${mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore'}. Rent: ₹${room.price}/month, available beds: ${room.availableCount || 0}. No Broker, direct contact.`
+        ? `${occupancyName} Seater ${room.category || 'Standard'} room in ${mess.name}, ${mess.address || ''}, ${mess.district ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1) : 'Balasore'}. Rent: ₹${room.price}${room.rentCycle === 'yearly' ? '/year' : '/month'}, available beds: ${room.availableCount || 0}. No Broker, direct contact.`
         : 'View room details, rent, occupancy and availability on MessKhojo.';
 
     const pageKeywords = room && mess

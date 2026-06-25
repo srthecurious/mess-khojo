@@ -1,8 +1,8 @@
 // A production-grade PWA Service Worker with Stale-While-Revalidate and Network-First caching strategies.
-const CACHE_NAME = 'messkhojo-cache-v2';
-const STATIC_CACHE = 'messkhojo-static-v2';
-const IMAGE_CACHE = 'messkhojo-images-v2';
-const SHELL_CACHE = 'messkhojo-shell-v2';
+const CACHE_NAME = 'messkhojo-cache-v3';
+const STATIC_CACHE = 'messkhojo-static-v3';
+const IMAGE_CACHE = 'messkhojo-images-v3';
+const SHELL_CACHE = 'messkhojo-shell-v3';
 
 // Assets to pre-cache on service worker install
 const SHELL_ASSETS = [

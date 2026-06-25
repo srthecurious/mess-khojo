@@ -7,7 +7,7 @@ import { collection, updateDoc, doc, serverTimestamp, addDoc, getDoc, setDoc, ge
 
 
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, Layout, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
@@ -23,7 +23,6 @@ import InquiriesTab from './OperationalDashboard/tabs/InquiriesTab';
 import RoomInquiriesTab from './OperationalDashboard/tabs/RoomInquiriesTab';
 import FeedbacksTab from './OperationalDashboard/tabs/FeedbacksTab';
 import MessesTab from './OperationalDashboard/tabs/MessesTab';
-import RoomsTab from './OperationalDashboard/tabs/RoomsTab';
 import HeroAdsTab from './OperationalDashboard/tabs/HeroAdsTab';
 import OwnerCallsTab from './OperationalDashboard/tabs/OwnerCallsTab';
 
@@ -49,7 +48,7 @@ const compressImage = async (file) => {
 
 const OperationalDashboard = () => {
     usePageSEO({ title: 'Operational Dashboard | MessKhojo', noindex: true });
-    const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes', 'rooms'
+    const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes'
     const [feedbackReplies, setFeedbackReplies] = useState({}); // { feedbackId: replyText }
     const opData = useOperationalData();
     const { bookings: allBookings, claims: allClaims, inquiries: allInquiries, roomInquiries: allRoomInquiries, feedbacks, registrations: allRegistrations, messes: allMesses, rooms: allRooms } = opData;
@@ -60,7 +59,6 @@ const OperationalDashboard = () => {
     const [opFilterDistrict, setOpFilterDistrict] = useState('all');
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
     const [messesSearchQuery, setMessesSearchQuery] = useState('');
-    const [roomsSearchQuery, setRoomsSearchQuery] = useState('');
 
 
     // Editing State
@@ -1038,23 +1036,9 @@ const OperationalDashboard = () => {
                             }`}
                     >
                         <Database size={20} />
-                        All Messes
+                        Mess &amp; Rooms
                         <span className="ml-auto bg-white/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-60">
                             {messes.length}
-                        </span>
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('rooms')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'rooms'
-                            ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20'
-                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
-                            }`}
-                    >
-                        <Layout size={20} />
-                        All Rooms
-                        <span className="ml-auto bg-white/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-60">
-                            {rooms.length}
                         </span>
                     </button>
 
@@ -1210,7 +1194,7 @@ const OperationalDashboard = () => {
 
                     {/* NEW ROOM INQUIRIES TAB */}
                     {activeTab === 'room_inquiries' && (
-                        <RoomInquiriesTab roomInquiries={roomInquiries} />
+                        <RoomInquiriesTab roomInquiries={roomInquiries} messes={messes} rooms={rooms} />
                     )}
 
                     {/* FEEDBACKS TAB */}
@@ -1218,14 +1202,9 @@ const OperationalDashboard = () => {
                         <FeedbacksTab feedbacks={feedbacks} feedbackReplies={feedbackReplies} setFeedbackReplies={setFeedbackReplies} />
                     )}
 
-                    {/* ALL MESSES MANAGEMENT */}
+                    {/* MESS & ROOMS MANAGEMENT */}
                     {activeTab === 'messes' && (
-                        <MessesTab messes={messes} searchQuery={messesSearchQuery} setSearchQuery={setMessesSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
-                    )}
-
-                    {/* ALL ROOMS MANAGEMENT */}
-                    {activeTab === 'rooms' && (
-                        <RoomsTab rooms={rooms} searchQuery={roomsSearchQuery} setSearchQuery={setRoomsSearchQuery} handleEditItem={handleEditItem} />
+                        <MessesTab messes={messes} rooms={rooms} searchQuery={messesSearchQuery} setSearchQuery={setMessesSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
                     )}
 
                     {/* HERO ADS TAB */}
