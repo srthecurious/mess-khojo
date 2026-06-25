@@ -202,7 +202,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
                             </div>
                             <div className="flex justify-between items-center mt-0.5 text-xs text-gray-500">
                                 <span className="truncate flex-grow">{mess.address || "Near landmark"}</span>
-                                <span className="shrink-0">/month</span>
+                                <span className="shrink-0">{mess.rentCycle === 'yearly' ? '/year' : '/month'}</span>
                             </div>
                         </div>
                     ) : (

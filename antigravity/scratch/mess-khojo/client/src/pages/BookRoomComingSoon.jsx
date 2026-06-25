@@ -2,14 +2,54 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users, CalendarDays, ChevronRight, MessageSquareText, Building2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
 
-const popularAreas = [
-    "Azimabad", "Mansingh Bazar", "FM College Road", "ITI Chhak", "Remuna", "Station Square"
-];
+const PREDEFINED_CITY_LANDMARKS = {
+    baleshwar: [
+        'Mansingh Bazar',
+        'Fakir Mohan Golei',
+        'Station Square',
+        'Sahadev Khuntha',
+        'Azimabad',
+        'ITB',
+        'Balasore'
+    ],
+    remuna: [
+        'Remuna'
+    ],
+    bhadrak: [
+        'Bhadrak Station',
+        'Charampa',
+        'Bhadrak College',
+        'By Pass',
+        'Dakshinakali',
+        'Bhadrak'
+    ],
+    basudevpur: [],
+    baripada: [
+        'Baripada Station',
+        'Lal Bazar',
+        'Palbani',
+        'Baghra Road',
+        'MKC High School',
+        'Baripada'
+    ]
+};
+
+const WhatsAppIcon = ({ size = 18, className = "" }) => (
+    <svg 
+        viewBox="0 0 24 24" 
+        width={size} 
+        height={size} 
+        fill="currentColor" 
+        className={className}
+    >
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.455 5.705 1.456h.008c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+);
 
 const BookRoomComingSoon = () => {
     usePageSEO({
@@ -28,11 +68,12 @@ const BookRoomComingSoon = () => {
         location: '',
         budget: '',
         gender: 'boys',
-        occupancy: 'single',
+        occupancy: '1-seater',
         expectedMoveIn: 'immediately',
         requirements: '',
         consent: false
     });
+    const [allMessesData, setAllMessesData] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -42,12 +83,62 @@ const BookRoomComingSoon = () => {
         window.scrollTo(0, 0);
     }, [step]);
 
+    useEffect(() => {
+        const fetchMesses = async () => {
+            try {
+                const querySnapshot = await getDocs(collection(db, "messes"));
+                const messesData = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (!data.hidden) {
+                        messesData.push({
+                            city: data.city ? data.city.trim().toLowerCase() : '',
+                            landmark: data.landmark ? data.landmark.trim() : ''
+                        });
+                    }
+                });
+                setAllMessesData(messesData);
+            } catch (err) {
+                console.error("Error fetching messes for landmarks:", err);
+            }
+        };
+        fetchMesses();
+    }, []);
+
+    // Get available landmarks for the selected city
+    const availableLandmarks = React.useMemo(() => {
+        if (!formData.city) return [];
+
+        const cityId = formData.city.toLowerCase();
+        const landmarkSet = new Set();
+
+        // 1. Add predefined landmarks for this city
+        const predefined = PREDEFINED_CITY_LANDMARKS[cityId] || [];
+        predefined.forEach(lm => landmarkSet.add(lm.trim()));
+
+        // 2. Add dynamic landmarks from active messes in this city
+        allMessesData.forEach(mess => {
+            if (mess.city === cityId && mess.landmark) {
+                landmarkSet.add(mess.landmark.trim());
+            }
+        });
+
+        return Array.from(landmarkSet).sort((a, b) => a.localeCompare(b));
+    }, [formData.city, allMessesData]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        setFormData(prev => {
+            const updated = {
+                ...prev,
+                [name]: value
+            };
+            // Clear location if city changes
+            if (name === 'city') {
+                updated.location = '';
+            }
+            return updated;
+        });
         
         // Clear errors when typing
         if (name === 'phone') setPhoneError('');
@@ -279,11 +370,12 @@ const BookRoomComingSoon = () => {
                                                 list="popular-areas"
                                                 value={formData.location}
                                                 onChange={handleChange}
-                                                placeholder="e.g. Mansingh Bazar..."
-                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
+                                                disabled={!formData.city}
+                                                placeholder={formData.city ? "e.g. Mansingh Bazar..." : "Select preferred city first"}
+                                                className="w-full px-4 py-3 bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
                                             />
                                             <datalist id="popular-areas">
-                                                {popularAreas.map((area, idx) => (
+                                                {availableLandmarks.map((area, idx) => (
                                                     <option key={idx} value={area} />
                                                 ))}
                                             </datalist>
@@ -293,7 +385,7 @@ const BookRoomComingSoon = () => {
                                         <div className="space-y-3">
                                             <label className="text-sm font-semibold text-brand-text-dark flex items-center gap-2">
                                                 <Banknote size={16} className="text-brand-primary" />
-                                                Budget (Monthly)
+                                                Rental Budget (monthly)
                                             </label>
                                             <select
                                                 name="budget"
@@ -342,9 +434,9 @@ const BookRoomComingSoon = () => {
                                                 Occupancy Preference
                                             </label>
                                             <div className="grid grid-cols-2 gap-3" role="radiogroup">
-                                                {renderRadioCard("occupancy", "single", "Single Room", <User size={20} />, formData.occupancy)}
-                                                {renderRadioCard("occupancy", "double", "Double Sharing", <Users size={20} />, formData.occupancy)}
-                                                {renderRadioCard("occupancy", "shared", "3+ Sharing", <Users size={20} />, formData.occupancy)}
+                                                {renderRadioCard("occupancy", "1-seater", "1 Seater", <User size={20} />, formData.occupancy)}
+                                                {renderRadioCard("occupancy", "2-seater", "2 Seater", <Users size={20} />, formData.occupancy)}
+                                                {renderRadioCard("occupancy", "3-seater", "3 Seater", <Users size={20} />, formData.occupancy)}
                                                 {renderRadioCard("occupancy", "any", "Any", <BedDouble size={20} />, formData.occupancy)}
                                             </div>
                                         </div>
@@ -474,7 +566,7 @@ const BookRoomComingSoon = () => {
                                                                 : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                                                         }`}
                                                     >
-                                                        <MessageSquareText size={18} className={formData.contactMethod === 'whatsapp' ? 'text-green-500' : ''} />
+                                                        <WhatsAppIcon size={18} className={formData.contactMethod === 'whatsapp' ? 'text-green-500' : 'text-gray-400'} />
                                                         WhatsApp
                                                     </button>
                                                     <button

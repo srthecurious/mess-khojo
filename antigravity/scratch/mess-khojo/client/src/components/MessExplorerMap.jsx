@@ -1,11 +1,197 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, ExternalLink, Loader2, ChevronLeft } from 'lucide-react';
-import { APIProvider, Map, useMap, useApiLoadingStatus, APILoadingStatus } from '@vis.gl/react-google-maps';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MapPin, Navigation, ExternalLink, Loader2, ChevronLeft, Search, X, Home } from 'lucide-react';
+import { APIProvider, Map, useMap, useApiLoadingStatus, APILoadingStatus, useMapsLibrary } from '@vis.gl/react-google-maps';
 import AdvancedMarker from './SafeAdvancedMarker';
 import { useNavigate } from 'react-router-dom';
 import { trackMessExplorer } from '../analytics';
 import { useDistrict, DISTRICTS_CONFIG } from '../context/DistrictContext';
 import { toMessSlug } from '../utils/slugify';
+
+// ─── MapSearchBar ─────────────────────────────────────────────────────────────
+// IMPORTANT: This component MUST be a child of <APIProvider> so that
+// useMapsLibrary() can access the Google Maps API context. Placing this
+// hook in the parent (which *renders* APIProvider) always returns null.
+// ─────────────────────────────────────────────────────────────────────────────
+const MapSearchBar = ({ mapCenter, validMesses, onMessClick, onLocationClick, onClear }) => {
+    const placesLibrary = useMapsLibrary('places');
+    const autocompleteServiceRef = useRef(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [predictions, setPredictions] = useState([]);
+    const searchContainerRef = useRef(null);
+
+    const isFirstMount = useRef(true);
+    useEffect(() => {
+        if (isFirstMount.current) {
+            isFirstMount.current = false;
+            return;
+        }
+        if (searchQuery.trim() === '') {
+            onClear?.();
+        }
+    }, [searchQuery, onClear]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Fetch Google Places predictions (debounced 300 ms)
+    useEffect(() => {
+        if (!placesLibrary) return;
+        if (!searchQuery.trim()) {
+            const timer = setTimeout(() => {
+                setPredictions([]);
+            }, 0);
+            return () => clearTimeout(timer);
+        }
+
+        if (!autocompleteServiceRef.current) {
+            autocompleteServiceRef.current = new placesLibrary.AutocompleteService();
+        }
+        const service = autocompleteServiceRef.current;
+        const request = {
+            input: searchQuery,
+            locationBias: mapCenter ? { lat: mapCenter.lat, lng: mapCenter.lng } : undefined,
+        };
+        const timer = setTimeout(() => {
+            service.getPlacePredictions(request, (results, status) => {
+                if (status === 'OK' && results) {
+                    setPredictions(results);
+                } else {
+                    setPredictions([]);
+                }
+            });
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, placesLibrary, mapCenter]);
+
+    // Filter local mess names
+    const searchedMesses = React.useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        const q = searchQuery.toLowerCase().trim();
+        return validMesses.filter(mess => mess.name?.toLowerCase().includes(q)).slice(0, 5);
+    }, [searchQuery, validMesses]);
+
+    const handleMessSelect = (mess) => {
+        setSearchQuery(mess.name);
+        setShowDropdown(false);
+        onMessClick(mess);
+    };
+
+    const handleLocationSelect = (pred) => {
+        setSearchQuery(pred.structured_formatting?.main_text || pred.description);
+        setShowDropdown(false);
+        onLocationClick(pred);
+    };
+
+    return (
+        <div ref={searchContainerRef} className="pointer-events-auto flex-grow max-w-md relative">
+            <div className="relative flex items-center bg-white/95 backdrop-blur-md border border-gray-100 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:border-gray-200 focus-within:border-brand-primary/50 focus-within:ring-2 focus-within:ring-brand-primary/10 transition-all overflow-hidden px-4 py-2 gap-2">
+                <Search className="text-gray-400 shrink-0" size={18} />
+                <input
+                    type="text"
+                    placeholder="Search mess name or location..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    className="w-full text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => {
+                            setSearchQuery('');
+                            setShowDropdown(false);
+                        }}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                )}
+            </div>
+
+            {/* Dropdown Suggestions */}
+            {showDropdown && searchQuery.trim() && (
+                <div className="absolute left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-2xl z-[150] overflow-hidden animate-fadeIn max-h-[300px] overflow-y-auto w-full pointer-events-auto">
+                    {searchedMesses.length === 0 && predictions.length === 0 ? (
+                        <div className="p-5 text-center text-sm text-gray-500 bg-white">
+                            No suggestions found for "{searchQuery}"
+                        </div>
+                    ) : (
+                        <div className="p-2 space-y-3 bg-white">
+                            {/* 1. MESS MATCHES */}
+                            {searchedMesses.length > 0 && (
+                                <div>
+                                    <div className="px-3 py-1.5 text-[10px] font-extrabold text-brand-primary uppercase tracking-wider bg-brand-primary/5 rounded-lg mb-1 inline-block ml-2">
+                                        Messes
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        {searchedMesses.map(mess => (
+                                            <button
+                                                key={mess.id}
+                                                onClick={() => handleMessSelect(mess)}
+                                                className="w-full text-left px-3 py-2 hover:bg-purple-50 rounded-xl transition-all duration-200 flex items-center justify-between group animate-fadeIn"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0 group-hover:scale-105 transition-transform">
+                                                        <Home size={16} />
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-sm font-semibold text-gray-800 truncate">{mess.name}</span>
+                                                        <span className="text-[10px] text-gray-400 truncate">{mess.address || 'Address not listed'}</span>
+                                                    </div>
+                                                </div>
+                                                <ExternalLink size={12} className="text-gray-300 group-hover:text-brand-primary transition-all" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 2. GOOGLE MAP LOCATIONS */}
+                            {predictions.length > 0 && (
+                                <div>
+                                    <div className="px-3 py-1.5 text-[10px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50 rounded-lg mb-1 inline-block ml-2">
+                                        Locations
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        {predictions.map(pred => (
+                                            <button
+                                                key={pred.place_id}
+                                                onClick={() => handleLocationSelect(pred)}
+                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 rounded-xl transition-all duration-200 flex items-center justify-between group animate-fadeIn"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 group-hover:scale-105 transition-transform">
+                                                        <MapPin size={16} />
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-sm font-semibold text-gray-800 truncate">{pred.structured_formatting?.main_text || pred.description}</span>
+                                                        <span className="text-[10px] text-gray-400 truncate">{pred.structured_formatting?.secondary_text || ''}</span>
+                                                    </div>
+                                                </div>
+                                                <ExternalLink size={12} className="text-gray-300 group-hover:text-blue-600 transition-all" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -143,7 +329,9 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
         return null;
     }, [validMesses, districtCenter]);
 
-    const defaultCenter = dynamicCentroid || districtCenter || { lat: 21.4934, lng: 86.9294 }; // Balasore fallback
+    const defaultCenter = React.useMemo(() => {
+        return dynamicCentroid || districtCenter || { lat: 21.4934, lng: 86.9294 };
+    }, [dynamicCentroid, districtCenter]);
 
     const isUserLocationValidForDistrict = React.useMemo(() => {
         if (!userLocation?.lat || !userLocation?.lng || !districtCenter) return false;
@@ -181,6 +369,36 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
     useEffect(() => {
         setLocalUserLocation(userLocation);
     }, [userLocation]);
+
+    // Callbacks passed down to the MapSearchBar child component
+    const handleMessClickFromSearch = useCallback((mess) => {
+        setSelectedMess(mess);
+        setMapCenter({ lat: mess.latitude, lng: mess.longitude });
+        setCurrentZoom(17);
+    }, []);
+
+    const handleLocationClickFromSearch = useCallback((prediction) => {
+        if (window.google) {
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ placeId: prediction.place_id }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    const location = results[0].geometry.location;
+                    setMapCenter({ lat: location.lat(), lng: location.lng() });
+                    setCurrentZoom(16);
+                }
+            });
+        }
+    }, []);
+
+    const handleClearSearch = useCallback(() => {
+        const originalCenter = isUserLocationValidForDistrict && userLocation?.lat && userLocation?.lng
+            ? { lat: userLocation.lat, lng: userLocation.lng }
+            : defaultCenter;
+        setMapCenter(originalCenter);
+        setCurrentZoom(15);
+        setSelectedMess(null);
+    }, [isUserLocationValidForDistrict, userLocation, defaultCenter]);
+
 
     // Filter messes based on explorer-specific filters
     const filteredMesses = React.useMemo(() => {
@@ -263,26 +481,37 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
     }, [onClose]);
 
     return (
-        <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm">
-            <div className="absolute inset-0 bg-white flex flex-col">
-                {/* Map (Full-Bleed) */}
-                <div className="flex-1 relative bg-gray-50">
-                    {/* Top Floating Header Controls */}
-                    <div className="absolute top-0 left-0 right-0 z-20 px-3 sm:px-5 pt-4 sm:pt-6 pointer-events-none flex justify-between items-start">
-                        <button
-                            onClick={handleCloseMap}
-                            className="pointer-events-auto flex items-center justify-center bg-white/90 backdrop-blur-md w-11 h-11 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.35)] border border-white/60 hover:bg-white transition-all active:scale-95"
-                            aria-label="Back to Home"
-                        >
-                            <ChevronLeft size={24} className="text-gray-800 pr-0.5" strokeWidth={2.5} />
-                        </button>
-                        <button
-                            onClick={() => setShowFullMap(!showFullMap)}
-                            className="pointer-events-auto flex items-center gap-2 bg-white/85 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] border border-white/60 hover:bg-white text-brand-primary font-bold text-xs sm:text-sm transition-all active:scale-95"
-                        >
-                            <span>{showFullMap ? 'Mess View' : 'Full Map'}</span>
-                        </button>
-                    </div>
+        <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['places']}>
+            <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm">
+                <div className="absolute inset-0 bg-white flex flex-col">
+                    {/* Map (Full-Bleed) */}
+                    <div className="flex-1 relative bg-gray-50">
+                        {/* Top Floating Header Controls */}
+                        <div className="absolute top-0 left-0 right-0 z-20 px-3 sm:px-5 pt-4 sm:pt-6 pointer-events-none flex items-start gap-3 justify-between">
+                            <button
+                                onClick={handleCloseMap}
+                                className="pointer-events-auto flex items-center justify-center bg-white/90 backdrop-blur-md w-11 h-11 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.35)] border border-white/60 hover:bg-white transition-all active:scale-95 shrink-0"
+                                aria-label="Back to Home"
+                            >
+                                <ChevronLeft size={24} className="text-gray-800 pr-0.5" strokeWidth={2.5} />
+                            </button>
+
+                            {/* Search Bar – rendered inside APIProvider so useMapsLibrary() works */}
+                            <MapSearchBar
+                                mapCenter={mapCenter}
+                                validMesses={validMesses}
+                                onMessClick={handleMessClickFromSearch}
+                                onLocationClick={handleLocationClickFromSearch}
+                                onClear={handleClearSearch}
+                            />
+
+                            <button
+                                onClick={() => setShowFullMap(!showFullMap)}
+                                className="pointer-events-auto flex items-center gap-2 bg-white/85 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] border border-white/60 hover:bg-white text-brand-primary font-bold text-xs sm:text-sm transition-all active:scale-95 shrink-0"
+                            >
+                                <span>{showFullMap ? 'Mess View' : 'Full Map'}</span>
+                            </button>
+                        </div>
 
                     {/* Floating Filter Chips */}
                     <div className="absolute top-20 sm:top-24 left-0 right-0 z-10 px-3 sm:px-5 pointer-events-none">
@@ -338,27 +567,25 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                         </defs>
                     </svg>
 
-                    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-                        <Map
-                            defaultCenter={mapCenter}
-                            defaultZoom={currentZoom}
-                            mapId="mess-explorer"
-                            gestureHandling="greedy"
-                            style={{ width: '100%', height: '100%' }}
-                            disableDefaultUI={true}
-                            streetViewControl={false}
-                            mapTypeControl={false}
-                            fullscreenControl={false}
-                        >
-                            <MapCameraHandler center={mapCenter} zoom={currentZoom} />
-                            <MapMarkers
-                                filteredMesses={filteredMesses}
-                                selectedMess={selectedMess}
-                                handleMarkerClick={handleMarkerClick}
-                                localUserLocation={localUserLocation}
-                            />
-                        </Map>
-                    </APIProvider>
+                    <Map
+                        defaultCenter={mapCenter}
+                        defaultZoom={currentZoom}
+                        mapId="mess-explorer"
+                        gestureHandling="greedy"
+                        style={{ width: '100%', height: '100%' }}
+                        disableDefaultUI={true}
+                        streetViewControl={false}
+                        mapTypeControl={false}
+                        fullscreenControl={false}
+                    >
+                        <MapCameraHandler center={mapCenter} zoom={currentZoom} />
+                        <MapMarkers
+                            filteredMesses={filteredMesses}
+                            selectedMess={selectedMess}
+                            handleMarkerClick={handleMarkerClick}
+                            localUserLocation={localUserLocation}
+                        />
+                    </Map>
 
                     {/* Recenter Button */}
                     <div 
@@ -520,6 +747,7 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
                 </div>
             </div>
         </div>
+        </APIProvider>
     );
 };
 

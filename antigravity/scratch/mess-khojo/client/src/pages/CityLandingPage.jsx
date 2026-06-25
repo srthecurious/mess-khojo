@@ -30,6 +30,7 @@ const CityLandingPage = () => {
     const { currentUser } = useAuth();
     const { isMessWishlisted, toggleMessWishlist } = useWishlist();
     const [showLoginPrompt, setShowLoginPrompt] = React.useState(false);
+    const [selectedDistrictFilter, setSelectedDistrictFilter] = React.useState(null);
 
     // Click outside listener
     React.useEffect(() => {
@@ -66,9 +67,28 @@ const CityLandingPage = () => {
     // Grouped and sorted suggestions based on query
     const suggestions = React.useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        if (!query) return { messes: [], landmarks: [], cities: [], count: 0 };
 
-        // 1. Messes (matching names) - Max 5
+        // 1. Districts - Max 3 (or all active when query is empty)
+        const matchedDistricts = Object.values(DISTRICTS_CONFIG)
+            .filter(district => district.active && (!query || district.name.toLowerCase().includes(query)))
+            .slice(0, 3)
+            .map(district => ({
+                id: district.id,
+                name: district.name,
+                type: 'district'
+            }));
+
+        if (!query) {
+            return {
+                districts: matchedDistricts,
+                messes: [],
+                landmarks: [],
+                cities: [],
+                count: matchedDistricts.length
+            };
+        }
+
+        // 2. Messes (matching names) - Max 5
         const matchedMesses = allMesses
             .filter(mess => mess.name?.toLowerCase().includes(query))
             .slice(0, 5)
@@ -81,7 +101,7 @@ const CityLandingPage = () => {
                 districtId: mess.districtId || 'balasore'
             }));
 
-        // 2. Landmarks / Areas - Max 3
+        // 3. Landmarks / Areas - Max 3
         const matchedLandmarks = allUniqueLandmarks
             .filter(lm => lm.toLowerCase().includes(query))
             .slice(0, 3)
@@ -90,7 +110,7 @@ const CityLandingPage = () => {
                 type: 'landmark'
             }));
 
-        // 3. Cities - Max 3
+        // 4. Cities - Max 3
         const matchedCities = Object.entries(CITY_NAMES)
             .filter(([id, name]) => name.toLowerCase().includes(query) || id.toLowerCase().includes(query))
             .slice(0, 3)
@@ -106,9 +126,10 @@ const CityLandingPage = () => {
                 };
             });
 
-        const count = matchedMesses.length + matchedLandmarks.length + matchedCities.length;
+        const count = matchedDistricts.length + matchedMesses.length + matchedLandmarks.length + matchedCities.length;
 
         return {
+            districts: matchedDistricts,
             messes: matchedMesses,
             landmarks: matchedLandmarks,
             cities: matchedCities,
@@ -133,13 +154,40 @@ const CityLandingPage = () => {
 
 
     const filteredMessesByCity = React.useMemo(() => {
-        if (!searchQuery.trim()) return messesByCity;
+        let baseMessesByCity = messesByCity;
+
+        if (selectedDistrictFilter) {
+            const citiesInDistrict = DISTRICTS_CONFIG[selectedDistrictFilter]?.cities.map(c => c.id) || [];
+            baseMessesByCity = {};
+            citiesInDistrict.forEach(cityId => {
+                if (messesByCity[cityId]) {
+                    baseMessesByCity[cityId] = messesByCity[cityId];
+                }
+            });
+        }
+
+        if (!searchQuery.trim()) return baseMessesByCity;
 
         const filtered = {};
         const queryLower = searchQuery.toLowerCase();
 
-        Object.keys(messesByCity).forEach(cityId => {
-            const messes = messesByCity[cityId];
+        // Check if query itself matches a district name exactly
+        const matchedDistrictKey = Object.keys(DISTRICTS_CONFIG).find(
+            key => DISTRICTS_CONFIG[key].name.toLowerCase() === queryLower
+        );
+
+        if (matchedDistrictKey) {
+            const citiesInDistrict = DISTRICTS_CONFIG[matchedDistrictKey].cities.map(c => c.id) || [];
+            citiesInDistrict.forEach(cityId => {
+                if (messesByCity[cityId]) {
+                    filtered[cityId] = messesByCity[cityId];
+                }
+            });
+            return filtered;
+        }
+
+        Object.keys(baseMessesByCity).forEach(cityId => {
+            const messes = baseMessesByCity[cityId];
             const matching = messes.filter(mess => {
                 const nameMatch = mess.name?.toLowerCase().includes(queryLower);
                 const addressMatch = mess.address?.toLowerCase().includes(queryLower);
@@ -151,7 +199,7 @@ const CityLandingPage = () => {
             }
         });
         return filtered;
-    }, [messesByCity, searchQuery]);
+    }, [messesByCity, searchQuery, selectedDistrictFilter]);
 
     // Render loading state with cards skeletons
     if (loading) {
@@ -202,10 +250,11 @@ const CityLandingPage = () => {
                                 <Search className="absolute left-4 text-gray-400 pointer-events-none" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Search for Mess Name or City"
+                                    placeholder="Search for Mess, City, or District"
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
+                                        setSelectedDistrictFilter(null); // Reset when user types manually
                                         setShowDropdown(true);
                                     }}
                                     onFocus={() => setShowDropdown(true)}
@@ -215,6 +264,7 @@ const CityLandingPage = () => {
                                     <button
                                         onClick={() => {
                                             setSearchQuery('');
+                                            setSelectedDistrictFilter(null);
                                             setShowDropdown(false);
                                         }}
                                         className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -225,7 +275,7 @@ const CityLandingPage = () => {
                             </div>
 
                             {/* Suggestions Dropdown */}
-                            {showDropdown && searchQuery.trim() && (
+                            {showDropdown && (searchQuery.trim() || suggestions.districts.length > 0) && (
                                 <div className="absolute left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-2xl z-[150] overflow-hidden animate-fadeIn max-h-[350px] overflow-y-auto w-full">
                                     {suggestions.count === 0 ? (
                                         <div className="p-5 text-center text-sm text-gray-500">
@@ -233,7 +283,40 @@ const CityLandingPage = () => {
                                         </div>
                                     ) : (
                                         <div className="p-2 space-y-3">
-                                            {/* 1. MESS MATCHES */}
+                                            {/* 1. DISTRICT MATCHES */}
+                                            {suggestions.districts.length > 0 && (
+                                                <div>
+                                                    <div className="px-3 py-1.5 text-[10px] font-extrabold text-purple-600 uppercase tracking-wider bg-purple-50 rounded-lg mb-1 inline-block ml-2">
+                                                        Districts
+                                                    </div>
+                                                    <div className="space-y-0.5">
+                                                        {suggestions.districts.map(district => (
+                                                            <button
+                                                                key={district.id}
+                                                                onClick={() => {
+                                                                    setSearchQuery(district.name);
+                                                                    setSelectedDistrictFilter(district.id);
+                                                                    setShowDropdown(false);
+                                                                }}
+                                                                className="w-full text-left px-3 py-2.5 hover:bg-purple-50 rounded-xl transition-all duration-200 flex items-center justify-between group animate-fadeIn"
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 shrink-0 group-hover:scale-105 transition-transform">
+                                                                        <MapPin size={16} />
+                                                                    </div>
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <span className="text-sm font-semibold text-gray-800 truncate">{district.name}</span>
+                                                                        <span className="text-[10px] text-gray-400">Filter results by this district</span>
+                                                                    </div>
+                                                                </div>
+                                                                <ArrowUpRight size={14} className="text-gray-300 group-hover:text-purple-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 2. MESS MATCHES */}
                                             {suggestions.messes.length > 0 && (
                                                 <div>
                                                     <div className="px-3 py-1.5 text-[10px] font-extrabold text-brand-primary uppercase tracking-wider bg-brand-primary/5 rounded-lg mb-1 inline-block ml-2">
@@ -268,7 +351,7 @@ const CityLandingPage = () => {
                                                 </div>
                                             )}
 
-                                            {/* 2. LANDMARK MATCHES */}
+                                            {/* 3. LANDMARK MATCHES */}
                                             {suggestions.landmarks.length > 0 && (
                                                 <div>
                                                     <div className="px-3 py-1.5 text-[10px] font-extrabold text-brand-accent-green uppercase tracking-wider bg-brand-accent-green/10 rounded-lg mb-1 inline-block ml-2">
@@ -300,7 +383,7 @@ const CityLandingPage = () => {
                                                 </div>
                                             )}
 
-                                            {/* 3. CITY MATCHES */}
+                                            {/* 4. CITY MATCHES */}
                                             {suggestions.cities.length > 0 && (
                                                 <div>
                                                     <div className="px-3 py-1.5 text-[10px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50 rounded-lg mb-1 inline-block ml-2">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Search, Edit3 } from 'lucide-react';
+import { Layout, Search, Edit3, XCircle } from 'lucide-react';
 
 const RoomsTab = ({
     rooms,
@@ -19,10 +19,18 @@ const RoomsTab = ({
                     <input
                         type="text"
                         placeholder="Search by mess name or category..."
-                        className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-cyan-500 outline-none shadow-inner"
+                        className="w-full pl-10 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-cyan-500 outline-none shadow-inner"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                        >
+                            <XCircle size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
 

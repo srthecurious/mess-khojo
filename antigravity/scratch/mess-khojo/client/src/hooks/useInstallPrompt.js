@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { trackAppInstall } from '../analytics';
+import { useToast } from '../context/ToastContext';
+
 export const useInstallPrompt = () => {
+    const { info } = useToast();
     // Initialize from the global window object (populated by inline script in index.html)
     const [deferredPrompt, setDeferredPrompt] = useState(window.deferredPrompt || null);
     const [isInstallable, setIsInstallable] = useState(window.isInstallable || false);
@@ -21,7 +24,25 @@ export const useInstallPrompt = () => {
 
         // Register service worker if supported
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch((err) => {
+            navigator.serviceWorker.register('/sw.js').then((registration) => {
+                // Listen for updates to the service worker
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // New content is available; notify user and reload
+                                    info('New version of MessKhojo is available. Updating...');
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 1500);
+                                }
+                            }
+                        });
+                    }
+                });
+            }).catch((err) => {
                 console.error('ServiceWorker registration failed: ', err);
             });
         }
@@ -61,7 +82,7 @@ export const useInstallPrompt = () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             window.removeEventListener('appinstalled', handleInstalled);
         };
-    }, []);
+    }, [info]);
 
     const promptInstall = async () => {
         if (!deferredPrompt) {

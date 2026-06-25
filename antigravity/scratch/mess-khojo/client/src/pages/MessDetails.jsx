@@ -461,7 +461,7 @@ const MessDetails = () => {
                             </div>
                         )}
 
-                        {/* --- FLOATING TOP BAR: Back + Share --- */}
+                        {/* --- FLOATING TOP BAR: Back + Share + Wishlist --- */}
                         <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
                             <Link
                                 to="/"
@@ -469,13 +469,28 @@ const MessDetails = () => {
                             >
                                 <ArrowLeft size={16} className="mr-1.5" /> Back
                             </Link>
-                            <button
-                                onClick={handleShare}
-                                className="flex items-center justify-center w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-sm transition-all active:scale-95"
-                                title="Share"
-                            >
-                                {isCopied ? <Check size={16} /> : <Send size={16} />}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleMessWishlistClick}
+                                    className={`flex items-center justify-center w-9 h-9 rounded-full border shadow-sm backdrop-blur-md transition-all active:scale-95 ${
+                                        isMessWishlisted(messId)
+                                            ? 'bg-red-500/80 border-red-400'
+                                            : 'bg-black/30 border-white/20 hover:bg-black/50'
+                                    }`}
+                                    title={isMessWishlisted(messId) ? 'Remove from wishlist' : 'Add to wishlist'}
+                                >
+                                    <Heart size={16} className={`transition-all ${
+                                        isMessWishlisted(messId) ? 'fill-white text-white scale-110' : 'text-white fill-transparent'
+                                    }`} />
+                                </button>
+                                <button
+                                    onClick={handleShare}
+                                    className="flex items-center justify-center w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-sm transition-all active:scale-95"
+                                    title="Share"
+                                >
+                                    {isCopied ? <Check size={16} /> : <Send size={16} />}
+                                </button>
+                            </div>
                         </div>
 
                         {/* --- BOTTOM OVERLAY: Name + Address + Amenity Pills --- */}
@@ -483,22 +498,9 @@ const MessDetails = () => {
                             <div className="flex items-end justify-between gap-4">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight drop-shadow-md truncate">
+                                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight drop-shadow-md">
                                             {mess.name}
                                         </h1>
-                                        <button
-                                            onClick={handleMessWishlistClick}
-                                            className={`p-1.5 rounded-full transition-all flex items-center justify-center shrink-0 border shadow-sm backdrop-blur-sm ${
-                                                isMessWishlisted(messId)
-                                                    ? 'bg-red-500/80 border-red-400'
-                                                    : 'bg-black/30 border-white/20 hover:bg-black/50'
-                                            }`}
-                                            title={isMessWishlisted(messId) ? 'Remove from wishlist' : 'Add to wishlist'}
-                                        >
-                                            <Heart size={18} className={`transition-all ${
-                                                isMessWishlisted(messId) ? 'fill-white text-white scale-110' : 'text-white fill-transparent'
-                                            }`} />
-                                        </button>
                                     </div>
                                     <div className="flex items-center text-white/80 mb-2">
                                         <MapPin size={14} className="mr-1 shrink-0" />

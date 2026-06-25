@@ -200,15 +200,23 @@ const OwnerCallsTab = ({ bookings, messes }) => {
             {/* Filter Panel */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
                 {/* Search Bar */}
-                <div className="md:col-span-2 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-300">
-                    <Search size={16} className="text-slate-500" />
+                <div className="md:col-span-2 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-300 relative group">
+                    <Search size={16} className="text-slate-500 shrink-0" />
                     <input
                         type="text"
                         placeholder="Search by mess name, phone, address, district..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-transparent text-sm focus:outline-none w-full text-white placeholder-slate-500"
+                        className="bg-transparent text-sm focus:outline-none w-full text-white placeholder-slate-500 pr-6"
                     />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 text-slate-500 hover:text-white transition-colors"
+                        >
+                            <XCircle size={16} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Timeframe Dropdown */}
