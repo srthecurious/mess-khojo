@@ -13,18 +13,103 @@ const BookingsTab = ({
     handleBookingAction
 }) => {
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'confirmed', 'rejected'
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [datePreset, setDatePreset] = useState('all');
     const [visibleCount, setVisibleCount] = useState(10);
 
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
     const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
+    const [prevStartDate, setPrevStartDate] = useState(startDate);
+    const [prevEndDate, setPrevEndDate] = useState(endDate);
     const [prevBookings, setPrevBookings] = useState(bookings);
 
     // Reset pagination when filter or bookings prop change
-    if (statusFilter !== prevStatusFilter || bookings !== prevBookings) {
+    if (
+        statusFilter !== prevStatusFilter || 
+        startDate !== prevStartDate ||
+        endDate !== prevEndDate ||
+        bookings !== prevBookings
+    ) {
         setPrevStatusFilter(statusFilter);
+        setPrevStartDate(startDate);
+        setPrevEndDate(endDate);
         setPrevBookings(bookings);
         setVisibleCount(10);
     }
+
+    const getLocalDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const handlePresetChange = (e) => {
+        const preset = e.target.value;
+        setDatePreset(preset);
+
+        const today = new Date();
+        if (preset === 'all') {
+            setStartDate('');
+            setEndDate('');
+        } else if (preset === 'today') {
+            const todayStr = getLocalDateString(today);
+            setStartDate(todayStr);
+            setEndDate(todayStr);
+        } else if (preset === 'yesterday') {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = getLocalDateString(yesterday);
+            setStartDate(yesterdayStr);
+            setEndDate(yesterdayStr);
+        } else if (preset === '7days') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 6);
+            setStartDate(getLocalDateString(sevenDaysAgo));
+            setEndDate(getLocalDateString(today));
+        } else if (preset === '30days') {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 29);
+            setStartDate(getLocalDateString(thirtyDaysAgo));
+            setEndDate(getLocalDateString(today));
+        }
+    };
+
+    const handleDateInputChange = (start, end) => {
+        setStartDate(start);
+        setEndDate(end);
+        
+        // Find if the start/end match any preset
+        const today = new Date();
+        const todayStr = getLocalDateString(today);
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+        
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 6);
+        const sevenDaysAgoStr = getLocalDateString(sevenDaysAgo);
+        
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 29);
+        const thirtyDaysAgoStr = getLocalDateString(thirtyDaysAgo);
+
+        if (!start && !end) {
+            setDatePreset('all');
+        } else if (start === todayStr && end === todayStr) {
+            setDatePreset('today');
+        } else if (start === yesterdayStr && end === yesterdayStr) {
+            setDatePreset('yesterday');
+        } else if (start === sevenDaysAgoStr && end === todayStr) {
+            setDatePreset('7days');
+        } else if (start === thirtyDaysAgoStr && end === todayStr) {
+            setDatePreset('30days');
+        } else {
+            setDatePreset('custom');
+        }
+    };
 
     // Keep the reference time updated every minute
     useEffect(() => {
@@ -55,9 +140,38 @@ const BookingsTab = ({
         });
     };
 
-    // Filter bookings by status
+    // Filter bookings by status and date range
     const filteredBookings = bookings.filter(booking => {
-        return statusFilter === 'all' || booking.status === statusFilter;
+        const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+
+        let matchesDate = true;
+        if (startDate || endDate) {
+            let bookingDate = null;
+            if (booking.createdAt) {
+                if (booking.createdAt.seconds) {
+                    bookingDate = new Date(booking.createdAt.seconds * 1000);
+                } else if (booking.createdAt.toDate && typeof booking.createdAt.toDate === 'function') {
+                    bookingDate = booking.createdAt.toDate();
+                } else {
+                    bookingDate = new Date(booking.createdAt);
+                }
+            }
+
+            if (!bookingDate || isNaN(bookingDate.getTime())) {
+                matchesDate = false;
+            } else {
+                if (startDate) {
+                    const start = new Date(startDate + "T00:00:00");
+                    if (bookingDate < start) matchesDate = false;
+                }
+                if (endDate) {
+                    const end = new Date(endDate + "T23:59:59");
+                    if (bookingDate > end) matchesDate = false;
+                }
+            }
+        }
+
+        return matchesStatus && matchesDate;
     });
 
     const visibleBookings = filteredBookings.slice(0, visibleCount);
@@ -72,18 +186,70 @@ const BookingsTab = ({
                 
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5">
+                    {/* Status filter */}
+                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 shrink-0">
                         <span className="text-xs font-semibold text-slate-400">Status:</span>
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                             className="bg-transparent text-slate-200 text-sm focus:outline-none cursor-pointer"
                         >
-                            <option value="all" className="bg-slate-800">All</option>
-                            <option value="pending" className="bg-slate-800">Pending</option>
-                            <option value="confirmed" className="bg-slate-800">Approved</option>
-                            <option value="rejected" className="bg-slate-800">Rejected</option>
+                            <option value="all" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>All</option>
+                            <option value="pending" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Pending</option>
+                            <option value="confirmed" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Approved</option>
+                            <option value="rejected" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Rejected</option>
                         </select>
+                    </div>
+
+                    {/* Date Filters */}
+                    <div className="flex flex-wrap items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 shrink-0">
+                        <Calendar size={14} className="text-slate-400 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-400 shrink-0">Dates:</span>
+                        <select
+                            value={datePreset}
+                            onChange={handlePresetChange}
+                            className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer border-r border-slate-700 pr-2 mr-1"
+                        >
+                            <option value="all" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>All Time</option>
+                            <option value="today" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Today</option>
+                            <option value="yesterday" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Yesterday</option>
+                            <option value="7days" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Last 7 Days</option>
+                            <option value="30days" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Last 30 Days</option>
+                            <option value="custom" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Custom Range</option>
+                        </select>
+
+                        {datePreset !== 'all' && (
+                            <div className="flex items-center gap-1.5 animate-fadeIn">
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => handleDateInputChange(e.target.value, endDate)}
+                                    style={{ colorScheme: 'dark' }}
+                                    className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer w-[110px]"
+                                />
+                                <span className="text-slate-600 text-xs">-</span>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => handleDateInputChange(startDate, e.target.value)}
+                                    style={{ colorScheme: 'dark' }}
+                                    className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer w-[110px]"
+                                />
+                                {(startDate || endDate) && (
+                                    <button
+                                        onClick={() => {
+                                            setStartDate('');
+                                            setEndDate('');
+                                            setDatePreset('all');
+                                        }}
+                                        className="text-slate-500 hover:text-white transition-colors ml-1 shrink-0"
+                                        title="Clear dates"
+                                    >
+                                        <XCircle size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">

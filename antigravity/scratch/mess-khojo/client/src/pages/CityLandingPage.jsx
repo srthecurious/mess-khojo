@@ -10,7 +10,7 @@ import { usePageSEO } from '../hooks/usePageSEO';
 import useAllCityMesses from '../hooks/useAllCityMesses';
 import { PAGINATION } from '../constants';
 import { useAuth } from '../context/AuthContext';
-import { useWishlist } from '../hooks/useWishlist';
+import { useWishlist } from '../context/WishlistContext';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
 import { trackRegisterMessClick } from '../analytics';
 
@@ -98,7 +98,8 @@ const CityLandingPage = () => {
                 type: 'mess',
                 city: mess.city,
                 address: mess.address,
-                districtId: mess.districtId || 'balasore'
+                districtId: mess.districtId || 'balasore',
+                posterUrl: mess.posterUrl
             }));
 
         // 3. Landmarks / Areas - Max 3
@@ -333,9 +334,17 @@ const CityLandingPage = () => {
                                                                 className="w-full text-left px-3 py-2.5 hover:bg-brand-primary/5 rounded-xl transition-all duration-200 flex items-center justify-between group animate-fadeIn"
                                                             >
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0 group-hover:scale-105 transition-transform">
-                                                                        <Home size={16} />
-                                                                    </div>
+                                                                    {mess.posterUrl ? (
+                                                                        <img 
+                                                                            src={mess.posterUrl} 
+                                                                            alt={mess.name} 
+                                                                            className="w-8 h-8 rounded-lg object-cover border border-purple-100 shrink-0 group-hover:scale-105 transition-transform"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0 group-hover:scale-105 transition-transform">
+                                                                            <Home size={16} />
+                                                                        </div>
+                                                                    )}
                                                                     <div className="flex flex-col min-w-0">
                                                                         <span className="text-sm font-semibold text-gray-800 truncate">{mess.name}</span>
                                                                         <span className="text-[10px] text-gray-400 truncate flex items-center gap-1">

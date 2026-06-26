@@ -60,7 +60,8 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
             name: m.name,
             type: 'mess',
             icon: TrendingUp,
-            label: 'Sponsored'
+            label: 'Sponsored',
+            posterUrl: m.posterUrl
         }));
         
         return [...sponsoredMesses, ...validLandmarks];
@@ -174,9 +175,17 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 text-left transition-colors rounded-lg group"
             >
-                <div className={`p-1.5 rounded-full transition-colors ${item.type === 'recent' ? 'bg-gray-50 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600' : 'bg-gray-100 group-hover:bg-purple-100 group-hover:text-purple-600'}`}>
-                    <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : (item.type === 'recent' ? '' : 'text-blue-500 group-hover:text-purple-600')} />
-                </div>
+                {item.type === 'mess' && item.posterUrl ? (
+                    <img 
+                        src={item.posterUrl} 
+                        alt={item.name} 
+                        className="w-8 h-8 rounded-lg object-cover border border-purple-100 shrink-0 group-hover:scale-105 transition-transform"
+                    />
+                ) : (
+                    <div className={`p-1.5 rounded-full transition-colors ${item.type === 'recent' ? 'bg-gray-50 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600' : 'bg-gray-100 group-hover:bg-purple-100 group-hover:text-purple-600'}`}>
+                        <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : (item.type === 'recent' ? '' : 'text-blue-500 group-hover:text-purple-600')} />
+                    </div>
+                )}
                 <div>
                     <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">
                         {renderHighlightedText(item.name, searchTerm)}

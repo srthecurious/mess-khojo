@@ -14,7 +14,7 @@ import MessExplorer from '../components/MessExplorer';
 const MapLocationModal = React.lazy(() => import('../components/MapLocationModal'));
 import { PAGINATION } from '../constants';
 import { useDistrict, DISTRICTS_CONFIG } from '../context/DistrictContext';
-import { useWishlist } from '../hooks/useWishlist';
+import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { usePageSEO } from '../hooks/usePageSEO';

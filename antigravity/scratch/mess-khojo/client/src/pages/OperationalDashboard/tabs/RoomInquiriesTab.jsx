@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BedDouble, Phone, Trash2, PhoneCall, PhoneOff, Search, SlidersHorizontal, XCircle } from 'lucide-react';
+import { BedDouble, Phone, Trash2, PhoneCall, PhoneOff, Search, SlidersHorizontal, XCircle, Calendar, Image } from 'lucide-react';
 import { db } from '../../../firebase';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { toMessSlug } from '../../../utils/slugify';
@@ -148,20 +148,106 @@ const getSuggestionsText = (inquiry, suggestions) => {
 const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [calledFilter, setCalledFilter] = useState('all'); // 'all', 'called', 'not_called'
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [datePreset, setDatePreset] = useState('all');
     const [visibleCount, setVisibleCount] = useState(10);
     const [expandedInquiryId, setExpandedInquiryId] = useState(null);
 
     const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
     const [prevCalledFilter, setPrevCalledFilter] = useState(calledFilter);
+    const [prevStartDate, setPrevStartDate] = useState(startDate);
+    const [prevEndDate, setPrevEndDate] = useState(endDate);
     const [prevRoomInquiries, setPrevRoomInquiries] = useState(roomInquiries);
 
-    // Reset pagination when search query, filter, or data changes
-    if (searchQuery !== prevSearchQuery || calledFilter !== prevCalledFilter || roomInquiries !== prevRoomInquiries) {
+    // Reset pagination when search query, filter, date range, or data changes
+    if (
+        searchQuery !== prevSearchQuery || 
+        calledFilter !== prevCalledFilter || 
+        startDate !== prevStartDate ||
+        endDate !== prevEndDate ||
+        roomInquiries !== prevRoomInquiries
+    ) {
         setPrevSearchQuery(searchQuery);
         setPrevCalledFilter(calledFilter);
+        setPrevStartDate(startDate);
+        setPrevEndDate(endDate);
         setPrevRoomInquiries(roomInquiries);
         setVisibleCount(10);
     }
+
+    const getLocalDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const handlePresetChange = (e) => {
+        const preset = e.target.value;
+        setDatePreset(preset);
+
+        const today = new Date();
+        if (preset === 'all') {
+            setStartDate('');
+            setEndDate('');
+        } else if (preset === 'today') {
+            const todayStr = getLocalDateString(today);
+            setStartDate(todayStr);
+            setEndDate(todayStr);
+        } else if (preset === 'yesterday') {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = getLocalDateString(yesterday);
+            setStartDate(yesterdayStr);
+            setEndDate(yesterdayStr);
+        } else if (preset === '7days') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 6);
+            setStartDate(getLocalDateString(sevenDaysAgo));
+            setEndDate(getLocalDateString(today));
+        } else if (preset === '30days') {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 29);
+            setStartDate(getLocalDateString(thirtyDaysAgo));
+            setEndDate(getLocalDateString(today));
+        }
+    };
+
+    const handleDateInputChange = (start, end) => {
+        setStartDate(start);
+        setEndDate(end);
+        
+        // Find if the start/end match any preset
+        const today = new Date();
+        const todayStr = getLocalDateString(today);
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+        
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 6);
+        const sevenDaysAgoStr = getLocalDateString(sevenDaysAgo);
+        
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 29);
+        const thirtyDaysAgoStr = getLocalDateString(thirtyDaysAgo);
+
+        if (!start && !end) {
+            setDatePreset('all');
+        } else if (start === todayStr && end === todayStr) {
+            setDatePreset('today');
+        } else if (start === yesterdayStr && end === yesterdayStr) {
+            setDatePreset('yesterday');
+        } else if (start === sevenDaysAgoStr && end === todayStr) {
+            setDatePreset('7days');
+        } else if (start === thirtyDaysAgoStr && end === todayStr) {
+            setDatePreset('30days');
+        } else {
+            setDatePreset('custom');
+        }
+    };
 
     // Toggle Called status in Firestore
     const handleToggleCalled = async (inquiryId, currentCalled) => {
@@ -191,7 +277,35 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
             (inquiry.requirements || '').toLowerCase().includes(q) ||
             (inquiry.occupancy || '').toLowerCase().includes(q);
 
-        return matchesCalled && matchesSearch;
+        // Date range filtering
+        let matchesDate = true;
+        if (startDate || endDate) {
+            let inquiryDate = null;
+            if (inquiry.createdAt) {
+                if (inquiry.createdAt.seconds) {
+                    inquiryDate = new Date(inquiry.createdAt.seconds * 1000);
+                } else if (inquiry.createdAt.toDate && typeof inquiry.createdAt.toDate === 'function') {
+                    inquiryDate = inquiry.createdAt.toDate();
+                } else {
+                    inquiryDate = new Date(inquiry.createdAt);
+                }
+            }
+
+            if (!inquiryDate || isNaN(inquiryDate.getTime())) {
+                matchesDate = false;
+            } else {
+                if (startDate) {
+                    const start = new Date(startDate + "T00:00:00");
+                    if (inquiryDate < start) matchesDate = false;
+                }
+                if (endDate) {
+                    const end = new Date(endDate + "T23:59:59");
+                    if (inquiryDate > end) matchesDate = false;
+                }
+            }
+        }
+
+        return matchesCalled && matchesSearch && matchesDate;
     });
 
     const visibleInquiries = filteredInquiries.slice(0, visibleCount);
@@ -210,7 +324,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
             </div>
 
             {/* Search & Filter Panel */}
-            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
                 {/* Search Bar */}
                 <div className="flex-grow flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-300 relative group">
                     <Search size={16} className="text-slate-500 shrink-0" />
@@ -231,6 +345,57 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                     )}
                 </div>
 
+                {/* Date Filters */}
+                <div className="flex flex-wrap items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 shrink-0">
+                    <Calendar size={14} className="text-slate-500 shrink-0" />
+                    <span className="text-xs font-semibold text-slate-400 shrink-0">Dates:</span>
+                    <select
+                        value={datePreset}
+                        onChange={handlePresetChange}
+                        className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer border-r border-slate-700 pr-2 mr-1"
+                    >
+                        <option value="all" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>All Time</option>
+                        <option value="today" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Today</option>
+                        <option value="yesterday" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Yesterday</option>
+                        <option value="7days" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Last 7 Days</option>
+                        <option value="30days" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Last 30 Days</option>
+                        <option value="custom" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Custom Range</option>
+                    </select>
+
+                    {datePreset !== 'all' && (
+                        <div className="flex items-center gap-1.5 animate-fadeIn">
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => handleDateInputChange(e.target.value, endDate)}
+                                style={{ colorScheme: 'dark' }}
+                                className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer w-[110px]"
+                            />
+                            <span className="text-slate-600 text-xs">-</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => handleDateInputChange(startDate, e.target.value)}
+                                style={{ colorScheme: 'dark' }}
+                                className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer w-[110px]"
+                            />
+                            {(startDate || endDate) && (
+                                <button
+                                    onClick={() => {
+                                        setStartDate('');
+                                        setEndDate('');
+                                        setDatePreset('all');
+                                    }}
+                                    className="text-slate-500 hover:text-white transition-colors ml-1 shrink-0"
+                                    title="Clear dates"
+                                >
+                                    <XCircle size={14} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* Called Dropdown */}
                 <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 shrink-0">
                     <SlidersHorizontal size={14} className="text-slate-500" />
@@ -240,9 +405,9 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                         onChange={(e) => setCalledFilter(e.target.value)}
                         className="bg-transparent text-slate-200 text-sm focus:outline-none cursor-pointer"
                     >
-                        <option value="all" className="bg-slate-900">All</option>
-                        <option value="called" className="bg-slate-900">Called</option>
-                        <option value="not_called" className="bg-slate-900">Not Called</option>
+                        <option value="all" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>All</option>
+                        <option value="called" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Called</option>
+                        <option value="not_called" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Not Called</option>
                     </select>
                 </div>
             </div>
@@ -370,27 +535,40 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                             ) : (
                                                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                                     {suggestions.map((mess) => (
-                                                        <div key={mess.id} className="text-xs p-2 bg-slate-800/80 border border-slate-700/50 rounded-lg flex flex-col gap-1 text-left">
-                                                            <div className="flex justify-between items-start gap-2">
-                                                                <a 
-                                                                    href={`/mess/${toMessSlug(mess.name, mess.id)}`} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline line-clamp-1"
-                                                                >
-                                                                    {mess.name}
-                                                                </a>
-                                                                <span className="text-[9px] bg-slate-900 text-slate-400 px-1 py-0.5 rounded shrink-0 font-medium">
-                                                                    {mess.landmark || 'No Landmark'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="text-[9px] text-slate-400 flex flex-wrap gap-x-2">
-                                                                {mess.matchedRooms.map((r, rIdx) => (
-                                                                    <span key={r.id}>
-                                                                        {r.occupancy} (₹{r.price}/mo)
-                                                                        {rIdx < mess.matchedRooms.length - 1 ? ' | ' : ''}
+                                                        <div key={mess.id} className="text-xs p-2 bg-slate-800/80 border border-slate-700/50 rounded-lg flex gap-3 items-center text-left">
+                                                            {mess.posterUrl ? (
+                                                                <img 
+                                                                    src={mess.posterUrl} 
+                                                                    alt={mess.name} 
+                                                                    className="w-12 h-12 rounded object-cover border border-slate-700 shrink-0"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-12 h-12 bg-slate-900 border border-slate-700 rounded flex items-center justify-center shrink-0 text-slate-650">
+                                                                    <Image size={16} />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-grow min-w-0">
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <a 
+                                                                        href={`/mess/${toMessSlug(mess.name, mess.id)}`} 
+                                                                        target="_blank" 
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline line-clamp-1"
+                                                                    >
+                                                                        {mess.name}
+                                                                    </a>
+                                                                    <span className="text-[9px] bg-slate-900 text-slate-400 px-1 py-0.5 rounded shrink-0 font-medium">
+                                                                        {mess.landmark || 'No Landmark'}
                                                                     </span>
-                                                                ))}
+                                                                </div>
+                                                                <div className="text-[9px] text-slate-400 flex flex-wrap gap-x-2 mt-0.5">
+                                                                    {mess.matchedRooms.map((r, rIdx) => (
+                                                                        <span key={r.id}>
+                                                                            {r.occupancy} (₹{r.price}/mo)
+                                                                            {rIdx < mess.matchedRooms.length - 1 ? ' | ' : ''}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ))}

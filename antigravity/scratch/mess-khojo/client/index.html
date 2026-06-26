@@ -5,11 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Favicon - SEO Optimized -->
-  <link rel="icon" href="/favicon.png" type="image/x-icon" />
-  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
   <link rel="manifest" href="/manifest.json" />
 
@@ -30,14 +28,7 @@
     });
   </script>
 
-  <!-- Microsoft Clarity -->
-  <script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "x8yg6x0nr3");
-  </script>
+  <!-- Microsoft Clarity — moved to window.load in <body> to avoid blocking HTML parse -->
 
   <!-- Meta Pixel Code -->
   <script>
@@ -72,7 +63,7 @@
   <meta property="og:title" content="MessKhojo — Find Boys & Girls Mess in Balasore" />
   <meta property="og:description"
     content="Find the best boys mess & ladies mess in Balasore. Hygienic food, safe environment, direct owner contact. Near FM College & Nuapadhi." />
-  <meta property="og:image" content="https://messkhojo.com/preview.png" />
+  <meta property="og:image" content="https://messkhojo.com/preview.webp" />
   <meta property="og:site_name" content="MessKhojo" />
   <meta property="og:locale" content="en_IN" />
 
@@ -82,7 +73,7 @@
   <meta name="twitter:title" content="MessKhojo — Find Boys & Girls Mess in Balasore" />
   <meta name="twitter:description"
     content="Find the best boys mess & ladies mess in Balasore. Hygienic food, safe environment, direct owner contact." />
-  <meta name="twitter:image" content="https://messkhojo.com/preview.png" />
+  <meta name="twitter:image" content="https://messkhojo.com/preview.webp" />
 
   <!-- Structured Data - Organization -->
   <script type="application/ld+json">
@@ -149,10 +140,11 @@
   <!-- Fonts (non-blocking) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Lato removed — only Outfit is used in the app -->
   <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap"
     rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"></noscript>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
 
   <!-- Content Security Policy -->
   <meta http-equiv="Content-Security-Policy"
@@ -195,6 +187,17 @@
     </div>
   </div>
   <script type="module" src="/src/main.jsx"></script>
+
+  <!-- Microsoft Clarity — deferred after page load, does not block rendering -->
+  <script>
+    window.addEventListener('load', function () {
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "x8yg6x0nr3");
+    });
+  </script>
 </body>
 
 </html>

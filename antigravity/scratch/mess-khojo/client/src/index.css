@@ -278,3 +278,28 @@ h6 {
 .animate-bounceHorizontal {
   animation: bounceHorizontal 1.2s infinite;
 }
+
+/* ============================================================
+   Card fade-in animation — replaces framer-motion whileInView
+   GPU-composited (opacity + transform only), no JS observers
+   ============================================================ */
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-fade-in {
+  animation: cardFadeIn 0.4s ease-out both;
+  /* Hover lift — pure CSS, uses GPU compositor layer */
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.card-fade-in:hover {
+  transform: translateY(-4px) scale(1.01);
+}
