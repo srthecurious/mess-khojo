@@ -11,7 +11,7 @@ import RoomCard from '../components/RoomCard';
 import ClaimModal from '../components/ClaimModal';
 import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView } from '../analytics';
 import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
-import { useWishlist } from '../hooks/useWishlist';
+import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { BRAND } from '../constants';

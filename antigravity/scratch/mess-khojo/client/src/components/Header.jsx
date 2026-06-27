@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
-import { useWishlist } from '../hooks/useWishlist';
+import { useWishlist } from '../context/WishlistContext';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import { useDistrict } from '../context/DistrictContext';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -49,7 +49,8 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
             name: m.name,
             type: 'mess',
             icon: TrendingUp,
-            label: 'Sponsored'
+            label: 'Sponsored',
+            posterUrl: m.posterUrl
         }));
         
         const otherMesses = [...messes].filter(m => !m.isSponsored && m.name).sort((a, b) => {
@@ -62,9 +63,10 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
             name: m.name,
             type: 'mess',
             icon: TrendingUp,
-            label: 'Recommended'
+            label: 'Recommended',
+            posterUrl: m.posterUrl
         }));
-
+        
         return [...sponsoredMesses, ...validLandmarks, ...popularMesses];
     }, [messes, districtConfig]);
 
@@ -278,9 +280,17 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                                                                 }}
                                                                 className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 text-left transition-colors rounded-lg group"
                                                             >
-                                                                <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
-                                                                    <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
-                                                                </div>
+                                                                {item.type === 'mess' && item.posterUrl ? (
+                                                                    <img 
+                                                                        src={item.posterUrl} 
+                                                                        alt={item.name} 
+                                                                        className="w-8 h-8 rounded-lg object-cover border border-purple-100 shrink-0 group-hover:scale-105 transition-transform"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
+                                                                        <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
+                                                                    </div>
+                                                                )}
                                                                 <div>
                                                                     <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">{item.name}</span>
                                                                     <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>

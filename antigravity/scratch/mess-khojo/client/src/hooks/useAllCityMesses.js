@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { watchMesses, watchRooms } from '../services/messService';
 
 /**
@@ -109,7 +109,11 @@ const useAllCityMesses = () => {
         };
     };
 
-    const { messesByCity, allMesses } = processData();
+    const { messesByCity, allMesses } = useMemo(
+        () => processData(),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [messes, rooms]
+    );
 
     return {
         messesByCity,

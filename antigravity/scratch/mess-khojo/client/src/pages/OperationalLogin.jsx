@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Server, Eye, EyeOff } from 'lucide-react';
@@ -14,6 +14,15 @@ const OperationalLogin = () => {
     const navigate = useNavigate();
 
     const ALLOWED_OPERATOR_EMAIL = import.meta.env.VITE_OP_EMAIL;
+
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            if (user && user.email === ALLOWED_OPERATOR_EMAIL) {
+                navigate('/operational/dashboard');
+            }
+        });
+        return () => unsubscribe();
+    }, [navigate, ALLOWED_OPERATOR_EMAIL]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -30,6 +39,7 @@ const OperationalLogin = () => {
         }
 
         try {
+            await setPersistence(auth, browserLocalPersistence);
             await signInWithEmailAndPassword(auth, email, password);
             navigate('/operational/dashboard');
         } catch (err) {

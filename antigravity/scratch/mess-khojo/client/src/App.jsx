@@ -8,7 +8,9 @@ import { trackPageView } from './analytics';
 import DistrictSelector from './components/DistrictSelector';
 import ErrorBoundary from './components/ErrorBoundary';
 
-import CityLandingPage from './pages/CityLandingPage';
+import { WishlistProvider } from './context/WishlistContext';
+
+const CityLandingPage = React.lazy(() => import('./pages/CityLandingPage'));
 
 // Route-level code splitting — only the visited page's code is downloaded
 const CityPage = React.lazy(() => import('./pages/CityPage'));
@@ -124,11 +126,13 @@ function App() {
     <AuthProvider>
       <DistrictProvider>
         <ToastProvider>
-          <Router>
-            <ScrollToTop />
-            <AnalyticsTracker />
-            <AppContent />
-          </Router>
+          <WishlistProvider>
+            <Router>
+              <ScrollToTop />
+              <AnalyticsTracker />
+              <AppContent />
+            </Router>
+          </WishlistProvider>
         </ToastProvider>
       </DistrictProvider>
     </AuthProvider>

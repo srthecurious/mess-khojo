@@ -2,7 +2,7 @@ import React, { useState, useEffect, memo } from 'react';
 import PropTypes from 'prop-types';
 import { MapPin, ArrowRight, Info, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+
 import { storage } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { toMessSlug } from '../utils/slugify';
@@ -46,18 +46,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
 
     if (layout === 'horizontal') {
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-30px" }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-                whileHover={{
-                    scale: 1.01,
-                    transition: { duration: 0.2 }
-                }}
-                className="bg-white rounded-3xl p-3 border border-gray-100/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex gap-4 relative w-full group"
-                style={{ willChange: "transform" }}
-            >
+            <div className="bg-white rounded-3xl p-3 border border-gray-100/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex gap-4 relative w-full group card-fade-in">
                 <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} className="flex gap-4 w-full text-left">
                     {/* Image container */}
                     <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shrink-0 bg-gray-50 relative border border-gray-100 shadow-inner">
@@ -118,25 +107,14 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
                         </span>
                     </div>
                 </Link>
-            </motion.div>
+            </div>
         );
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            whileHover={{
-                y: -6,
-                scale: 1.01,
-                transition: { duration: 0.2, ease: "easeOut" }
-            }}
-            className={compact 
-                ? "flex flex-col h-full group relative" 
-                : "uiverse-card flex flex-col h-full group bg-gradient-to-br from-white via-white to-purple-50/50"}
-            style={{ willChange: "transform" }}
+        <div className={compact 
+            ? "flex flex-col h-full group relative card-fade-in" 
+            : "uiverse-card flex flex-col h-full group bg-gradient-to-br from-white via-white to-purple-50/50 card-fade-in"}
         >
             <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} className="block h-full flex flex-col">
                 {/* Poster Image (Optional - reduced height to fit style) */}
@@ -268,7 +246,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
 
 
             </Link>
-        </motion.div>
+        </div>
     );
 });
 

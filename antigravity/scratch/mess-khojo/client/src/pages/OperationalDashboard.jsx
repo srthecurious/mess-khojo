@@ -1465,6 +1465,35 @@ const OperationalDashboard = () => {
                                             onChange={e => setEditImageFiles(e.target.files)}
                                             accept="image/*"
                                         />
+                                        {editForm.posterUrl && (
+                                            <div className="mt-2.5">
+                                                <p className="text-xs text-slate-500 mb-1.5 font-medium">Current Poster:</p>
+                                                <div className="relative group w-32 h-32 rounded-md overflow-hidden border border-slate-700 shadow-sm bg-slate-900">
+                                                    <img src={editForm.posterUrl} alt="Current Poster" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={async (e) => {
+                                                            e.preventDefault();
+                                                            if (window.confirm("Remove current poster image?")) {
+                                                                try {
+                                                                    await updateDoc(doc(db, "messes", editingItem.id), {
+                                                                        posterUrl: ""
+                                                                    });
+                                                                    setEditForm(prev => ({ ...prev, posterUrl: "" }));
+                                                                } catch (error) {
+                                                                    console.error("Error removing poster image:", error);
+                                                                    alert("Failed to remove poster image");
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Remove Poster Image"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="pt-2 border-t border-slate-700">
