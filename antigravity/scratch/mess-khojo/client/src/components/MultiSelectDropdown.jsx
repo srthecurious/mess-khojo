@@ -41,13 +41,17 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
                 ? 'bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-700 shadow-sm hover:shadow-md'
                 : 'bg-slate-900 border border-slate-700 text-white',
             dropdown: isLight
-                ? 'bg-white border-purple-100'
+                ? (color === 'brand' ? 'bg-white border-brand-primary/10' : 'bg-white border-purple-100')
                 : 'bg-slate-800 border-slate-700',
-            itemHover: isLight ? 'hover:bg-purple-50' : 'hover:bg-slate-700/50',
+            itemHover: isLight 
+                ? (color === 'brand' ? 'hover:bg-brand-primary/5' : 'hover:bg-purple-50') 
+                : 'hover:bg-slate-700/50',
             checkboxEmpty: isLight
-                ? 'bg-white border-gray-300 group-hover:border-purple-400'
+                ? (color === 'brand' ? 'bg-white border-gray-300 group-hover:border-brand-primary/30' : 'bg-white border-gray-300 group-hover:border-purple-400')
                 : 'bg-slate-900 border-slate-600 group-hover:border-slate-500',
-            textSelected: isLight ? 'text-purple-700 font-bold' : 'text-white font-medium',
+            textSelected: isLight 
+                ? (color === 'brand' ? 'text-brand-primary font-bold' : 'text-purple-700 font-bold') 
+                : 'text-white font-medium',
             textNormal: isLight ? 'text-gray-600 group-hover:text-gray-900' : 'text-slate-400 group-hover:text-slate-200',
             label: isLight ? 'text-gray-700' : 'text-slate-500'
         };
@@ -66,6 +70,12 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
                 checkedBg: 'bg-purple-500',
                 checkedText: isLight ? 'text-purple-700' : 'text-purple-400'
             };
+        } else if (color === 'brand') {
+            colorStyles = {
+                focus: isLight ? 'focus:ring-brand-primary/20 focus:border-brand-primary/30' : 'focus:ring-brand-primary/20',
+                checkedBg: 'bg-brand-primary',
+                checkedText: isLight ? 'text-brand-primary font-bold' : 'text-brand-primary'
+            };
         } else { // indigo default
             colorStyles = {
                 focus: isLight ? 'focus:ring-indigo-400 focus:border-indigo-400' : 'focus:ring-indigo-500',
@@ -80,7 +90,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
     const styles = getThemeClasses();
 
     return (
-        <div className="relative min-w-[200px]" ref={dropdownRef}>
+        <div className="relative w-full min-w-[200px]" ref={dropdownRef}>
             {showLabel && <label className={`block text-sm font-bold mb-2 ${styles.label}`}>{label}</label>}
             <button
                 type="button"

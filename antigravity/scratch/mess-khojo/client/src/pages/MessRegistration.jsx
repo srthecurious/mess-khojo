@@ -438,7 +438,7 @@ const MessRegistration = () => {
                         <div className="space-y-3 pt-4 border-t border-gray-100">
                             <h3 className="font-bold text-gray-800">Advance Payment Required</h3>
                             <div className="grid grid-cols-2 gap-2">
-                                {['1 Month', '2 Months', '3 Months', '4 Months', '5 Months', '6 Months', 'Custom Amount'].map(adv => (
+                                {['1 Month', '2 Months', '3 Months', '4 Months', '5 Months', '6 Months', 'Full Amount', 'Custom Amount'].map(adv => (
                                     <button
                                         key={adv}
                                         onClick={() => setFormData(prev => ({ ...prev, advancePayment: { ...prev.advancePayment, type: adv } }))}
@@ -731,7 +731,7 @@ const MessRegistration = () => {
                 if (formData.maintenanceCharge.taken && (!formData.maintenanceCharge.amount || formData.maintenanceCharge.amount.trim().length === 0)) return false;
                 return true;
             case 6: return formData.landmark.trim().length > 0;
-            case 7: return formData.facilities.length > 0;
+            case 7: return true;
             case 8: return formData.district !== '' && formData.city !== '';
             case 9: return formData.phoneNumber.length === 10 && formData.consent;
             default: return true;

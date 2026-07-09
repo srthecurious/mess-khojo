@@ -57,6 +57,7 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             messName: reg.messName || '',
             phoneNumber: reg.phoneNumber || '',
             district: reg.district || 'balasore',
+            city: reg.city || '',
             gender: reg.gender || 'Boys',
             managedBy: reg.managedBy || '',
             messType: reg.messType || [],
@@ -137,6 +138,7 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                 messName: editForm.messName,
                 phoneNumber: editForm.phoneNumber,
                 district: editForm.district,
+                city: editForm.city,
                 gender: editForm.gender,
                 managedBy: editForm.managedBy,
                 messType: editForm.messType,
@@ -558,11 +560,25 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                         <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">District</label>
                                         <select
                                             value={editForm.district}
-                                            onChange={e => setEditForm({ ...editForm, district: e.target.value })}
+                                            onChange={e => setEditForm({ ...editForm, district: e.target.value, city: '' })}
                                             className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm cursor-pointer"
                                         >
                                             {Object.values(DISTRICTS_CONFIG).map(dist => (
                                                 <option key={dist.id} value={dist.id} className="bg-slate-900">{dist.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">City</label>
+                                        <select
+                                            value={editForm.city}
+                                            onChange={e => setEditForm({ ...editForm, city: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm cursor-pointer"
+                                            required
+                                        >
+                                            <option value="" className="bg-slate-900">Select City</option>
+                                            {(editForm.district ? DISTRICTS_CONFIG[editForm.district]?.cities || [] : []).map(city => (
+                                                <option key={city.id} value={city.id} className="bg-slate-900">{city.name}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -753,6 +769,7 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                                 <option value="None" className="bg-slate-900">None</option>
                                                 <option value="1 Month Rent" className="bg-slate-900">1 Month Rent</option>
                                                 <option value="2 Months Rent" className="bg-slate-900">2 Months Rent</option>
+                                                <option value="Full Amount" className="bg-slate-900">Full Amount</option>
                                                 <option value="Custom Amount" className="bg-slate-900">Custom Amount</option>
                                             </select>
                                         </div>

@@ -463,22 +463,11 @@ const MessExplorerMap = ({ validMesses, userLocation, onClose }) => {
     const handleViewDetails = (messId, mess) => {
         trackMessExplorer('view_details', messId);
         navigate(`/mess/${toMessSlug(mess?.name || '', messId)}`);
-        onClose();
     };
 
     const handleCloseMap = () => {
-        window.history.back();
+        onClose();
     };
-
-    useEffect(() => {
-        const handlePopState = (event) => {
-            if (!event.state?.messExplorerOpen) {
-                onClose();
-            }
-        };
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [onClose]);
 
     return (
         <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['places']}>

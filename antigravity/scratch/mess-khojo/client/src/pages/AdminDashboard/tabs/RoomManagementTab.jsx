@@ -45,6 +45,7 @@ const RoomManagementTab = ({
                                 <option value="4">4 Seater</option>
                                 <option value="5">5 Seater</option>
                                 <option value="6">6 Seater</option>
+                                <option value="7">7 Seater</option>
                             </select>
                         </div>
                         <div>

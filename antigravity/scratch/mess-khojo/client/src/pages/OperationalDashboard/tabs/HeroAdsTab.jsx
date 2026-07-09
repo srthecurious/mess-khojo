@@ -21,7 +21,7 @@ const HeroAdsTab = ({
 }) => {
     return (
         <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
                 <Image className="text-pink-500" />
                 Hero Ads Management
             </h2>

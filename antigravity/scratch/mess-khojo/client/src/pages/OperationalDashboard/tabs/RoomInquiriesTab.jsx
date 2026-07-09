@@ -3,7 +3,7 @@ import { BedDouble, Phone, Trash2, PhoneCall, PhoneOff, Search, SlidersHorizonta
 import { db } from '../../../firebase';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { toMessSlug } from '../../../utils/slugify';
-import { getCleanOccupancy } from '../../../utils/occupancy';
+import { getSuggestions } from '../../../utils/suggestionEngine';
 
 const WhatsAppIcon = ({ size = 14, className = "" }) => (
     <svg 
@@ -17,101 +17,6 @@ const WhatsAppIcon = ({ size = 14, className = "" }) => (
     </svg>
 );
 
-const getSuggestions = (inquiry, messesList, roomsList) => {
-    if (!messesList || !roomsList || !inquiry.city) return [];
-    
-    const cityPref = inquiry.city.toLowerCase().trim();
-    const genderPref = inquiry.gender || '';
-    const occupancyPref = getCleanOccupancy(inquiry.occupancy);
-    
-    const matchesBudget = (price, budgetRange) => {
-        if (!budgetRange) return true;
-        const clean = String(budgetRange).replace(/\s/g, '').replace(/₹/g, '');
-        if (clean.startsWith('<')) {
-            return price < parseFloat(clean.slice(1));
-        }
-        if (clean.endsWith('+')) {
-            return price >= parseFloat(clean.slice(0, -1));
-        }
-        if (clean.includes('-')) {
-            const [min, max] = clean.split('-');
-            return price >= parseFloat(min) && price <= parseFloat(max);
-        }
-        const val = parseFloat(clean);
-        return isNaN(val) ? true : price <= val;
-    };
-    
-    const matchesGender = (messType, pref) => {
-        if (!pref) return true;
-        const p = pref.toLowerCase();
-        const types = Array.isArray(messType)
-            ? messType
-            : messType
-                ? [messType]
-                : [];
-        const lowerTypes = types.map(t => String(t).toLowerCase());
-        if (p === 'boys') return lowerTypes.includes('boys') || lowerTypes.includes('both') || lowerTypes.includes('coed');
-        if (p === 'girls') return lowerTypes.includes('girls') || lowerTypes.includes('both') || lowerTypes.includes('coed');
-        return true;
-    };
-    
-    const candidates = [];
-    messesList.forEach(mess => {
-        if (mess.hidden) return;
-        
-        // City match
-        const messCity = (mess.city || '').toLowerCase().trim();
-        if (messCity !== cityPref) return;
-        
-        // Gender match
-        if (!matchesGender(mess.messType, genderPref)) return;
-        
-        // Rooms check
-        const messRooms = roomsList.filter(room => {
-            if (room.messId !== mess.id) return false;
-            if (occupancyPref && occupancyPref !== 'any') {
-                if (getCleanOccupancy(room.occupancy) !== occupancyPref) return false;
-            }
-            if (!matchesBudget(parseFloat(room.price), inquiry.budget)) return false;
-            if (room.availableCount !== undefined && room.availableCount !== null && Number(room.availableCount) <= 0) return false;
-            return true;
-        });
-        
-        if (messRooms.length > 0) {
-            candidates.push({
-                ...mess,
-                matchedRooms: messRooms
-            });
-        }
-    });
-    
-    // Score based on area/landmark match
-    const scored = candidates.map(mess => {
-        let score = 0;
-        if (inquiry.location) {
-            const loc = inquiry.location.toLowerCase().trim();
-            const landmark = (mess.landmark || '').toLowerCase().trim();
-            const address = (mess.address || '').toLowerCase().trim();
-            const name = (mess.name || '').toLowerCase().trim();
-            
-            if (landmark === loc) {
-                score += 10;
-            } else if (landmark.includes(loc) || loc.includes(landmark)) {
-                score += 5;
-            }
-            if (address.includes(loc)) {
-                score += 3;
-            }
-            if (name.includes(loc)) {
-                score += 2;
-            }
-        }
-        return { mess, score };
-    });
-    
-    scored.sort((a, b) => b.score - a.score);
-    return scored.map(item => item.mess).slice(0, 6);
-};
 
 const getWhatsAppShareUrl = (inquiry, suggestions) => {
     let msg = `Hello ${inquiry.name || 'there'},\n\n`;

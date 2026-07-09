@@ -71,7 +71,7 @@ const FeedbackForm = () => {
 
     return (
 
-        <div className="w-full max-w-lg mx-auto my-8">
+        <div className="w-full max-w-lg mx-auto my-8 px-4">
             <div className="uiverse-card p-6">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-4">

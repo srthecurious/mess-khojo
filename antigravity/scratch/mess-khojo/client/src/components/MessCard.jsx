@@ -98,12 +98,12 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
                     )}
 
                     {/* Price Range and cycle */}
-                    <div className="absolute bottom-3 right-4 text-right flex flex-col items-end">
-                        <span className="text-base sm:text-lg font-bold text-gray-900 leading-none">
+                    <div className="absolute bottom-3 right-4 text-right flex flex-col items-end bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-xl border border-gray-100/55">
+                        <span className="text-lg sm:text-xl font-extrabold text-gray-900 leading-none">
                             ₹{mess.minPrice || '1500'}
                         </span>
-                        <span className="text-[10px] text-gray-400 mt-0.5 leading-none">
-                            {mess.rentCycle === 'yearly' ? 'year' : 'month'}
+                        <span className="text-xs font-bold text-gray-600 mt-0.5 leading-none">
+                            / {mess.rentCycle === 'yearly' ? 'year' : 'month'}
                         </span>
                     </div>
                 </Link>
@@ -170,17 +170,11 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
                     {/* Header */}
                     {compact ? (
                         <div className="flex flex-col pt-1">
-                            <div className="flex justify-between items-baseline gap-2">
-                                <h3 className="text-sm sm:text-base font-extrabold text-gray-950 truncate flex-grow">
-                                    {mess.name}
-                                </h3>
-                                <span className="text-sm sm:text-base font-extrabold text-gray-950 shrink-0">
-                                    ₹{mess.minPrice || '1500'}{mess.minPrice !== mess.maxPrice ? `-${mess.maxPrice}` : ''}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center mt-0.5 text-xs text-gray-500">
-                                <span className="truncate flex-grow">{mess.address || "Near landmark"}</span>
-                                <span className="shrink-0">{mess.rentCycle === 'yearly' ? '/year' : '/month'}</span>
+                            <h3 className="text-sm sm:text-base font-extrabold text-gray-950 truncate leading-tight">
+                                {mess.name}
+                            </h3>
+                            <div className="text-sm sm:text-base font-semibold text-gray-700 mt-0.5">
+                                ₹{mess.minPrice || '1500'}{mess.minPrice !== mess.maxPrice ? `-${mess.maxPrice}` : ''} {mess.rentCycle === 'yearly' ? '/ year' : '/ month'}
                             </div>
                         </div>
                     ) : (

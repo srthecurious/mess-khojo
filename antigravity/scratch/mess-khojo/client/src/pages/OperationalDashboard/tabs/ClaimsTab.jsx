@@ -77,18 +77,30 @@ const ClaimsTab = ({ claims }) => {
                                         <span className="text-xs font-normal text-slate-400 font-mono">(ID: {claim.messId?.slice(0, 8)}...)</span>
                                     </h3>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-xs">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-xs">
                                         <div>
                                             <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Claimant Name</p>
-                                            <p className="text-slate-200 font-semibold">{claim.userName}</p>
+                                            <p className="text-slate-200 font-semibold">{claim.claimantName || claim.userName || 'N/A'}</p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Email Address</p>
-                                            <p className="text-slate-200 font-semibold">{claim.userEmail}</p>
+                                            <p className="text-slate-200 font-semibold">{claim.userEmail || 'N/A'}</p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Phone Number</p>
-                                            <p className="text-slate-200 font-semibold">{claim.userPhone}</p>
+                                            <p className="text-slate-200 font-semibold">{claim.userPhone || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Is Owner?</p>
+                                            <p className="text-slate-200 font-semibold">
+                                                {claim.isOwner !== undefined ? (claim.isOwner ? 'Yes' : 'No') : 'N/A'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Action Requested</p>
+                                            <p className={`font-semibold ${claim.claimAction === 'remove_mess' ? 'text-red-400' : 'text-indigo-300'}`}>
+                                                {claim.claimAction === 'change_details' ? 'Change Details' : (claim.claimAction === 'remove_mess' ? 'Remove Listing' : 'N/A')}
+                                            </p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Request Date</p>
@@ -97,6 +109,13 @@ const ClaimsTab = ({ claims }) => {
                                             </p>
                                         </div>
                                     </div>
+
+                                    {claim.feedback && (
+                                        <div className="mt-3 bg-slate-900/30 p-3 rounded-xl border border-slate-700/30 text-xs">
+                                            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Feedback / Additional Details</p>
+                                            <p className="text-slate-300 italic">"{claim.feedback}"</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-row md:flex-col gap-2 self-start md:self-stretch justify-end md:justify-center min-w-[150px]">

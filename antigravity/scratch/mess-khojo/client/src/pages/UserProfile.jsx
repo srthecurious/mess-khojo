@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { trackLogout, trackAccountDelete } from '../analytics';
 
 const UserProfile = () => {
     usePageSEO({ title: 'My Profile | MessKhojo', noindex: true });
@@ -109,6 +110,7 @@ const UserProfile = () => {
 
     const confirmLogout = async () => {
         try {
+            trackLogout(userRole || 'user');
             await logout();
             navigate('/user-login');
         } catch (error) {
@@ -126,9 +128,12 @@ const UserProfile = () => {
 
             // Delete Firebase Auth user
             await deleteAccount();
+            trackAccountDelete(true);
             navigate('/user-login');
         } catch (error) {
             console.error("Failed to delete account:", error);
+            const errMsg = error.message || "Unknown error";
+            trackAccountDelete(false, errMsg);
             if (error.code === 'auth/requires-recent-login' || error.message?.includes('requires-recent-login')) {
                 setDeleteError("For security reasons, please log out and log back in before deleting your account.");
             } else {

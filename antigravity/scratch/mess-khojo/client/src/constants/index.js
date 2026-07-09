@@ -10,7 +10,7 @@ export const BRAND = {
 };
 
 export const PAGINATION = {
-  MESSES_PER_PAGE: 10,
+  MESSES_PER_PAGE: 12,
   HOME_PREVIEW_COUNT: 6,
   MAX_GALLERY_IMAGES: 15,
   MAX_ROOM_IMAGES: 5,

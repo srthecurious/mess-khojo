@@ -12,8 +12,7 @@ const SkeletonCard = ({ index = 0, layout = 'grid', compact = false }) => {
                 <div className="w-full aspect-[4/3] rounded-2xl bg-gray-200 shrink-0" />
                 <div className="flex flex-col gap-2 flex-grow">
                     <div className="h-4 w-3/4 bg-gray-200 rounded-md" />
-                    <div className="h-3.5 w-1/2 bg-gray-200 rounded-md" />
-                    <div className="h-4 w-1/3 bg-gray-200 rounded-md mt-1" />
+                    <div className="h-3.5 w-1/2 bg-gray-200 rounded-md mt-1" />
                 </div>
             </div>
         );

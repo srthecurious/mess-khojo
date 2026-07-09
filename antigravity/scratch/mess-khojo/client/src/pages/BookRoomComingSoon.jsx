@@ -1,43 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users, CalendarDays, ChevronRight, MessageSquareText, Building2 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Send, CheckCircle, BedDouble, MapPin, Phone, User, Banknote, Users, CalendarDays, ChevronRight, MessageSquareText, Building2, Clock, History, ArrowRight } from 'lucide-react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import PastSuggestionsModal from '../components/PastSuggestionsModal';
 
-const PREDEFINED_CITY_LANDMARKS = {
-    baleshwar: [
-        'Mansingh Bazar',
-        'Fakir Mohan Golei',
-        'Station Square',
-        'Sahadev Khuntha',
-        'Azimabad',
-        'ITB',
-        'Balasore'
-    ],
-    remuna: [
-        'Remuna'
-    ],
-    bhadrak: [
-        'Bhadrak Station',
-        'Charampa',
-        'Bhadrak College',
-        'By Pass',
-        'Dakshinakali',
-        'Bhadrak'
-    ],
-    basudevpur: [],
-    baripada: [
-        'Baripada Station',
-        'Lal Bazar',
-        'Palbani',
-        'Baghra Road',
-        'MKC High School',
-        'Baripada'
-    ]
-};
 
 const WhatsAppIcon = ({ size = 18, className = "" }) => (
     <svg 
@@ -57,27 +27,153 @@ const BookRoomComingSoon = () => {
         description: 'Share your room requirements and our team will manually find the best mess, PG or hostel for you in Odisha. No broker, no hassle.',
         canonicalUrl: 'https://messkhojo.com/find-your-room',
     });
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const stepParam = parseInt(searchParams.get('step'));
     const step = !isNaN(stepParam) && stepParam >= 1 && stepParam <= 3 ? stepParam : 1;
+    const [sliderMin, setSliderMin] = useState(500);
+    const [sliderMax, setSliderMax] = useState(7000);
+    const [activeThumb, setActiveThumb] = useState('');
+    const trackRef = useRef(null);
+
+    const handleTrackInteraction = (clientX) => {
+        if (!trackRef.current) return;
+        const rect = trackRef.current.getBoundingClientRect();
+        const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const clickedValue = Math.round((500 + percentage * (7000 - 500)) / 100) * 100;
+        
+        const distMin = Math.abs(clickedValue - sliderMin);
+        const distMax = Math.abs(clickedValue - sliderMax);
+        
+        if (distMin < distMax) {
+            const val = Math.min(clickedValue, sliderMax - 200);
+            setSliderMin(val);
+            setActiveThumb('min');
+        } else {
+            const val = Math.max(clickedValue, sliderMin + 200);
+            setSliderMax(val);
+            setActiveThumb('max');
+        }
+    };
+
+    const handleMouseDown = (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.closest('input')) {
+            return;
+        }
+        handleTrackInteraction(e.clientX);
+    };
+
+    const handleTouchStart = (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.closest('input')) {
+            return;
+        }
+        if (e.touches && e.touches[0]) {
+            handleTrackInteraction(e.touches[0].clientX);
+        }
+    };
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
         contactMethod: 'whatsapp',
         city: searchParams.get('city') || '',
         location: '',
-        budget: '',
+        budget: '500-7000+',
         gender: 'boys',
         occupancy: '1-seater',
         expectedMoveIn: 'immediately',
         requirements: '',
         consent: false
     });
+
+    useEffect(() => {
+        const maxValStr = sliderMax === 7000 ? '7000+' : String(sliderMax);
+        setFormData(prev => ({
+            ...prev,
+            budget: `${sliderMin}-${maxValStr}`
+        }));
+    }, [sliderMin, sliderMax]);
     const [allMessesData, setAllMessesData] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
+    const [isSuccess, _setIsSuccess] = useState(false);
     const [error, setError] = useState('');
     const [phoneError, setPhoneError] = useState('');
+
+    // ---- localStorage rate-limit state & past suggestions ----
+    const LS_KEY = 'mk_last_inquiry';
+    const [alreadySubmittedToday, setAlreadySubmittedToday] = useState(false);
+    const [pastInquiries, setPastInquiries] = useState([]);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+    useEffect(() => {
+        try {
+            const rawLast = localStorage.getItem(LS_KEY);
+            if (rawLast) {
+                const parsed = JSON.parse(rawLast);
+                if (parsed.submittedAt) {
+                    const storedDate = new Date(parsed.submittedAt).toDateString();
+                    const todayDate  = new Date().toDateString();
+                    if (storedDate === todayDate) {
+                        setAlreadySubmittedToday(true);
+                    }
+                }
+            }
+
+            const rawPast = localStorage.getItem('mk_past_inquiries');
+            if (rawPast) {
+                const parsed = JSON.parse(rawPast);
+                if (Array.isArray(parsed)) {
+                    setPastInquiries(parsed);
+                }
+            } else if (rawLast) {
+                const parsed = JSON.parse(rawLast);
+                if (parsed.inquiry) {
+                    const initialPast = [{
+                        submittedAt: parsed.submittedAt || new Date().toISOString(),
+                        inquiry: parsed.inquiry
+                    }];
+                    setPastInquiries(initialPast);
+                    localStorage.setItem('mk_past_inquiries', JSON.stringify(initialPast));
+                }
+            }
+        } catch {
+            // ignore corrupt localStorage
+        }
+    }, []);
+
+    const handleClearAllHistory = () => {
+        if (window.confirm("Are you sure you want to clear all your search history?")) {
+            try {
+                localStorage.removeItem('mk_past_inquiries');
+                localStorage.removeItem(LS_KEY);
+                setPastInquiries([]);
+                setAlreadySubmittedToday(false);
+                setIsHistoryModalOpen(false);
+            } catch (err) {
+                console.error("Error clearing history", err);
+            }
+        }
+    };
+
+    const handleDeleteHistoryItem = (indexToDelete) => {
+        try {
+            const updatedPast = pastInquiries.filter((_, idx) => idx !== indexToDelete);
+            setPastInquiries(updatedPast);
+            localStorage.setItem('mk_past_inquiries', JSON.stringify(updatedPast));
+            
+            if (updatedPast.length === 0) {
+                localStorage.removeItem(LS_KEY);
+                setAlreadySubmittedToday(false);
+            } else {
+                localStorage.setItem(LS_KEY, JSON.stringify(updatedPast[0]));
+                
+                const storedDate = new Date(updatedPast[0].submittedAt).toDateString();
+                const todayDate  = new Date().toDateString();
+                setAlreadySubmittedToday(storedDate === todayDate);
+            }
+        } catch (err) {
+            console.error("Error deleting history item", err);
+        }
+    };
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -112,11 +208,7 @@ const BookRoomComingSoon = () => {
         const cityId = formData.city.toLowerCase();
         const landmarkSet = new Set();
 
-        // 1. Add predefined landmarks for this city
-        const predefined = PREDEFINED_CITY_LANDMARKS[cityId] || [];
-        predefined.forEach(lm => landmarkSet.add(lm.trim()));
-
-        // 2. Add dynamic landmarks from active messes in this city
+        // Add dynamic landmarks from active messes in this city
         allMessesData.forEach(mess => {
             if (mess.city === cityId && mess.landmark) {
                 landmarkSet.add(mess.landmark.trim());
@@ -186,15 +278,38 @@ const BookRoomComingSoon = () => {
             import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
                 sendTelegramNotification(telegramTemplates.newRoomInquiry(inquiryData));
             });
-            
-            setIsSuccess(true);
-            setFormData({
-                name: '', phone: '', contactMethod: 'whatsapp',
-                city: '', location: '', budget: '', gender: 'boys',
-                occupancy: 'single', expectedMoveIn: 'immediately',
-                requirements: '', consent: false
-            });
-            setSearchParams({}, { replace: true });
+
+            // Save to localStorage for rate-limiting + "View Past Suggestions"
+            try {
+                const inquiryEntry = {
+                    submittedAt: new Date().toISOString(),
+                    inquiry: inquiryData
+                };
+                localStorage.setItem(LS_KEY, JSON.stringify(inquiryEntry));
+
+                const rawPast = localStorage.getItem('mk_past_inquiries');
+                let pastList = [];
+                if (rawPast) {
+                    try {
+                        const parsed = JSON.parse(rawPast);
+                        if (Array.isArray(parsed)) {
+                            pastList = parsed;
+                        }
+                    } catch (err) {
+                        console.error('Failed to parse past inquiries:', err);
+                    }
+                }
+                pastList.unshift(inquiryEntry);
+                pastList = pastList.slice(0, 15);
+                localStorage.setItem('mk_past_inquiries', JSON.stringify(pastList));
+                setPastInquiries(pastList);
+            } catch (err) {
+                // ignore localStorage errors (e.g. private browsing)
+                console.warn('LocalStorage error:', err);
+            }
+
+            // Navigate to results page, passing the inquiry as route state
+            navigate('/find-your-room/results', { state: { inquiry: inquiryData } });
         } catch (err) {
             console.error("Error submitting inquiry:", err);
             setError("Something went wrong. Please try again or contact us directly on WhatsApp.");
@@ -234,17 +349,99 @@ const BookRoomComingSoon = () => {
                         </Link>
                         <h1 className="text-xl font-bold text-white">Find Your Room</h1>
                     </div>
-                    {/* Step indicator */}
-                    {!isSuccess && (
-                        <div className="text-white/80 text-sm font-medium">
-                            Step {step} of 3
-                        </div>
+                    {/* View Past Suggestions button — only shown if a prior inquiry exists */}
+                    {pastInquiries.length > 0 && (
+                        <button
+                            onClick={() => setIsHistoryModalOpen(true)}
+                            className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-all border border-white/20"
+                        >
+                            <History size={13} />
+                            Past Suggestions ({pastInquiries.length})
+                        </button>
                     )}
                 </div>
             </div>
 
             <div className="max-w-3xl mx-auto px-4 py-4 sm:py-8">
-                
+
+                {/* ── Already Submitted Today (rate-limit gate) ─────────── */}
+                {alreadySubmittedToday ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center mt-6"
+                    >
+                        <div className="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5">
+                            <Clock size={36} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-brand-text-dark mb-2">Already Submitted Today</h2>
+                        <p className="text-brand-text-gray text-sm max-w-xs mx-auto mb-1">
+                            You've already submitted a Find Your Room request today. You can submit again tomorrow.
+                        </p>
+                        <p className="text-xs text-gray-400 mb-8">
+                            Resets at midnight · One request per device per day
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                            <button
+                                onClick={() => setIsHistoryModalOpen(true)}
+                                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-primary text-white font-bold rounded-xl text-sm hover:bg-brand-primary-hover transition-colors shadow-md shadow-brand-primary/20"
+                            >
+                                <History size={15} />
+                                View Past Suggestions ({pastInquiries.length})
+                            </button>
+                            <Link
+                                to="/"
+                                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-200 transition-colors"
+                            >
+                                Back to Home
+                            </Link>
+                        </div>
+
+                        {/* Choosable list on the rate-limit screen */}
+                        {pastInquiries.length > 0 && (
+                            <div className="mt-8 pt-6 border-t border-gray-100 text-left">
+                                <h3 className="text-sm font-extrabold text-gray-900 mb-4 flex items-center gap-2">
+                                    <History size={16} className="text-brand-primary" />
+                                    Choose from your past searches:
+                                </h3>
+                                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                                    {pastInquiries.map((item, idx) => {
+                                        const { inquiry, submittedAt } = item;
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => navigate('/find-your-room/results', { state: { inquiry } })}
+                                                className="w-full flex items-center justify-between p-3.5 bg-gray-50 border border-gray-200 hover:border-brand-primary rounded-xl text-left transition-all hover:bg-white hover:shadow-sm"
+                                            >
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-gray-800">
+                                                            {inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}
+                                                            {inquiry.location ? `, ${inquiry.location}` : ''}
+                                                        </span>
+                                                        <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded font-bold capitalize">
+                                                            {inquiry.gender}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 font-medium flex items-center gap-3">
+                                                        <span>{inquiry.occupancy.replace('-seater', ' Seater')}</span>
+                                                        <span>•</span>
+                                                        <span>₹{inquiry.budget}/mo</span>
+                                                        <span>•</span>
+                                                        <span>{new Date(submittedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                                                    </div>
+                                                </div>
+                                                <ArrowRight size={16} className="text-brand-primary" />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </motion.div>
+                ) : (
+                <>
+
                 {/* Hero section */}
                 {!isSuccess && step === 1 && (
                     <motion.div
@@ -363,43 +560,101 @@ const BookRoomComingSoon = () => {
                                                 <MapPin size={16} className="text-brand-primary" />
                                                 Preferred Area
                                             </label>
-                                            <input
-                                                type="text"
+                                            <select
                                                 name="location"
                                                 required
-                                                list="popular-areas"
                                                 value={formData.location}
                                                 onChange={handleChange}
                                                 disabled={!formData.city}
-                                                placeholder={formData.city ? "e.g. Mansingh Bazar..." : "Select preferred city first"}
                                                 className="w-full px-4 py-3 bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
-                                            />
-                                            <datalist id="popular-areas">
+                                            >
+                                                <option value="">
+                                                    {!formData.city 
+                                                        ? "Select preferred city first" 
+                                                        : availableLandmarks.length === 0 
+                                                            ? "No areas available in this city" 
+                                                            : "Select preferred area"}
+                                                </option>
                                                 {availableLandmarks.map((area, idx) => (
-                                                    <option key={idx} value={area} />
+                                                    <option key={idx} value={area}>
+                                                        {area}
+                                                    </option>
                                                 ))}
-                                            </datalist>
+                                            </select>
                                         </div>
 
                                         {/* Budget */}
                                         <div className="space-y-3">
-                                            <label className="text-sm font-semibold text-brand-text-dark flex items-center gap-2">
-                                                <Banknote size={16} className="text-brand-primary" />
-                                                Rental Budget (monthly)
-                                            </label>
-                                            <select
-                                                name="budget"
-                                                required
-                                                value={formData.budget}
-                                                onChange={handleChange}
-                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm font-semibold text-brand-text-dark flex items-center gap-2">
+                                                    <Banknote size={16} className="text-brand-primary" />
+                                                    Rental Budget (monthly)
+                                                </label>
+                                                <span className="text-xs font-bold text-brand-primary bg-brand-primary/10 px-2.5 py-1 rounded-full">
+                                                    ₹{sliderMin} - {sliderMax === 7000 ? '₹7000+' : `₹${sliderMax}`}
+                                                </span>
+                                            </div>
+                                            
+                                            <div 
+                                                ref={trackRef}
+                                                className="relative w-full py-4 cursor-pointer select-none"
+                                                onMouseDown={handleMouseDown}
+                                                onTouchStart={handleTouchStart}
                                             >
-                                                <option value="">Select your maximum budget</option>
-                                                <option value="<2000">Below ₹2000/mo</option>
-                                                <option value="2000-3000">₹2000 - ₹3000/mo</option>
-                                                <option value="3000-5000">₹3000 - ₹5000/mo</option>
-                                                <option value="5000+">Above ₹5000/mo</option>
-                                            </select>
+                                                {/* Background Track */}
+                                                <div className="h-2 bg-gray-200 rounded-full w-full absolute top-1/2 -translate-y-1/2"></div>
+                                                {/* Range Highlight Track */}
+                                                <div 
+                                                    className="h-2 bg-brand-primary rounded-full absolute top-1/2 -translate-y-1/2"
+                                                    style={{
+                                                        left: `${((sliderMin - 500) / (7000 - 500)) * 100}%`,
+                                                        width: `${((sliderMax - sliderMin) / (7000 - 500)) * 100}%`
+                                                    }}
+                                                ></div>
+
+                                                {/* Min Slider */}
+                                                <input
+                                                    type="range"
+                                                    min="500"
+                                                    max="7000"
+                                                    step="100"
+                                                    value={sliderMin}
+                                                    onChange={(e) => {
+                                                        const val = Math.min(Number(e.target.value), sliderMax - 200);
+                                                        setSliderMin(val);
+                                                    }}
+                                                    onMouseDown={() => setActiveThumb('min')}
+                                                    onTouchStart={() => setActiveThumb('min')}
+                                                    className={`absolute w-full h-2 top-1/2 -translate-y-1/2 left-0 appearance-none bg-transparent pointer-events-none outline-none
+                                                                [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none
+                                                                [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-brand-primary [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer
+                                                                ${activeThumb === 'min' ? 'z-40' : 'z-30'}`}
+                                                />
+
+                                                {/* Max Slider */}
+                                                <input
+                                                    type="range"
+                                                    min="500"
+                                                    max="7000"
+                                                    step="100"
+                                                    value={sliderMax}
+                                                    onChange={(e) => {
+                                                        const val = Math.max(Number(e.target.value), sliderMin + 200);
+                                                        setSliderMax(val);
+                                                    }}
+                                                    onMouseDown={() => setActiveThumb('max')}
+                                                    onTouchStart={() => setActiveThumb('max')}
+                                                    className={`absolute w-full h-2 top-1/2 -translate-y-1/2 left-0 appearance-none bg-transparent pointer-events-none outline-none
+                                                                [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none
+                                                                [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-brand-primary [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer
+                                                                ${activeThumb === 'max' ? 'z-40' : 'z-30'}`}
+                                                />
+                                            </div>
+                                            
+                                            <div className="flex justify-between text-xs text-gray-400 px-1">
+                                                <span>₹500</span>
+                                                <span>₹7000+</span>
+                                            </div>
                                         </div>
                                         
                                         <button 
@@ -437,7 +692,7 @@ const BookRoomComingSoon = () => {
                                                 {renderRadioCard("occupancy", "1-seater", "1 Seater", <User size={20} />, formData.occupancy)}
                                                 {renderRadioCard("occupancy", "2-seater", "2 Seater", <Users size={20} />, formData.occupancy)}
                                                 {renderRadioCard("occupancy", "3-seater", "3 Seater", <Users size={20} />, formData.occupancy)}
-                                                {renderRadioCard("occupancy", "any", "Any", <BedDouble size={20} />, formData.occupancy)}
+                                                {renderRadioCard("occupancy", "4-seater", "4+ Seater", <BedDouble size={20} />, formData.occupancy)}
                                             </div>
                                         </div>
 
@@ -634,7 +889,65 @@ const BookRoomComingSoon = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Past Suggestions Quick Access (below the form box) */}
+                {!isSuccess && step === 1 && !alreadySubmittedToday && pastInquiries.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 bg-white rounded-3xl p-6 shadow-sm border border-gray-150"
+                    >
+                        <h3 className="text-sm font-extrabold text-gray-900 mb-4 flex items-center gap-2">
+                            <History size={16} className="text-brand-primary" />
+                            Recent Match Requests
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {pastInquiries.slice(0, 4).map((item, idx) => {
+                                const { inquiry } = item;
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => navigate('/find-your-room/results', { state: { inquiry } })}
+                                        className="flex items-center justify-between p-3 bg-gray-50 border border-gray-150 hover:border-brand-primary rounded-2xl text-left transition-all hover:bg-white hover:shadow-sm"
+                                    >
+                                        <div className="space-y-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className="text-xs font-bold text-gray-800 truncate">
+                                                    {inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}
+                                                    {inquiry.location ? `, ${inquiry.location}` : ''}
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 flex items-center gap-1.5 font-medium">
+                                                <span className="capitalize">{inquiry.gender}</span>
+                                                <span>•</span>
+                                                <span>₹{inquiry.budget}/mo</span>
+                                            </div>
+                                        </div>
+                                        <ArrowRight size={14} className="text-brand-primary shrink-0 ml-2" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {pastInquiries.length > 4 && (
+                            <button
+                                onClick={() => setIsHistoryModalOpen(true)}
+                                className="mt-4 w-full py-2.5 text-center text-xs font-bold text-brand-primary hover:text-brand-primary-hover bg-brand-primary/5 hover:bg-brand-primary/10 rounded-xl transition-all"
+                            >
+                                View All {pastInquiries.length} Past Requests
+                            </button>
+                        )}
+                    </motion.div>
+                )}
+            </>) /* end alreadySubmittedToday false-branch */}
             </div>
+            
+            <PastSuggestionsModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                pastInquiries={pastInquiries}
+                onClearAll={handleClearAllHistory}
+                onDeleteItem={handleDeleteHistoryItem}
+            />
         </div>
     );
 };

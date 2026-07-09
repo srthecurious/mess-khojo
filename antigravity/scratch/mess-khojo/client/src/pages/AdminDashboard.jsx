@@ -16,6 +16,7 @@ import MessProfileTab from './AdminDashboard/tabs/MessProfileTab';
 import RoomManagementTab from './AdminDashboard/tabs/RoomManagementTab';
 import BookingsOverviewTab from './AdminDashboard/tabs/BookingsOverviewTab';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { trackLogout } from '../analytics';
 
 
 const AdminDashboard = () => {
@@ -133,6 +134,7 @@ const AdminDashboard = () => {
 
 
     const handleLogout = async () => {
+        trackLogout('admin');
         await signOut(auth);
         navigate('/admin/login');
     };

@@ -11,6 +11,7 @@ export const getCleanOccupancy = (val) => {
     if (s === '4' || s === 'four' || s === '4 seater' || s.includes('four')) return '4';
     if (s === '5' || s === 'five' || s === '5 seater' || s.includes('five')) return '5';
     if (s === '6' || s === 'six' || s === '6 seater' || s.includes('six')) return '6';
+    if (s === '7' || s === 'seven' || s === '7 seater' || s.includes('seven')) return '7';
     if (s === '8' || s === 'eight' || s === '8 seater' || s.includes('eight')) return '8';
     
     return val.toString().replace(/\s*(?:seater|sharing|room|beds?|seats?)\b/gi, '').trim();

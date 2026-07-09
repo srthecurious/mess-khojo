@@ -275,12 +275,20 @@ const MessesTab = ({
                                 {/* ── Inline Rooms Panel ────────────────────────── */}
                                 {isExpanded && (
                                     <div className="border-t border-slate-700/60 bg-slate-900/40 rounded-b-2xl px-4 md:px-6 py-4">
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <BedDouble size={16} className="text-cyan-400" />
-                                            <span className="text-sm font-bold text-cyan-400 uppercase tracking-wider">Rooms</span>
-                                            <span className="bg-cyan-500/10 text-cyan-400 text-[10px] px-2 py-0.5 rounded-full border border-cyan-500/20 font-bold">
-                                                {messRooms.length}
-                                            </span>
+                                        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <BedDouble size={16} className="text-cyan-400" />
+                                                <span className="text-sm font-bold text-cyan-400 uppercase tracking-wider">Rooms</span>
+                                                <span className="bg-cyan-500/10 text-cyan-400 text-[10px] px-2 py-0.5 rounded-full border border-cyan-500/20 font-bold">
+                                                    {messRooms.length}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleEditItem({ messId: mess.id }, 'add_room')}
+                                                className="flex items-center gap-1 text-[11px] font-bold text-cyan-400 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/30 px-2.5 py-1.5 rounded-lg border border-cyan-500/20 hover:border-cyan-500/30 transition-all active:scale-95"
+                                            >
+                                                + Add Room
+                                            </button>
                                         </div>
 
                                         {messRooms.length === 0 ? (
