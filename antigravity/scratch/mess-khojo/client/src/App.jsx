@@ -1,5 +1,5 @@
 import React, { useEffect, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Footer from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
 import { DistrictProvider } from './context/DistrictContext';
@@ -7,6 +7,7 @@ import { ToastProvider } from './context/ToastContext';
 import { trackPageView } from './analytics';
 import DistrictSelector from './components/DistrictSelector';
 import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import { WishlistProvider } from './context/WishlistContext';
 
@@ -14,6 +15,7 @@ const CityLandingPage = React.lazy(() => import('./pages/CityLandingPage'));
 
 // Route-level code splitting — only the visited page's code is downloaded
 const CityPage = React.lazy(() => import('./pages/CityPage'));
+const CityExplorerPage = React.lazy(() => import('./pages/CityExplorerPage'));
 const MessDetails = React.lazy(() => import('./pages/MessDetails'));
 const RoomDetails = React.lazy(() => import('./pages/RoomDetails'));
 const AdminLogin = React.lazy(() => import('./pages/AdminLogin'));
@@ -26,6 +28,7 @@ const OperationalDashboard = React.lazy(() => import('./pages/OperationalDashboa
 const BookingSuccess = React.lazy(() => import('./pages/BookingSuccess'));
 const MessRegistration = React.lazy(() => import('./pages/MessRegistration'));
 const BookRoomComingSoon = React.lazy(() => import('./pages/BookRoomComingSoon'));
+const FindYourRoomResults = React.lazy(() => import('./pages/FindYourRoomResults'));
 const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
 const TermsAndConditions = React.lazy(() => import('./pages/TermsAndConditions'));
 const AboutUs = React.lazy(() => import('./pages/AboutUs'));
@@ -76,7 +79,12 @@ function AppContent() {
           <div className="flex-grow flex flex-col">
             <Routes>
               <Route path="/" element={<CityLandingPage />} />
-              <Route path="/explorer" element={<CityLandingPage />} />
+              <Route path="/explorer" element={<Navigate to="/" replace />} />
+
+              {/* Canonical SEO-friendly city explorer URLs */}
+              <Route path="/district/:districtId/city/:cityId/explorer" element={<CityExplorerPage />} />
+              {/* Legacy city explorer alias */}
+              <Route path="/city/:cityId/explorer" element={<CityExplorerPage />} />
 
               {/* Canonical SEO-friendly city URLs */}
               <Route path="/district/:districtId/city/:cityId" element={<CityPage />} />
@@ -89,11 +97,25 @@ function AppContent() {
               {/* Canonical SEO-friendly room URLs */}
               <Route path="/room/:messSlug/:roomSlug" element={<RoomDetails />} />
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="admin" redirectTo="/admin/login">
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Operational Interface (Single Operator) */}
               <Route path="/operational/login" element={<OperationalLogin />} />
-              <Route path="/operational/dashboard" element={<OperationalDashboard />} />
+              <Route
+                path="/operational/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="any" redirectTo="/operational/login">
+                    <OperationalDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* User Routes */}
               <Route path="/user-signup" element={<UserSignup />} />
@@ -102,6 +124,7 @@ function AppContent() {
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/booking-success" element={<BookingSuccess />} />
               <Route path="/register-mess" element={<MessRegistration />} />
+              <Route path="/find-your-room/results" element={<FindYourRoomResults />} />
               <Route path="/find-your-room" element={<BookRoomComingSoon />} />
 
               {/* Legal Pages */}

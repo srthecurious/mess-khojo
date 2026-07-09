@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2 } from 'lucide-react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2, Bell } from 'lucide-react';
 import { auth } from '../firebase';
-import { serverTimestamp, collection, getDocs, query, orderBy, startAt, endAt } from 'firebase/firestore';
+import { serverTimestamp, collection, getDocs, query, orderBy, startAt, endAt, doc, getDoc, addDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getMess, watchRoomsByMess } from '../services/messService';
 import { addClaim, addInquiry } from '../services/bookingService';
 import { getUserDoc } from '../services/userService';
 import RoomCard from '../components/RoomCard';
 import ClaimModal from '../components/ClaimModal';
-import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView } from '../analytics';
+import PhoneCollectionModal from '../components/PhoneCollectionModal';
+import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView, trackContactOwner, trackBookingInitiated } from '../analytics';
 import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
@@ -30,12 +31,18 @@ const MessDetails = () => {
     });
     const messId = resolvedMessId;
     const navigate = useNavigate();
-    const { currentUser } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { currentUser, userRole } = useAuth();
     const { success: toastSuccess, error: toastError } = useToast();
     const { isRoomWishlisted, toggleRoomWishlist, isMessWishlisted, toggleMessWishlist } = useWishlist();
     const [loginPromptConfig, setLoginPromptConfig] = useState({ show: false, title: '', message: '', icon: '' });
     const [showClaimModal, setShowClaimModal] = useState(false);
     const [showBackToTop, setShowBackToTop] = useState(false);
+
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [userPhone, setUserPhone] = useState('');
+    const [bookingProcessing, setBookingProcessing] = useState(false);
 
     useEffect(() => {
         const onScroll = () => setShowBackToTop(window.scrollY > 400);
@@ -87,6 +94,114 @@ const MessDetails = () => {
         }
     };
 
+    const handleBookClick = async () => {
+        if (!currentUser) {
+            const returnUrl = `/mess/${messSlug}?action=book`;
+            console.log('🔗 Redirecting to login with return URL:', returnUrl);
+            navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
+            return;
+        }
+
+        if (!mess.contact || mess.hideContact) {
+            alert("Owner's contact is currently unavailable for this mess. Please try again later.");
+            return;
+        }
+        if (userRole !== 'user') {
+            alert("Partners cannot book rooms. Please login as a User.");
+            return;
+        }
+
+        try {
+            const bookingsRef = collection(db, "bookings");
+            const q = query(
+                bookingsRef,
+                where("userId", "==", currentUser.uid)
+            );
+
+            const querySnapshot = await getDocs(q);
+            let todayCount = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.createdAt && data.createdAt.toDate) {
+                    const createdAtDate = data.createdAt.toDate();
+                    if (createdAtDate >= today) {
+                        todayCount++;
+                    }
+                }
+            });
+
+            if (todayCount >= 5) {
+                alert("You have reached the maximum limit of 5 call requests per day. Please try again tomorrow.");
+                return;
+            }
+        } catch (error) {
+            console.error("Error checking booking limit:", error);
+        }
+
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const phone = userData.phone || '';
+
+        trackBookingInitiated(null, messId, mess.startingPrice || 0);
+        trackContactOwner('button_clicked', messId, null);
+
+        if (!phone || phone === 'N/A') {
+            setShowPhoneModal(true);
+        } else {
+            setUserPhone(phone);
+            setShowConfirmModal(true);
+        }
+    };
+
+    const handleConfirmBooking = async () => {
+        setBookingProcessing(true);
+        try {
+            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+            const userData = userDoc.exists() ? userDoc.data() : {};
+
+            const bookingData = {
+                userId: currentUser.uid,
+                userName: userData.name || currentUser.displayName || "User",
+                userPhone: userPhone || userData.phone || "N/A",
+                messId: mess.id,
+                messName: mess.name,
+                roomId: null,
+                roomType: "General",
+                price: mess.startingPrice || 0,
+                ownerPhone: mess.contact,
+                status: 'contacted',
+                createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, "bookings"), bookingData);
+
+            setShowConfirmModal(false);
+
+            trackContactOwner('call_confirmed', messId, null);
+            window.location.href = `tel:${mess.contact}`;
+        } catch (error) {
+            console.error("Contact owner failed:", error);
+            alert("Something went wrong. Please try again.");
+        } finally {
+            setBookingProcessing(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!loading && currentUser && mess) {
+            if (searchParams.get('action') === 'book') {
+                handleBookClick();
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('action');
+                setSearchParams(newParams, { replace: true });
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser, loading, mess]);
+
     const handleClaimListing = () => {
         if (!auth.currentUser) {
             setLoginPromptConfig({
@@ -100,7 +215,7 @@ const MessDetails = () => {
         setShowClaimModal(true);
     };
 
-    const handleClaimSubmit = async (phoneNumber) => {
+    const handleClaimSubmit = async (claimFormData) => {
         try {
             setClaiming(true);
             const userDoc = await getUserDoc(auth.currentUser.uid);
@@ -108,11 +223,16 @@ const MessDetails = () => {
             if (userDoc.exists()) userData = userDoc.data();
 
             const claimData = {
-                messId, messName: mess.name,
+                messId,
+                messName: mess.name,
                 userId: auth.currentUser.uid,
                 userName: userData.name || auth.currentUser.displayName || "Registered User",
                 userEmail: auth.currentUser.email,
-                userPhone: phoneNumber,
+                claimantName: claimFormData.claimantName,
+                userPhone: claimFormData.phone,
+                isOwner: claimFormData.isOwner,
+                claimAction: claimFormData.actionType === 'change' ? 'change_details' : 'remove_mess',
+                feedback: claimFormData.feedback,
                 status: 'pending',
                 createdAt: serverTimestamp()
             };
@@ -398,7 +518,7 @@ const MessDetails = () => {
                         exit={{ opacity: 0, y: 20, scale: 0.8 }}
                         transition={{ duration: 0.2 }}
                         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        className="fixed bottom-24 right-4 z-50 w-11 h-11 bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-brand-primary-hover transition-colors"
+                        className="fixed bottom-24 right-6 z-50 w-11 h-11 bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-brand-primary-hover transition-colors"
                         aria-label="Back to top"
                     >
                         <ChevronUp size={20} />
@@ -463,12 +583,18 @@ const MessDetails = () => {
 
                         {/* --- FLOATING TOP BAR: Back + Share + Wishlist --- */}
                         <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
-                            <Link
-                                to="/"
+                            <button
+                                onClick={() => {
+                                    if (window.history.length > 1) {
+                                        navigate(-1);
+                                    } else {
+                                        navigate('/');
+                                    }
+                                }}
                                 className="inline-flex items-center text-sm font-semibold text-white bg-black/30 hover:bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm transition-all"
                             >
                                 <ArrowLeft size={16} className="mr-1.5" /> Back
-                            </Link>
+                            </button>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleMessWishlistClick}
@@ -552,7 +678,7 @@ const MessDetails = () => {
             })()}
 
             {mess.isUserSourced && (
-                <div className="max-w-7xl mx-auto px-4 mt-6">
+                <div className="max-w-[1440px] mx-auto px-4 mt-6">
                     <div className={`grid grid-cols-1 ${showUserSourcedListing ? 'md:grid-cols-2' : ''} gap-4`}>
                         <div className="bg-brand-accent-blue/10 border border-brand-accent-blue/20 rounded-2xl p-3 flex flex-col justify-between">
                             <div className="flex items-start gap-3">
@@ -595,7 +721,7 @@ const MessDetails = () => {
             )}
 
             {/* Rooms Grid */}
-            <div className="max-w-7xl mx-auto px-4 py-12">
+            <div className="max-w-[1440px] mx-auto px-4 py-12">
                 <div className="flex items-center mb-8">
                     <h2 className="text-2xl font-bold text-brand-text-dark">Available Room Types</h2>
                     <div className="ml-4 h-px flex-grow bg-brand-light-gray"></div>
@@ -684,20 +810,17 @@ const MessDetails = () => {
                                 {/* Financials — new schema (advancePayment + maintenanceCharge) or old (advanceDeposit string) */}
                                 {(() => {
                                     let advanceLabel = null;
-                                    if (mess.advancePayment?.type && (mess.advancePayment.type !== 'None' || (mess.maintenanceCharge?.taken && mess.maintenanceCharge?.amount))) {
+                                    if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
                                         const adv = mess.advancePayment;
-                                        const maint = mess.maintenanceCharge;
-                                        const advStr = adv.type && adv.type !== 'None'
-                                            ? (adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type)
-                                            : 'No Deposit';
-                                        const maintStr = maint?.taken && maint?.amount
-                                            ? ` + ₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`
-                                            : '';
-                                        advanceLabel = advStr === 'No Deposit' && maintStr
-                                            ? `₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`
-                                            : advStr + maintStr;
+                                        advanceLabel = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
                                     } else if (mess.advanceDeposit) {
-                                        advanceLabel = mess.advanceDeposit;
+                                        let advDep = mess.advanceDeposit;
+                                        if (advDep.includes('maintenance')) {
+                                            const parts = advDep.split(/\s*\+\s*/);
+                                            advanceLabel = parts.length > 1 ? parts[0].trim() : advDep;
+                                        } else {
+                                            advanceLabel = advDep;
+                                        }
                                     }
                                     return advanceLabel ? (
                                         <div>
@@ -721,10 +844,10 @@ const MessDetails = () => {
                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Included in Rent</h4>
                                         <div className="flex flex-col gap-2">
                                             {[
-                                                { key: 'Food Charges', label: 'Food Charges', icon: '🍽️' },
-                                                { key: 'Electricity Bills', label: 'Electricity Bill', icon: '⚡' },
-                                                { key: 'Cleaning Charges', label: 'Cleaning', icon: '🧹' }
-                                            ].map(({ key, label, icon }) => {
+                                                { key: 'Food Charges', label: 'Food Charges' },
+                                                { key: 'Electricity Bills', label: 'Electricity Bill' },
+                                                { key: 'Cleaning Charges', label: 'Cleaning' }
+                                            ].map(({ key, label }) => {
                                                 const included = Array.isArray(mess.includedInRent) && mess.includedInRent.includes(key);
                                                 return (
                                                     <div key={key} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold border ${
@@ -732,7 +855,6 @@ const MessDetails = () => {
                                                             ? 'bg-green-50 text-green-700 border-green-200'
                                                             : 'bg-red-50 text-red-600 border-red-100'
                                                     }`}>
-                                                        <span>{icon}</span>
                                                         <span className="flex-1">{label}</span>
                                                         <span className="text-xs font-bold">{included ? '✓ Included' : '✗ Extra'}</span>
                                                     </div>
@@ -997,43 +1119,144 @@ const MessDetails = () => {
 
 
             {/* Claim Listing - Small Footer Link */}
-            {
-                mess?.isUserSourced && (
-                    <div className="max-w-7xl mx-auto px-4 py-6 mt-8 border-t border-gray-200">
-                        <div className="flex justify-center">
-                            <button
-                                onClick={handleClaimListing}
-                                disabled={claiming}
-                                className="text-xs text-gray-400 hover:text-brand-primary underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {claiming ? 'Sending...' : 'Claim Listing'}
-                            </button>
-                        </div>
-                    </div>
-                )
-            }
+            <div className="max-w-[1440px] mx-auto px-4 py-6 mt-8 border-t border-gray-200">
+                <div className="flex justify-center">
+                    <button
+                        onClick={handleClaimListing}
+                        disabled={claiming}
+                        className="text-xs text-gray-400 hover:text-brand-primary underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {claiming ? 'Sending...' : 'Claim Listing'}
+                    </button>
+                </div>
+            </div>
 
-            <button
-                onClick={() => {
-                    if (!currentUser) {
-                        setLoginPromptConfig({
-                            show: true,
-                            title: 'Login to Chat',
-                            message: 'Please login to use WhatsApp for queries or help.',
-                            icon: '💬'
-                        });
-                        return;
-                    }
-                    const message = `Hi MessKhojo, I want to know more about ${mess.name} (${mess.address || 'No Address'})`;
-                    window.open(`https://wa.me/${BRAND.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
-                }}
-                className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.6)] hover:shadow-[0_8px_25px_rgba(37,211,102,0.5)] hover:-translate-y-1 transition-all duration-300 animate-bounce-slow"
-                title="Chat with Support"
-            >
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" className="text-white">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                </svg>
-            </button>
+            {/* Bottom Action Bar (Mobile Only) */}
+            {mess.contact && !mess.hideContact && (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 px-6 md:hidden z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    <div>
+                        <p className="text-xs text-gray-500 font-bold uppercase">Rent</p>
+                        <p className="text-xl font-black text-brand-text-dark">
+                            {mess.startingPrice ? `₹${mess.startingPrice}/mo` : 'Ask Info'}
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleBookClick}
+                        className="px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover rounded-xl font-bold text-base shadow-md active:scale-95 transition-all text-white"
+                    >
+                        Contact Owner
+                    </button>
+                </div>
+            )}
+
+            {/* Desktop Action Button (Floating, Desktop Only) */}
+            {mess.contact && !mess.hideContact && (
+                <div className="hidden md:block fixed bottom-8 right-8 z-30">
+                    <button
+                        onClick={handleBookClick}
+                        className="bg-brand-primary hover:bg-brand-primary-hover px-6 py-2.5 rounded-xl font-bold text-base shadow-xl hover:scale-105 transition-all flex items-center gap-3 text-white"
+                    >
+                        <span>Contact Owner</span>
+                        {mess.startingPrice && (
+                            <>
+                                <div className="w-px h-5 bg-white/20"></div>
+                                <span className="font-normal text-white/80">₹{mess.startingPrice}</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* Contact Owner Modal */}
+            <AnimatePresence>
+                {showConfirmModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                            onClick={() => setShowConfirmModal(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl"
+                        >
+                            <div className="text-center mb-5">
+                                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                                    <Phone size={32} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-brand-text-dark">Contact Owner</h3>
+                                <p className="text-gray-500 mt-2 text-sm">
+                                    You are about to call the owner of <strong>{mess.name}</strong>.
+                                </p>
+                            </div>
+
+                            {/* Polite Instructions */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+                                <div className="flex items-start gap-2">
+                                    <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                                    <div className="text-sm text-amber-800 space-y-1">
+                                        <p className="font-semibold">Please keep in mind:</p>
+                                        <ul className="list-disc list-inside text-xs space-y-0.5 text-amber-700">
+                                            <li>Introduce yourself politely</li>
+                                            <li>Mention you found the mess on <strong>MessKhojo</strong></li>
+                                            <li>Be respectful of the owner's time</li>
+                                            <li>Ask your queries clearly and patiently</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Property</span>
+                                    <span className="font-bold text-gray-900">{mess.name}</span>
+                                </div>
+                                {mess.startingPrice && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500">Starting Rent</span>
+                                        <span className="font-bold text-gray-900">₹{mess.startingPrice}/mo</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfirmModal(false)}
+                                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmBooking}
+                                    disabled={bookingProcessing}
+                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-green-200 disabled:opacity-70 flex items-center justify-center gap-2"
+                                >
+                                    {bookingProcessing ? 'Connecting...' : 'Call Now'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Phone Collection Modal */}
+            {showPhoneModal && currentUser && (
+                <PhoneCollectionModal
+                    user={currentUser}
+                    onClose={(phone) => {
+                        setUserPhone(phone);
+                        setShowPhoneModal(false);
+                        setShowConfirmModal(true);
+                    }}
+                    onSkip={() => {
+                        setShowPhoneModal(false);
+                    }}
+                />
+            )}
 
         </div >
     );
@@ -1136,7 +1359,7 @@ const MessDetailsSkeleton = () => {
             </div>
 
             {/* Rooms Grid Skeleton */}
-            <div className="max-w-7xl mx-auto px-4 py-12">
+            <div className="max-w-[1440px] mx-auto px-4 py-12">
                 <div className="flex items-center mb-8">
                     <div className="h-7 w-56 rounded-xl skeleton-shimmer" />
                     <div className="ml-4 h-px flex-grow bg-brand-light-gray" />

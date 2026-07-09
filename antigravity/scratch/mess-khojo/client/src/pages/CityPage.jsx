@@ -43,8 +43,8 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const dLat = deg2rad(x2 - x1);
     const dLon = deg2rad(y2 - y1);
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(deg2rad(x1)) * Math.cos(deg2rad(x2)) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.cos(deg2rad(x1)) * Math.cos(deg2rad(x2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 };
@@ -131,25 +131,19 @@ const CityPage = () => {
         }
     });
 
-    const [filters, setFilters] = useState(() => {
-        try {
-            const stored = sessionStorage.getItem(`messkhojo_filters_${cityId}`);
-            if (stored) return JSON.parse(stored);
-        } catch { /* ignore */ }
-        return {
-            location: '',
-            minPrice: '',
-            maxPrice: '',
-            amenities: {
-                wifi: false,
-                ac: false,
-                food: false,
-                inverter: false
-            },
-            availableOnly: false,
-            messType: '', // 'Boys', 'Girls', or '' (All)
-            occupancy: '' // '' (All), '1', '2', '3', '4', '5', '6'
-        };
+    const [filters, setFilters] = useState({
+        location: '',
+        minPrice: '',
+        maxPrice: '',
+        amenities: {
+            wifi: false,
+            ac: false,
+            food: false,
+            inverter: false
+        },
+        availableOnly: false,
+        messType: '', // 'Boys', 'Girls', or '' (All)
+        occupancy: '' // '' (All), '1', '2', '3', '4', '5', '6'
     });
 
     useEffect(() => {
@@ -160,9 +154,7 @@ const CityPage = () => {
         }
     }, [userLocation]);
 
-    useEffect(() => {
-        sessionStorage.setItem(`messkhojo_filters_${cityId}`, JSON.stringify(filters));
-    }, [filters, cityId]);
+
 
     // Reset display count when filters change
     useEffect(() => {
@@ -279,7 +271,7 @@ const CityPage = () => {
             const searched = searchMesses(fuse, filters.location);
             const highConfidenceMatches = searched.filter(m => m.searchScore >= 96);
             let finalSearchList = highConfidenceMatches.length > 0 ? highConfidenceMatches : searched.slice(0, 10);
-            
+
             finalSearchList.forEach(item => {
                 searchResultsMap.set(item.id, item.searchScore);
             });
@@ -356,9 +348,9 @@ const CityPage = () => {
                 if (filters.minPrice && price < Number(filters.minPrice)) return false;
                 if (filters.maxPrice && price > Number(filters.maxPrice)) return false;
                 if (filters.amenities.ac && !amenities.ac) return false;
-                
-                const isRoomAvailable = room.availableCount !== undefined 
-                    ? Number(room.availableCount) > 0 
+
+                const isRoomAvailable = room.availableCount !== undefined
+                    ? Number(room.availableCount) > 0
                     : room.available !== false;
                 if (filters.availableOnly && !isRoomAvailable) return false;
 
@@ -458,8 +450,8 @@ const CityPage = () => {
             if (filters.minPrice && price < Number(filters.minPrice)) return;
             if (filters.maxPrice && price > Number(filters.maxPrice)) return;
 
-            const isRoomAvailable = room.availableCount !== undefined 
-                ? Number(room.availableCount) > 0 
+            const isRoomAvailable = room.availableCount !== undefined
+                ? Number(room.availableCount) > 0
                 : room.available !== false;
             if (filters.availableOnly && !isRoomAvailable) return;
 
@@ -514,16 +506,16 @@ const CityPage = () => {
     }, [filteredMessesList, filteredRoomsList, displayCount, filters.occupancy]);
 
     const loadMore = () => {
-        setDisplayCount(prev => prev + 10);
+        setDisplayCount(prev => prev + PAGINATION.MESSES_PER_PAGE);
     };
 
     return (
         <div className="min-h-screen bg-brand-secondary flex flex-col animate-fadeIn">
             <Header showSearch={false} />
 
-            <main className="flex-grow py-6 sm:py-8">
+            <main className="flex-grow py-2 sm:py-8">
                 {/* Header Bar: Back to Homepage + City Name Title */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mb-2 sm:mb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Link
@@ -545,7 +537,7 @@ const CityPage = () => {
                 </div>
 
                 {/* FilterBar with GPS and Map buttons passed */}
-                <div className="mb-8">
+                <div className="mb-2 sm:mb-8">
                     <FilterBar
                         onFilterChange={setFilters}
                         currentFilters={filters}
@@ -558,28 +550,25 @@ const CityPage = () => {
                 </div>
 
                 {/* MessExplorer: Renders city map and quick action strip */}
-                <div className="mb-6">
-                    <MessExplorer 
-                        messes={filteredMessesList} 
-                        rooms={rooms} 
-                        userLocation={userLocation} 
-                        cityId={cityId} 
-                        compact={false} 
+                <div className="mb-2 sm:mb-6">
+                    <MessExplorer
+                        cityId={cityId}
+                        districtId={resolvedDistrictId}
+                        compact={false}
                     />
                 </div>
 
                 {/* Gender Toggle filter */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mb-2 sm:mb-6">
                     <div className="flex items-center justify-between bg-white/40 backdrop-blur-sm p-1.5 rounded-2xl border border-gray-100/50 max-w-[240px]">
                         {['', 'boys', 'girls'].map((type) => (
                             <button
                                 key={type || 'all'}
                                 onClick={() => setFilters(prev => ({ ...prev, messType: type }))}
-                                className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all duration-300 ${
-                                    filters.messType === type
+                                className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all duration-300 ${filters.messType === type
                                         ? 'bg-gradient-to-r from-brand-primary to-[#3F256F] text-white shadow-md shadow-brand-primary/15'
                                         : 'text-gray-500 hover:text-gray-800'
-                                }`}
+                                    }`}
                             >
                                 {type === '' ? 'All' : type}
                             </button>
@@ -588,9 +577,9 @@ const CityPage = () => {
                 </div>
 
                 {/* Seater Filter Row */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mb-2 sm:mb-6">
                     <div className="relative">
-                        <div 
+                        <div
                             ref={seaterRowRef}
                             className="flex gap-2 overflow-x-auto hide-scrollbar py-1"
                         >
@@ -601,18 +590,18 @@ const CityPage = () => {
                                 { id: '3', label: '3 Seater' },
                                 { id: '4', label: '4 Seater' },
                                 { id: '5', label: '5 Seater' },
-                                { id: '6', label: '6 Seater' }
+                                { id: '6', label: '6 Seater' },
+                                { id: '7', label: '7 Seater' }
                             ].map((opt) => {
                                 const isActive = (filters.occupancy || '') === opt.id;
                                 return (
                                     <button
                                         key={opt.id}
                                         onClick={() => setFilters(prev => ({ ...prev, occupancy: opt.id }))}
-                                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border ${
-                                            isActive
+                                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border ${isActive
                                                 ? 'bg-gradient-to-r from-brand-primary to-[#3F256F] text-white border-transparent shadow-md'
                                                 : 'bg-white/80 border-gray-100 text-gray-500 hover:text-gray-800'
-                                        }`}
+                                            }`}
                                     >
                                         {opt.label}
                                     </button>
@@ -629,10 +618,10 @@ const CityPage = () => {
                 </div>
 
                 {/* Cards grid / list */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                     {loading ? (
                         filters.occupancy ? (
-                            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full">
+                            <div className="flex flex-wrap justify-start gap-4 sm:gap-6 max-w-[1440px] mx-auto w-full">
                                 {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                                     <div key={i} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0">
                                         <SkeletonCard compact={true} />
@@ -642,7 +631,7 @@ const CityPage = () => {
                         ) : (
                             <>
                                 {/* Desktop UI loader */}
-                                <div className="hidden md:flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
+                                <div className="hidden md:flex flex-wrap justify-start gap-4 sm:gap-6 max-w-[1440px] mx-auto w-full animate-fadeIn">
                                     {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                                         <div key={i} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0">
                                             <SkeletonCard compact={true} />
@@ -684,9 +673,9 @@ const CityPage = () => {
                     ) : (
                         <>
                             {filters.occupancy ? (
-                                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
+                                <div className="flex flex-wrap justify-start gap-2 sm:gap-6 max-w-[1440px] mx-auto w-full animate-fadeIn">
                                     {paginatedItems.map(room => (
-                                        <div key={room.id} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
+                                        <div key={room.id} className="w-[calc(50%-4px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
                                             <RoomCard
                                                 room={room}
                                                 messName={room.messName}
@@ -700,7 +689,7 @@ const CityPage = () => {
                             ) : (
                                 <>
                                     {/* Desktop UI: Centered Flex of compact MessCards */}
-                                    <div className="hidden md:flex flex-wrap justify-center gap-4 sm:gap-6 max-w-7xl mx-auto w-full animate-fadeIn">
+                                    <div className="hidden md:flex flex-wrap justify-start gap-4 sm:gap-6 max-w-[1440px] mx-auto w-full animate-fadeIn">
                                         {paginatedItems.map(mess => (
                                             <div key={mess.id} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
                                                 <MessCard
@@ -714,7 +703,7 @@ const CityPage = () => {
                                         ))}
                                     </div>
                                     {/* Mobile UI: Vertical list of horizontal MessCards */}
-                                    <div className="flex md:hidden flex-col gap-4 max-w-3xl mx-auto w-full animate-fadeIn">
+                                    <div className="flex md:hidden flex-col gap-2 max-w-3xl mx-auto w-full animate-fadeIn">
                                         {paginatedItems.map(mess => (
                                             <MessCard
                                                 key={mess.id}

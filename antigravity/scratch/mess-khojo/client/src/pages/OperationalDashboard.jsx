@@ -7,12 +7,14 @@ import { collection, updateDoc, doc, serverTimestamp, addDoc, getDoc, setDoc, ge
 
 
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp, Menu, X } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { trackLogout } from '../analytics';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Tab Components
 import BookingsTab from './OperationalDashboard/tabs/BookingsTab';
@@ -57,6 +59,7 @@ const OperationalDashboard = () => {
     const { carouselEnabled, desktopAds, mobileAds, heroAdUploading, heroAdForm, setHeroAdForm, desktopAdFile, setDesktopAdFile, mobileAdFile, setMobileAdFile, handleToggleCarousel, handleHeroAdUpload, handleReorderHeroAd, handleToggleHeroAd, handleDeleteHeroAd } = heroAds;
 
     const [opFilterDistrict, setOpFilterDistrict] = useState('all');
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
     const [messesSearchQuery, setMessesSearchQuery] = useState('');
 
@@ -162,42 +165,76 @@ const OperationalDashboard = () => {
     };
 
     const handleEditItem = (item, type) => {
-        setEditingItem({ type, id: item.id });
-        if (type === 'mess') {
+        if (type === 'add_room') {
+            setEditingItem({ type, messId: item.messId });
             setEditForm({
-                name: item.name || '',
-                district: item.district || 'balasore', // Operator CAN change district
-                address: item.address || '',
-                contact: item.contact || '',
-                locationUrl: item.locationUrl || '',
-                messType: item.messType || 'Boys',
-                extraAppliances: item.extraAppliances || '',
-                foodFacility: item.foodFacility || '',
-                security: item.security || '',
-                advanceDeposit: item.advanceDeposit || '',
-                isUserSourced: item.isUserSourced || false,
-                lastUpdatedDate: item.lastUpdatedDate || '',
-                hidden: item.hidden || false,
-                hideContact: item.hideContact || false,
-                posterUrl: item.posterUrl || '',
-                galleryUrls: item.galleryUrls || [],
-                amenities: item.amenities || { food: false, wifi: false, inverter: false },
-                description: item.description || '',
-                sponsorRank: item.sponsorRank || '',
-                rentCycle: item.rentCycle || 'monthly',
-                minStayDuration: item.minStayDuration || 1
+                occupancy: '1',
+                category: '',
+                price: '',
+                availableCount: 1,
+                totalInventory: 1,
+                otherInfo: '',
+                amenities: { ac: false, attachedBathroom: false },
+                imageUrls: []
             });
         } else {
-            setEditForm({
-                occupancy: item.occupancy || '1',
-                category: item.category || '',
-                price: item.price || '',
-                availableCount: item.availableCount || 0,
-                totalInventory: item.totalInventory || 1,
-                otherInfo: item.otherInfo || '',
-                amenities: item.amenities || { ac: false, attachedBathroom: false },
-                imageUrls: item.imageUrls || (item.imageUrl ? [item.imageUrl] : [])
-            });
+            setEditingItem({ type, id: item.id });
+            if (type === 'mess') {
+                let advDep = item.advanceDeposit || '';
+                let secCharges = item.security || '';
+                if (advDep.includes('maintenance')) {
+                    const parts = advDep.split(/\s*\+\s*/);
+                    if (parts.length > 1) {
+                        advDep = parts[0].trim();
+                        secCharges = parts[1].trim();
+                    } else {
+                        advDep = '';
+                        secCharges = item.advanceDeposit;
+                    }
+                }
+
+                setEditForm({
+                    name: item.name || '',
+                    district: item.district || 'balasore', // Operator CAN change district
+                    city: item.city || '',
+                    address: item.address || '',
+                    contact: item.contact || '',
+                    locationUrl: item.locationUrl || '',
+                    messType: item.messType || 'Boys',
+                    extraAppliances: item.extraAppliances || '',
+                    foodFacility: item.foodFacility || '',
+                    security: secCharges,
+                    advanceDeposit: advDep,
+                    isUserSourced: item.isUserSourced || false,
+                    lastUpdatedDate: item.lastUpdatedDate || '',
+                    hidden: item.hidden || false,
+                    hideContact: item.hideContact || false,
+                    posterUrl: item.posterUrl || '',
+                    galleryUrls: item.galleryUrls || [],
+                    amenities: {
+                        cctv: item.amenities?.cctv || false,
+                        inverter: item.amenities?.inverter || false,
+                        food: item.amenities?.food || false,
+                        wifi: item.amenities?.wifi || false,
+                        ac: item.amenities?.ac || false,
+                    },
+                    description: item.description || '',
+                    sponsorRank: item.sponsorRank || '',
+                    rentCycle: item.rentCycle || 'monthly',
+                    minStayDuration: item.minStayDuration || 1
+                });
+            } else {
+                setEditForm({
+                    occupancy: item.occupancy || '1',
+                    category: item.category || '',
+                    price: item.price || '',
+                    availableCount: item.availableCount || 0,
+                    totalInventory: item.totalInventory || 1,
+                    otherInfo: item.otherInfo || '',
+                    amenities: item.amenities || { ac: false, attachedBathroom: false },
+                    imageUrls: item.imageUrls || (item.imageUrl ? [item.imageUrl] : [])
+                });
+            }
         }
     };
 
@@ -210,6 +247,9 @@ const OperationalDashboard = () => {
                     galleryUrls: updatedUrls
                 });
                 setEditForm(prev => ({ ...prev, galleryUrls: updatedUrls }));
+            } else if (editingItem.type === 'add_room') {
+                const updatedUrls = (editForm.imageUrls || []).filter(url => url !== imageUrlToRemove);
+                setEditForm(prev => ({ ...prev, imageUrls: updatedUrls }));
             } else {
                 const updatedUrls = (editForm.imageUrls || []).filter(url => url !== imageUrlToRemove);
                 await updateDoc(doc(db, "rooms", editingItem.id), {
@@ -265,7 +305,9 @@ const OperationalDashboard = () => {
                     sponsorRank: finalSponsorRank,
                     posterUrl,
                     galleryUrls: downloadURLs,
-                    lastUpdatedDate: editForm.isUserSourced ? editForm.lastUpdatedDate : null
+                    lastUpdatedDate: editForm.isUserSourced ? editForm.lastUpdatedDate : null,
+                    advancePayment: null,
+                    maintenanceCharge: null
                 });
             } else {
                 let downloadURLs = editForm.imageUrls ? [...editForm.imageUrls] : [];
@@ -286,11 +328,25 @@ const OperationalDashboard = () => {
                     return;
                 }
 
-                await updateDoc(doc(db, "rooms", editingItem.id), {
+                const finalRoomData = {
                     ...editForm,
+                    price: Number(editForm.price) || 0,
+                    availableCount: Number(editForm.availableCount) || 0,
+                    totalInventory: Number(editForm.totalInventory) || 1,
                     imageUrls: downloadURLs,
                     imageUrl: downloadURLs[0] || ""
-                });
+                };
+
+                if (editingItem.type === 'room') {
+                    await updateDoc(doc(db, "rooms", editingItem.id), finalRoomData);
+                } else if (editingItem.type === 'add_room') {
+                    const targetMess = messes.find(m => m.id === editingItem.messId);
+                    await addDoc(collection(db, "rooms"), {
+                        ...finalRoomData,
+                        messId: editingItem.messId,
+                        rentCycle: targetMess?.rentCycle || 'monthly'
+                    });
+                }
             }
             setEditingItem(null);
             setEditForm(null);
@@ -653,9 +709,9 @@ const OperationalDashboard = () => {
             if (regAdv.type && regAdv.type !== 'None') {
                 derivedDeposit = regAdv.type === 'Custom Amount' ? `₹${regAdv.customAmount}` : regAdv.type;
             }
+            let derivedSecurity = '';
             if (regMaint.taken && regMaint.amount) {
-                const maintStr = ` + ₹${regMaint.amount} maintenance (${regMaint.frequency || 'Per Year'})`;
-                derivedDeposit = derivedDeposit ? `${derivedDeposit}${maintStr}` : `₹${regMaint.amount} maintenance (${regMaint.frequency || 'Per Year'})`;
+                derivedSecurity = `₹${regMaint.amount} maintenance (${regMaint.frequency || 'Per Month'})`;
             }
 
             // 'name' is the correct field used by AdminDashboard and Home page
@@ -664,6 +720,7 @@ const OperationalDashboard = () => {
                 partnerId: partnerId,
                 name: reg.messName,
                 district: reg.district || 'balasore',
+                city: reg.city || '',
                 address: reg.landmark || '',
                 contact: reg.phoneNumber || '',
                 email: email,
@@ -676,6 +733,7 @@ const OperationalDashboard = () => {
                 advancePayment: regAdv,
                 maintenanceCharge: regMaint,
                 advanceDeposit: derivedDeposit,
+                security: derivedSecurity,
                 location: locationGeopoint,
                 latitude: reg.gpsLatitude ? Number(reg.gpsLatitude) : null,
                 longitude: reg.gpsLongitude ? Number(reg.gpsLongitude) : null,
@@ -714,6 +772,7 @@ const OperationalDashboard = () => {
                             messId: messDocRef.id,
                             messName: reg.messName,
                             district: reg.district || 'balasore',
+                            city: reg.city || '',
                             occupancy: String(occupancyNum),
                             category,
                             price: Number(variant.price) || 0,
@@ -734,6 +793,7 @@ const OperationalDashboard = () => {
                     messId: messDocRef.id,
                     messName: reg.messName,
                     district: reg.district || 'balasore',
+                    city: reg.city || '',
                     occupancy: String(occupancyNum),
                     category: roomType,
                     price: Number(rentInfo[roomType]) || 0,
@@ -809,6 +869,7 @@ const OperationalDashboard = () => {
     };
 
     const handleLogout = async () => {
+        trackLogout('operator');
         await signOut(auth);
         navigate('/');
     };
@@ -871,11 +932,23 @@ const OperationalDashboard = () => {
     const statsTotalRooms = rooms.length;
     const statsAvailableRooms = rooms.reduce((acc, r) => acc + (Number(r.availableCount) || 0), 0);
 
+    const editingRoomMessId = editingItem?.type === 'add_room'
+        ? editingItem.messId
+        : (editingItem?.type === 'room' ? rooms.find(r => r.id === editingItem.id)?.messId : null);
+    const editingRoomMess = messes.find(m => m.id === editingRoomMessId);
+
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100">
             {/* Top Bar */}
-            <header className="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10 flex justify-between items-center shadow-md">
+            <header className="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setMobileMenuOpen(true)}
+                        className="md:hidden p-2 rounded-lg text-slate-400 hover:bg-slate-700/50 hover:text-white"
+                        aria-label="Open navigation menu"
+                    >
+                        <Menu size={22} />
+                    </button>
                     <div className="bg-emerald-500/10 p-2 rounded-lg text-emerald-500">
                         <Server size={24} />
                     </div>
@@ -899,7 +972,7 @@ const OperationalDashboard = () => {
                     </span>
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg transition-colors border border-red-500/20"
+                        className="hidden md:flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg transition-colors border border-red-500/20"
                     >
                         <LogOut size={18} />
                         Logout
@@ -909,7 +982,7 @@ const OperationalDashboard = () => {
 
             <div className="flex flex-col md:flex-row min-h-[calc(100vh-73px)]">
                 {/* Sidebar Navigation */}
-                <aside className="w-full md:w-64 bg-slate-800/50 border-r border-slate-700 p-4 space-y-2">
+                <aside className="hidden md:block w-64 bg-slate-800/50 border-r border-slate-700 p-4 space-y-2">
                     <button
                         onClick={() => setActiveTab('bookings')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'bookings'
@@ -975,7 +1048,6 @@ const OperationalDashboard = () => {
                             </span>
                         )}
                     </button>
-
                     <button
                         onClick={() => setActiveTab('inquiries')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inquiries'
@@ -991,7 +1063,6 @@ const OperationalDashboard = () => {
                             </span>
                         )}
                     </button>
-
                     <button
                         onClick={() => setActiveTab('room_inquiries')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'room_inquiries'
@@ -1007,7 +1078,6 @@ const OperationalDashboard = () => {
                             </span>
                         )}
                     </button>
-
                     <button
                         onClick={() => setActiveTab('feedbacks')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'feedbacks'
@@ -1023,11 +1093,10 @@ const OperationalDashboard = () => {
                             </span>
                         )}
                     </button>
-
+ 
                     <div className="pt-4 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4">
                         Data Management
                     </div>
-
                     <button
                         onClick={() => setActiveTab('messes')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'messes'
@@ -1041,11 +1110,10 @@ const OperationalDashboard = () => {
                             {messes.length}
                         </span>
                     </button>
-
+ 
                     <div className="pt-4 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4">
                         Marketing
                     </div>
-
                     <button
                         onClick={() => setActiveTab('hero_ads')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'hero_ads'
@@ -1240,7 +1308,7 @@ const OperationalDashboard = () => {
                         <div className="sticky top-0 bg-slate-800 p-6 border-b border-slate-700 flex justify-between items-center z-10">
                             <h2 className="text-xl font-bold flex items-center gap-2">
                                 <Edit3 size={20} className="text-indigo-400" />
-                                Edit {editingItem.type === 'mess' ? 'Mess Profile' : 'Room Type'}
+                                {editingItem.type === 'add_room' ? 'Add New Room' : `Edit ${editingItem.type === 'mess' ? 'Mess Profile' : 'Room Type'}`}
                             </h2>
                             <button
                                 onClick={() => { setEditingItem(null); setEditForm(null); }}
@@ -1288,18 +1356,34 @@ const OperationalDashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* District — EDITABLE by operator */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-indigo-400 uppercase mb-2">District (Operator Only)</label>
-                                        <select
-                                            className="w-full bg-slate-900 border border-indigo-500/40 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                                            value={editForm.district || 'balasore'}
-                                            onChange={e => setEditForm({ ...editForm, district: e.target.value })}
-                                        >
-                                            {Object.values(DISTRICTS_CONFIG).map(district => (
-                                                <option key={district.id} value={district.id}>{district.name}</option>
-                                            ))}
-                                        </select>
+                                    {/* District & City — EDITABLE by operator */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-indigo-400 uppercase mb-2">District (Operator Only)</label>
+                                            <select
+                                                className="w-full bg-slate-900 border border-indigo-500/40 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                                value={editForm.district || 'balasore'}
+                                                onChange={e => setEditForm({ ...editForm, district: e.target.value, city: '' })}
+                                            >
+                                                {Object.values(DISTRICTS_CONFIG).map(district => (
+                                                    <option key={district.id} value={district.id}>{district.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-indigo-400 uppercase mb-2">City (Operator Only)</label>
+                                            <select
+                                                className="w-full bg-slate-900 border border-indigo-500/40 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                                value={editForm.city || ''}
+                                                onChange={e => setEditForm({ ...editForm, city: e.target.value })}
+                                                required
+                                            >
+                                                <option value="">Select City</option>
+                                                {(editForm.district ? DISTRICTS_CONFIG[editForm.district]?.cities || [] : []).map(city => (
+                                                    <option key={city.id} value={city.id}>{city.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div>
@@ -1346,7 +1430,7 @@ const OperationalDashboard = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Price Policy / Deposit</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Advance Payment Amount</label>
                                             <input
                                                 type="text"
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -1355,7 +1439,7 @@ const OperationalDashboard = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Security/Other Details</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Extra Maintenance Charges</label>
                                             <input
                                                 type="text"
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -1392,9 +1476,11 @@ const OperationalDashboard = () => {
                                         <MultiSelectDropdown
                                             label="Mess Amenities"
                                             options={[
+                                                { key: 'cctv', label: 'CCTV' },
+                                                { key: 'inverter', label: 'Inverter' },
                                                 { key: 'food', label: 'Food' },
                                                 { key: 'wifi', label: 'WiFi' },
-                                                { key: 'inverter', label: 'Electricity Backup' }
+                                                { key: 'ac', label: 'AC' }
                                             ]}
                                             selected={editForm.amenities}
                                             onChange={(key, checked) => setEditForm({
@@ -1540,19 +1626,20 @@ const OperationalDashboard = () => {
                                                 value={editForm.occupancy}
                                                 onChange={e => setEditForm({ ...editForm, occupancy: e.target.value })}
                                             >
-                                                <option value="1">1 Seater (Single)</option>
-                                                <option value="2">2 Seater (Double)</option>
-                                                <option value="3">3 Seater (Triple)</option>
+                                                <option value="1">1 Seater</option>
+                                                <option value="2">2 Seater</option>
+                                                <option value="3">3 Seater</option>
                                                 <option value="4">4 Seater</option>
                                                 <option value="5">5 Seater</option>
                                                 <option value="6">6 Seater</option>
+                                                <option value="7">7 Seater</option>
                                             </select>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
                                                 Price
                                                 <span className="ml-1 text-emerald-400 lowercase font-normal">
-                                                    ({messes.find(m => m.id === editingItem?.messId)?.rentCycle === 'yearly' ? '₹/year' : '₹/month'})
+                                                    ({editingRoomMess?.rentCycle === 'yearly' ? '₹/year' : '₹/month'})
                                                 </span>
                                             </label>
                                             <input
@@ -1656,7 +1743,11 @@ const OperationalDashboard = () => {
                                     disabled={isSaving}
                                     className="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 text-white font-bold py-3 rounded-2xl transition-all shadow-lg shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2"
                                 >
-                                    {isSaving ? 'Saving Changes...' : 'Save Changes'}
+                                    {isSaving ? (
+                                        editingItem.type === 'add_room' ? 'Adding Room...' : 'Saving Changes...'
+                                    ) : (
+                                        editingItem.type === 'add_room' ? 'Add Room' : 'Save Changes'
+                                    )}
                                 </button>
                                 <button
                                     type="button"
@@ -1723,6 +1814,215 @@ const OperationalDashboard = () => {
                     </div>
                 </div>
             )}
+
+            {/* Mobile Menu Overlay & Drawer */}
+            <AnimatePresence>
+                {mobileMenuOpen && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] md:hidden"
+                        />
+                        {/* Drawer */}
+                        <motion.div
+                            initial={{ x: '-100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '-100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="fixed inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-850 p-5 z-[110] md:hidden flex flex-col justify-between shadow-2xl overflow-y-auto"
+                        >
+                            <div>
+                                {/* Header */}
+                                <div className="flex items-center justify-between pb-5 border-b border-slate-800 mb-6">
+                                    <div className="flex items-center gap-2">
+                                        <Server className="text-emerald-500" size={20} />
+                                        <span className="font-bold text-white text-base">Menu</span>
+                                    </div>
+                                    <button
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                {/* Navigation Options */}
+                                <div className="space-y-1">
+                                    <button
+                                        onClick={() => { setActiveTab('bookings'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'bookings'
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Calendar size={18} />
+                                        Call Requests
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('owner_calls'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'owner_calls'
+                                            ? 'bg-indigo-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <PhoneCall size={18} />
+                                        Owner Calls
+                                        {statsPendingOwnerCalls > 0 && (
+                                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                {statsPendingOwnerCalls}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('partners'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'partners'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Users size={18} />
+                                        Create Partner
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('claims'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'claims'
+                                            ? 'bg-amber-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Briefcase size={18} />
+                                        Listing Claims
+                                        {claims.filter(c => c.status === 'pending').length > 0 && (
+                                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                {claims.filter(c => c.status === 'pending').length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('registrations'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'registrations'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Building2 size={18} />
+                                        Mess Registrations
+                                        {registrations.filter(r => r.status === 'pending').length > 0 && (
+                                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                {registrations.filter(r => r.status === 'pending').length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('inquiries'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'inquiries'
+                                            ? 'bg-rose-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Shield size={18} />
+                                        Unregistered Queries
+                                        {inquiries.filter(i => i.status === 'pending').length > 0 && (
+                                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                {inquiries.filter(i => i.status === 'pending').length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('room_inquiries'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'room_inquiries'
+                                            ? 'bg-orange-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <BedDouble size={18} />
+                                        Find Your Room Requests
+                                        {roomInquiries.length > 0 && (
+                                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                {roomInquiries.length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => { setActiveTab('feedbacks'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'feedbacks'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <MessageSquare size={18} />
+                                        User Feedbacks
+                                        {feedbacks.filter(f => f.status === 'pending').length > 0 && (
+                                            <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                {feedbacks.filter(f => f.status === 'pending').length}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <div className="pt-4 pb-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest px-4">
+                                        Data Management
+                                    </div>
+
+                                    <button
+                                        onClick={() => { setActiveTab('messes'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'messes'
+                                            ? 'bg-indigo-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Database size={18} />
+                                        Mess & Rooms
+                                        <span className="ml-auto bg-white/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-60">
+                                            {messes.length}
+                                        </span>
+                                    </button>
+
+                                    <div className="pt-4 pb-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest px-4">
+                                        Marketing
+                                    </div>
+
+                                    <button
+                                        onClick={() => { setActiveTab('hero_ads'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'hero_ads'
+                                            ? 'bg-pink-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <Image size={18} />
+                                        Hero Ads
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Footer profile & Logout button */}
+                            <div className="pt-6 border-t border-slate-800 mt-6 space-y-4">
+                                <div className="px-4 py-2 rounded-xl bg-slate-800/40 border border-slate-800/60 flex flex-col gap-0.5">
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator Profile</span>
+                                    <span className="text-xs text-slate-400 font-medium truncate">{auth.currentUser?.email}</span>
+                                </div>
+                                <button
+                                    onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                                    className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-3 rounded-xl transition-all border border-red-500/20 text-sm font-bold active:scale-95"
+                                >
+                                    <LogOut size={16} />
+                                    Logout
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
         </div >
     );

@@ -664,19 +664,20 @@ const RoomDetails = () => {
                             <h4 className="font-bold text-gray-900 mb-2">Mess Rules</h4>
                             <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                                 <li>Deposit: {(() => {
-                                    if (mess.advancePayment?.type && (mess.advancePayment.type !== 'None' || (mess.maintenanceCharge?.taken && mess.maintenanceCharge?.amount))) {
-                                        const adv = mess.advancePayment;
-                                        const maint = mess.maintenanceCharge;
-                                        const advStr = adv.type && adv.type !== 'None'
-                                            ? (adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type)
-                                            : '';
-                                        const maintStr = maint?.taken && maint?.amount
-                                            ? `${advStr ? ' + ' : ''}₹${maint.amount} maintenance`
-                                            : '';
-                                        return advStr + maintStr || 'No Deposit';
-                                    }
-                                    return mess.advanceDeposit || 'Contact Owner';
-                                })()}</li>
+                                     if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                                         const adv = mess.advancePayment;
+                                         return adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
+                                     }
+                                     if (mess.advanceDeposit) {
+                                         let advDep = mess.advanceDeposit;
+                                         if (advDep.includes('maintenance')) {
+                                             const parts = advDep.split(/\s*\+\s*/);
+                                             return parts.length > 1 ? parts[0].trim() : advDep;
+                                         }
+                                         return advDep;
+                                     }
+                                     return 'Contact Owner';
+                                 })()}</li>
                                 <li>Type: {mess.messType}</li>
                             </ul>
                         </div>
@@ -692,46 +693,7 @@ const RoomDetails = () => {
                 </div>
             </div>
 
-            {/* Bottom Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 px-6 md:hidden z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <div>
-                    <p className="text-xs text-gray-500 font-bold uppercase">Total Rent</p>
-                    <p className="text-2xl font-black text-brand-text-dark">₹{room.price}</p>
-                </div>
-                <button
-                    onClick={() => room.availableCount > 0 ? handleBookClick() : handleNotifyClick()}
-                    className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-all text-white ${room.availableCount > 0
-                        ? 'bg-brand-primary hover:bg-brand-primary-hover'
-                        : 'bg-indigo-500 hover:bg-indigo-600'
-                        }`}
-                >
-                    {room.availableCount > 0 ? 'Contact Owner' : 'Check Availability'}
-                </button>
-            </div>
 
-            {/* Desktop Action Button (Floating) */}
-            <div className="hidden md:block fixed bottom-8 right-8 z-30">
-                <button
-                    onClick={() => room.availableCount > 0 ? handleBookClick() : handleNotifyClick()}
-                    className={`px-10 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-3 text-white ${room.availableCount > 0
-                        ? 'bg-brand-primary hover:bg-brand-primary-hover'
-                        : 'bg-indigo-500 hover:bg-indigo-600'
-                        }`}
-                >
-                    {room.availableCount > 0 ? (
-                        <>
-                            <span>Contact Owner</span>
-                            <div className="w-px h-6 bg-white/20"></div>
-                            <span className="font-normal text-white/80">₹{room.price}</span>
-                        </>
-                    ) : (
-                        <>
-                            <span>Check Availability</span>
-                            <Bell size={20} />
-                        </>
-                    )}
-                </button>
-            </div>
 
 
             {/* Contact Owner Modal */}

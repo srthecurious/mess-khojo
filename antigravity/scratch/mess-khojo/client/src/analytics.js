@@ -168,6 +168,16 @@ export const trackSignupAttempt = (success) => {
     }
 };
 
+// Track logout events
+export const trackLogout = (role = 'user') => {
+    trackEvent('Authentication', 'logout', role);
+};
+
+// Track account deletion
+export const trackAccountDelete = (success, errorMsg = '') => {
+    trackEvent('Authentication', 'account_deleted', success ? 'success' : `failure: ${errorMsg}`);
+};
+
 // Track mess registration
 export const trackMessRegistration = (started, messId = null) => {
     if (started) {
@@ -268,6 +278,8 @@ export default {
     trackAvailabilityCheck,
     trackLoginAttempt,
     trackSignupAttempt,
+    trackLogout,
+    trackAccountDelete,
     trackMessRegistration,
     trackMessExplorer,
     trackViewMore,

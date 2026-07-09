@@ -119,11 +119,17 @@ export const telegramTemplates = {
             timeStyle: 'short'
         });
 
+        const actionText = claim.claimAction === 'change_details' ? 'Change Details' : 'Remove Listing';
+        const feedbackText = claim.feedback ? `\n💬 <b>Feedback:</b> ${claim.feedback}` : '';
+
         return `📋 <b>NEW LISTING CLAIM!</b>\n\n` +
             `🏢 <b>Mess:</b> ${claim.messName}\n` +
-            `👤 <b>Claimant:</b> ${claim.userName}\n` +
+            `👤 <b>Claimant:</b> ${claim.claimantName || claim.userName}\n` +
+            `👑 <b>Is Owner:</b> ${claim.isOwner ? 'Yes' : 'No'}\n` +
+            `⚙️ <b>Requested Action:</b> ${actionText}\n` +
             `📧 <b>Email:</b> ${claim.userEmail}\n` +
-            `📱 <b>Phone:</b> ${claim.userPhone}\n\n` +
+            `📱 <b>Phone:</b> ${claim.userPhone}\n` +
+            `${feedbackText}\n\n` +
             `⏰ <i>${time}</i>\n\n` +
             `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;
     },

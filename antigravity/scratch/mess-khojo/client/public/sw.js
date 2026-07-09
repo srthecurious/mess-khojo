@@ -58,6 +58,8 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('identitytoolkit.googleapis.com') ||
     url.hostname.includes('google-analytics.com') ||
     url.hostname.includes('analytics.google.com') ||
+    url.hostname.includes('google.com') ||
+    url.hostname.includes('gstatic.com') ||
     url.hostname.includes('facebook.com') ||
     url.hostname.includes('facebook.net') ||
     url.hostname.includes('clarity.ms') ||

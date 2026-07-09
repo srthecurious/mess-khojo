@@ -46,7 +46,7 @@ const CityLandingPage = () => {
     // Unique landmarks extractor
     const allUniqueLandmarks = React.useMemo(() => {
         const landmarkSet = new Set();
-        
+
         // Predefined landmarks from DISTRICTS_CONFIG
         Object.values(DISTRICTS_CONFIG).forEach(district => {
             if (district.landmarks) {
@@ -116,7 +116,7 @@ const CityLandingPage = () => {
             .filter(([id, name]) => name.toLowerCase().includes(query) || id.toLowerCase().includes(query))
             .slice(0, 3)
             .map(([id, name]) => {
-                const district = Object.entries(DISTRICTS_CONFIG).find(([, config]) => 
+                const district = Object.entries(DISTRICTS_CONFIG).find(([, config]) =>
                     config.cities?.some(c => c.id === id)
                 );
                 return {
@@ -205,16 +205,15 @@ const CityLandingPage = () => {
     // Render loading state with cards skeletons
     if (loading) {
         return (
-            <div className="min-h-screen bg-brand-secondary animate-fadeIn">
+            <div className="min-h-screen bg-brand-secondary animate-fadeIn overflow-x-hidden">
                 <Header showSearch={false} />
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    {/* Skeletons for city sections */}
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {[1, 2].map((section) => (
                         <div key={section} className="mb-12">
                             <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-6" />
-                            <div className="flex flex-wrap justify-center gap-6 w-full">
-                                {[1, 2, 3, 4].map(i => (
-                                    <div key={i} className="w-[calc(50%-12px)] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
+                            <div className="flex overflow-x-auto sm:overflow-visible sm:flex-wrap hide-scrollbar gap-4 sm:gap-6 w-auto sm:w-full py-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                    <div key={i} className="w-[44%] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
                                         <SkeletonCard />
                                     </div>
                                 ))}
@@ -229,7 +228,7 @@ const CityLandingPage = () => {
     // Priority: Baleshwar, Remuna, Bhadrak, Basudevpur, Baripada, then Other
     const cityOrder = ['baleshwar', 'remuna', 'bhadrak', 'basudevpur', 'baripada', 'other'];
     const activeCities = cityOrder.filter(cityId => filteredMessesByCity[cityId] && filteredMessesByCity[cityId].length > 0);
-    
+
     // Add any other dynamic city keys not present in the hardcoded priority list
     Object.keys(filteredMessesByCity).forEach(cityId => {
         if (!cityOrder.includes(cityId) && filteredMessesByCity[cityId].length > 0) {
@@ -238,12 +237,12 @@ const CityLandingPage = () => {
     });
 
     return (
-        <div className="min-h-screen bg-brand-secondary flex flex-col animate-fadeIn">
+        <div className="min-h-screen bg-brand-secondary flex flex-col animate-fadeIn overflow-x-hidden">
             <Header showSearch={false} />
 
-            <main className="flex-grow py-6 sm:py-8">
+            <main className="flex-grow py-4 sm:py-6 overflow-x-hidden">
                 {/* Search & Actions Bar */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 mt-2">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6 mt-1">
                     <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
                         {/* Left: Search input */}
                         <div ref={searchRef} className="relative flex-grow max-w-2xl lg:max-w-none">
@@ -335,9 +334,9 @@ const CityLandingPage = () => {
                                                             >
                                                                 <div className="flex items-center gap-3">
                                                                     {mess.posterUrl ? (
-                                                                        <img 
-                                                                            src={mess.posterUrl} 
-                                                                            alt={mess.name} 
+                                                                        <img
+                                                                            src={mess.posterUrl}
+                                                                            alt={mess.name}
                                                                             className="w-8 h-8 rounded-lg object-cover border border-purple-100 shrink-0 group-hover:scale-105 transition-transform"
                                                                         />
                                                                     ) : (
@@ -433,19 +432,17 @@ const CityLandingPage = () => {
                         </div>
 
                         {/* Right: Quick Action Category Cards */}
-                        <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 shrink-0 w-full sm:w-auto">
+                        <div className="grid grid-cols-2 sm:flex sm:items-stretch gap-3 sm:gap-4 shrink-0 w-full sm:w-auto">
                             {/* Find Your Room Card */}
                             <Link
                                 to="/find-your-room"
                                 className="relative overflow-hidden flex items-center justify-between px-3 sm:px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-2 sm:gap-4 w-full sm:min-w-[200px]"
                             >
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5 truncate">Find Your Room</span>
-                                    <span className="text-[10px] font-medium text-white/80 truncate">Convenient Rooms Available!</span>
+                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5">Find Your Room</span>
+                                    <span className="text-[10px] font-medium text-white/80">Book Your Comfort</span>
                                 </div>
-                                <div className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
-                                    <BedDouble size={16} />
-                                </div>
+                                <BedDouble size={20} className="text-white shrink-0 group-hover:scale-105 transition-transform duration-300" />
                             </Link>
 
                             {/* Register Your Mess Card */}
@@ -455,19 +452,17 @@ const CityLandingPage = () => {
                                 className="relative overflow-hidden flex items-center justify-between px-3 sm:px-5 py-3 rounded-2xl bg-brand-primary text-white hover:bg-brand-primary-hover active:scale-[0.98] transition-all duration-300 shadow-md text-left group gap-2 sm:gap-4 w-full sm:min-w-[200px]"
                             >
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5 truncate">Register Your Mess</span>
-                                    <span className="text-[10px] font-medium text-white/80 truncate">Enroll Today!</span>
+                                    <span className="text-sm font-bold tracking-tight leading-tight mb-0.5">Register Your Mess</span>
+                                    <span className="text-[10px] font-medium text-white/80">Enroll Today!</span>
                                 </div>
-                                <div className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
-                                    <Home size={16} />
-                                </div>
+                                <Home size={20} className="text-white shrink-0 group-hover:scale-105 transition-transform duration-300" />
                             </Link>
                         </div>
                     </div>
                 </div>
 
                 {/* City Sections list */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mt-4">
                     {activeCities.length === 0 ? (
                         <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
                             <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-brand-primary">
@@ -477,7 +472,7 @@ const CityLandingPage = () => {
                             <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">We are launching in new areas soon. Register your mess to get started!</p>
                         </div>
                     ) : (
-                        <div className="space-y-12 sm:space-y-16">
+                        <div className="space-y-4 sm:space-y-5">
                             {activeCities.map((cityId) => {
                                 const cityMesses = filteredMessesByCity[cityId];
                                 const cityName = cityId === 'baleshwar' ? 'Balasore' : (CITY_NAMES[cityId] || cityId.charAt(0).toUpperCase() + cityId.slice(1));
@@ -485,47 +480,59 @@ const CityLandingPage = () => {
                                 const hasMore = cityMesses.length > PAGINATION.HOME_PREVIEW_COUNT;
 
                                 return (
-                                    <section 
-                                        key={cityId} 
+                                    <section
+                                        key={cityId}
                                         className="relative"
                                     >
                                         {/* City Header */}
-                                        <div className="flex items-center justify-between mb-5 pb-2">
-                                            <h2 className="text-xl sm:text-2xl font-bold text-brand-text-dark tracking-tight">
+                                        <Link
+                                            to={`/district/${Object.keys(DISTRICTS_CONFIG).find(dId => DISTRICTS_CONFIG[dId].cities?.some(c => c.id === cityId)) || 'balasore'}/city/${cityId}`}
+                                            className="flex items-center justify-between mb-1.5 sm:mb-2 group hover:text-brand-primary transition-colors"
+                                        >
+                                            <h2 className="text-xl sm:text-2xl font-bold text-brand-text-dark tracking-tight group-hover:text-brand-primary transition-colors">
                                                 Popular mess in {cityName}
                                             </h2>
-                                            <Link 
-                                                to={`/district/${Object.keys(DISTRICTS_CONFIG).find(dId => DISTRICTS_CONFIG[dId].cities?.some(c => c.id === cityId)) || 'balasore'}/city/${cityId}`}
-                                                className="flex items-center text-gray-800 hover:text-brand-primary transition-colors"
-                                            >
-                                                <ArrowRight size={20} />
-                                            </Link>
-                                        </div>
+                                            <div className="flex items-center text-gray-800 group-hover:text-brand-primary transition-colors">
+                                                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform duration-300" />
+                                            </div>
+                                        </Link>
 
                                         {/* Mess Cards Centered Flex */}
-                                        <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full">
+                                        <div className="flex overflow-x-auto sm:overflow-visible sm:flex-wrap hide-scrollbar gap-4 sm:gap-6 w-auto sm:w-full py-2 -mx-4 px-4 sm:mx-0 sm:px-0">
                                             {previewMesses.map((mess) => (
-                                                <div key={mess.id} className="w-[calc(50%-12px)] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
-                                                    <MessCard 
-                                                        mess={mess} 
-                                                        rooms={rooms.filter(r => r.messId === mess.id)} 
+                                                <div key={mess.id} className="w-[44%] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
+                                                    <MessCard
+                                                        mess={mess}
+                                                        rooms={rooms.filter(r => r.messId === mess.id)}
                                                         onToggleWishlist={handleMessWishlistToggle}
                                                         isWishlisted={isMessWishlisted(mess.id)}
                                                         compact={true}
                                                     />
                                                 </div>
                                             ))}
+                                            {/* View More Card Mobile */}
+                                            {hasMore && (
+                                                <Link
+                                                    to={`/district/${Object.keys(DISTRICTS_CONFIG).find(dId => DISTRICTS_CONFIG[dId].cities?.some(c => c.id === cityId)) || 'balasore'}/city/${cityId}`}
+                                                    className="shrink-0 px-4 flex sm:hidden flex-col items-center justify-center group relative text-center gap-1.5"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center group-hover:bg-brand-primary group-hover:text-white transition-colors duration-300">
+                                                        <ArrowRight size={20} />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-brand-primary">View More</span>
+                                                </Link>
+                                            )}
                                         </div>
 
-                                        {/* Center View More Button */}
+                                        {/* Desktop View More Button */}
                                         {hasMore && (
-                                            <div className="mt-6 flex justify-center">
-                                                <Link 
+                                            <div className="hidden sm:flex justify-center mt-3">
+                                                <Link
                                                     to={`/district/${Object.keys(DISTRICTS_CONFIG).find(dId => DISTRICTS_CONFIG[dId].cities?.some(c => c.id === cityId)) || 'balasore'}/city/${cityId}`}
-                                                    className="w-full sm:w-auto px-6 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-full shadow-sm hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-1.5 active:scale-95"
+                                                    className="px-4 py-1.5 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-700 font-semibold hover:border-brand-primary hover:text-brand-primary transition-all duration-300 bg-white shadow-sm flex items-center gap-1.5"
                                                 >
                                                     View More
-                                                    <ChevronDown size={16} />
+                                                    <ArrowRight size={15} />
                                                 </Link>
                                             </div>
                                         )}
@@ -536,7 +543,7 @@ const CityLandingPage = () => {
                     )}
                 </div>
 
-                <div className="mt-16 sm:mt-24">
+                <div className="mt-6 sm:mt-8">
                     <FeedbackForm />
                 </div>
             </main>

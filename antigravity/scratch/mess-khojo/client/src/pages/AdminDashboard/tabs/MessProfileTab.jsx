@@ -241,6 +241,7 @@ const MessProfileTab = ({
                             <option value="6 Months">6 Months</option>
                             <option value="1 Month Rent">1 Month Rent (Legacy)</option>
                             <option value="2 Month Rent">2 Month Rent (Legacy)</option>
+                            <option value="Full Amount">Full Amount</option>
                             <option value="Custom Amount">Custom Amount</option>
                         </select>
                         {messForm.advancePayment.type === 'Custom Amount' && (

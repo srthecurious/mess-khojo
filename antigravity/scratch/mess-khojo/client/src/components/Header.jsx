@@ -187,7 +187,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
     return (
         <>
             <nav className="sticky top-0 z-50 bg-brand-primary shadow-md">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-[61px] relative">
 
                         {/* Left Section: Logo */}
@@ -328,7 +328,7 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                             )}
 
                             {/* Notifications Bell Button - hidden on homepage */}
-                            {location.pathname !== '/' && location.pathname !== '/explorer' && (
+                            {location.pathname !== '/' && !location.pathname.endsWith('/explorer') && (
                                 <button
                                     onClick={handleOpenNotifications}
                                     className="p-2 text-white hover:bg-brand-primary-hover rounded-full transition-colors relative"

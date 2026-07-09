@@ -6,7 +6,7 @@ import { BRAND } from '../constants';
 const Footer = () => {
     return (
         <footer className="bg-[#300868] mt-12 py-12 text-white">
-            <div className="max-w-7xl mx-auto px-6 sm:px-8 flex flex-col gap-8">
+            <div className="max-w-[1440px] mx-auto px-6 sm:px-8 flex flex-col gap-8">
                 {/* Brand Logo Row */}
                 <div className="flex items-center gap-3">
                     <img
