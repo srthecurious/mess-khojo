@@ -1131,30 +1131,12 @@ const MessDetails = () => {
                 </div>
             </div>
 
-            {/* Bottom Action Bar (Mobile Only) */}
+            {/* Floating Action Button (Mobile & Desktop) */}
             {mess.contact && !mess.hideContact && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 px-6 md:hidden z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                    <div>
-                        <p className="text-xs text-gray-500 font-bold uppercase">Rent</p>
-                        <p className="text-xl font-black text-brand-text-dark">
-                            {mess.startingPrice ? `₹${mess.startingPrice}/mo` : 'Ask Info'}
-                        </p>
-                    </div>
+                <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-30">
                     <button
                         onClick={handleBookClick}
-                        className="px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover rounded-xl font-bold text-base shadow-md active:scale-95 transition-all text-white"
-                    >
-                        Contact Owner
-                    </button>
-                </div>
-            )}
-
-            {/* Desktop Action Button (Floating, Desktop Only) */}
-            {mess.contact && !mess.hideContact && (
-                <div className="hidden md:block fixed bottom-8 right-8 z-30">
-                    <button
-                        onClick={handleBookClick}
-                        className="bg-brand-primary hover:bg-brand-primary-hover px-6 py-2.5 rounded-xl font-bold text-base shadow-xl hover:scale-105 transition-all flex items-center gap-3 text-white"
+                        className="bg-brand-primary hover:bg-brand-primary-hover px-6 py-3 rounded-2xl font-bold text-base shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 text-white"
                     >
                         <span>Contact Owner</span>
                         {mess.startingPrice && (
