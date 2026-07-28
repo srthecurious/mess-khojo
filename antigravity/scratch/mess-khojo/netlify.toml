@@ -46,7 +46,8 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    # frame-ancestors replaces X-Frame-Options; allows Facebook Event Setup Tool to embed the site
+    Content-Security-Policy = "frame-ancestors 'self' https://www.facebook.com https://*.facebook.com;"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
 

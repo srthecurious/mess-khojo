@@ -103,7 +103,7 @@ export const getOccupancyLadder = (occupancyPref) => {
 const areaScore = (mess, location) => {
     if (!location) return 0;
     const loc       = location.toLowerCase().trim();
-    const landmark  = (mess.landmark  || '').toLowerCase().trim();
+    const landmark  = (mess.locality || mess.landmark  || '').toLowerCase().trim();
     const address   = (mess.address   || '').toLowerCase().trim();
     const name      = (mess.name      || '').toLowerCase().trim();
 

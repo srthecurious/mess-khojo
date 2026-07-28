@@ -7,13 +7,10 @@ const ClaimsTab = ({ claims }) => {
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'resolved'
     const [visibleCount, setVisibleCount] = useState(10);
 
+    // Reset pagination when user changes a filter
     const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
-    const [prevClaims, setPrevClaims] = useState(claims);
-
-    // Reset pagination when filters or data changes
-    if (statusFilter !== prevStatusFilter || claims !== prevClaims) {
+    if (prevStatusFilter !== statusFilter) {
         setPrevStatusFilter(statusFilter);
-        setPrevClaims(claims);
         setVisibleCount(10);
     }
 

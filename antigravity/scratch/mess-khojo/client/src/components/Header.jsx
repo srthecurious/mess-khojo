@@ -16,7 +16,7 @@ import MobileMenu from './Header/MobileMenu';
 import InstallGuideModal from './Header/InstallGuideModal';
 
 const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
-    const { districtConfig } = useDistrict();
+    const { districtConfig, localitiesConfig, getLocalitiesForCity } = useDistrict();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const headerJustFocused = React.useRef(false);
@@ -31,17 +31,23 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
 
     // Memoize suggestions so we don't recalculate on every render
     const allSuggestions = React.useMemo(() => {
-        const predefinedLandmarks = (districtConfig?.landmarks || []).map(l => ({
-            ...l,
-            icon: MapPin
-        }));
+        // Build locality list from Firestore localitiesConfig (fallback: districtConfig.landmarks)
+        const districtCities = districtConfig?.cities || [];
+        const localitySet = new Set();
+        districtCities.forEach(city => {
+            getLocalitiesForCity(city.id, localitiesConfig).forEach(l => localitySet.add(l));
+        });
+        // Also include names from the static landmarks list as fallback
+        (districtConfig?.landmarks || []).forEach(l => localitySet.add(l.name));
 
-        const validLandmarks = predefinedLandmarks.filter(landmark => {
+        const allLocalities = Array.from(localitySet).map(name => ({ name, type: 'locality', icon: MapPin }));
+
+        const validLocalities = allLocalities.filter(loc => {
             return messes.some(mess => {
-                const nm = mess.name || '';
-                const ad = mess.address || '';
-                const q = landmark.name.toLowerCase();
-                return nm.toLowerCase().includes(q) || ad.toLowerCase().includes(q);
+                const loc_val = (mess.locality || mess.landmark || '').toLowerCase();
+                const ad = (mess.address || '').toLowerCase();
+                const q = loc.name.toLowerCase();
+                return loc_val.includes(q) || ad.includes(q);
             });
         });
 
@@ -67,8 +73,8 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
             posterUrl: m.posterUrl
         }));
         
-        return [...sponsoredMesses, ...validLandmarks, ...popularMesses];
-    }, [messes, districtConfig]);
+        return [...sponsoredMesses, ...validLocalities, ...popularMesses];
+    }, [messes, districtConfig, localitiesConfig, getLocalitiesForCity]);
 
     // Fetch Notifications
     useEffect(() => {
@@ -288,12 +294,12 @@ const Header = ({ showSearch, searchTerm, onSearchChange, messes = [] }) => {
                                                                     />
                                                                 ) : (
                                                                     <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
-                                                                        <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
+                                                                        <item.icon size={14} className={item.type === 'locality' ? 'text-gray-500 group-hover:text-purple-600' : 'text-blue-500 group-hover:text-purple-600'} />
                                                                     </div>
                                                                 )}
                                                                 <div>
                                                                     <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">{item.name}</span>
-                                                                    <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>
+                                                                    <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'locality' ? 'Locality' : (item.label || 'Recommended')}</span>
                                                                 </div>
                                                             </button>
                                                         ))}

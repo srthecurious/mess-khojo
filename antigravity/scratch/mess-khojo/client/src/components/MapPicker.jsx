@@ -52,7 +52,7 @@ const MapSearch = ({ onPlaceSelect }) => {
                 <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Search city, area, or landmark..."
+                    placeholder="Search city, area, or locality..."
                     className="w-full pl-12 pr-4 py-4 bg-white text-gray-800 focus:outline-none font-medium text-base"
                 />
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-600">

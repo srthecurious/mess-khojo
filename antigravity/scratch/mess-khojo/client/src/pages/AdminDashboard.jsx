@@ -15,6 +15,8 @@ import { useAdminData } from './AdminDashboard/hooks/useAdminData';
 import MessProfileTab from './AdminDashboard/tabs/MessProfileTab';
 import RoomManagementTab from './AdminDashboard/tabs/RoomManagementTab';
 import BookingsOverviewTab from './AdminDashboard/tabs/BookingsOverviewTab';
+import TeamManagementTab from './AdminDashboard/tabs/TeamManagementTab';
+import { useTeamData } from '../hooks/useTeamData';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { trackLogout } from '../analytics';
 
@@ -22,7 +24,9 @@ import { trackLogout } from '../analytics';
 const AdminDashboard = () => {
     usePageSEO({ title: 'Admin Dashboard | MessKhojo', noindex: true });
     const adminData = useAdminData();
+    const teamData = useTeamData();
     const { user, messProfile, rooms, setRooms, bookings, loadingProfile, setMessProfile } = adminData;
+    const [activeAdminTab, setActiveAdminTab] = useState('overview'); // 'overview' | 'team'
 
 
     const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
@@ -588,54 +592,84 @@ const AdminDashboard = () => {
                 </div>
             </nav>
 
-            <div className="max-w-4xl mx-auto p-6">
-                {/* Mess Profile Section */}
-                <MessProfileTab 
-                    messProfile={messProfile}
-                    messForm={messForm}
-                    setMessForm={setMessForm}
-                    posterFile={posterFile}
-                    setPosterFile={setPosterFile}
-                    galleryFiles={galleryFiles}
-                    setGalleryFiles={setGalleryFiles}
-                    isEditingMess={isEditingMess}
-                    uploading={uploading}
-                    handleMessSubmit={handleMessSubmit}
-                    handleEditMessClick={handleEditMessClick}
-                    handleCancelEditMess={handleCancelEditMess}
-                    removeGalleryImage={removeGalleryImage}
-                    geocoding={geocoding}
-                    handleGeocode={handleGeocode}
-                    setShowMapPicker={setShowMapPicker}
-                    handleLocationUrlChange={handleLocationUrlChange}
-                />
+            <div className="max-w-5xl mx-auto p-6">
+                {/* Admin Sub-navigation Tabs */}
+                <div className="flex items-center gap-3 mb-6 bg-white p-2 rounded-2xl shadow-sm border border-purple-100">
+                    <button
+                        onClick={() => setActiveAdminTab('overview')}
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+                            activeAdminTab === 'overview'
+                                ? 'bg-brand-primary text-white shadow-md'
+                                : 'text-brand-text-gray hover:bg-purple-50 hover:text-brand-primary'
+                        }`}
+                    >
+                        🏠 Mess & Operations Management
+                    </button>
+                    <button
+                        onClick={() => setActiveAdminTab('team')}
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+                            activeAdminTab === 'team'
+                                ? 'bg-brand-primary text-white shadow-md'
+                                : 'text-brand-text-gray hover:bg-purple-50 hover:text-brand-primary'
+                        }`}
+                    >
+                        👥 Team Members Directory ({teamData?.stats?.total || 0})
+                    </button>
+                </div>
 
-                {/* Room Management Section */}
-                {messProfile && !isEditingMess && (
+                {activeAdminTab === 'team' ? (
+                    <TeamManagementTab teamData={teamData} />
+                ) : (
                     <>
-                        <RoomManagementTab 
-                            rooms={rooms}
-                            formData={formData}
-                            setFormData={setFormData}
-                            editingRoomId={editingRoomId}
-                            imageFiles={imageFiles}
-                            setImageFiles={setImageFiles}
-                            uploading={uploading}
-                            handleRoomSubmit={handleRoomSubmit}
-                            handleEditRoomClick={handleEditRoomClick}
-                            handleCancelEditRoom={handleCancelEditRoom}
-                            removeImage={removeImage}
-                            handleDelete={handleDelete}
+                        {/* Mess Profile Section */}
+                        <MessProfileTab 
                             messProfile={messProfile}
+                            messForm={messForm}
+                            setMessForm={setMessForm}
+                            posterFile={posterFile}
+                            setPosterFile={setPosterFile}
+                            galleryFiles={galleryFiles}
+                            setGalleryFiles={setGalleryFiles}
+                            isEditingMess={isEditingMess}
+                            uploading={uploading}
+                            handleMessSubmit={handleMessSubmit}
+                            handleEditMessClick={handleEditMessClick}
+                            handleCancelEditMess={handleCancelEditMess}
+                            removeGalleryImage={removeGalleryImage}
+                            geocoding={geocoding}
+                            handleGeocode={handleGeocode}
+                            setShowMapPicker={setShowMapPicker}
+                            handleLocationUrlChange={handleLocationUrlChange}
                         />
 
-                        <BookingsOverviewTab 
-                            bookings={bookings}
-                            bookingRemarks={bookingRemarks}
-                            setBookingRemarks={setBookingRemarks}
-                            bookingActionLoading={bookingActionLoading}
-                            handleUpdateBookingStatus={handleUpdateBookingStatus}
-                        />
+                        {/* Room Management Section */}
+                        {messProfile && !isEditingMess && (
+                            <>
+                                <RoomManagementTab 
+                                    rooms={rooms}
+                                    formData={formData}
+                                    setFormData={setFormData}
+                                    editingRoomId={editingRoomId}
+                                    imageFiles={imageFiles}
+                                    setImageFiles={setImageFiles}
+                                    uploading={uploading}
+                                    handleRoomSubmit={handleRoomSubmit}
+                                    handleEditRoomClick={handleEditRoomClick}
+                                    handleCancelEditRoom={handleCancelEditRoom}
+                                    removeImage={removeImage}
+                                    handleDelete={handleDelete}
+                                    messProfile={messProfile}
+                                />
+
+                                <BookingsOverviewTab 
+                                    bookings={bookings}
+                                    bookingRemarks={bookingRemarks}
+                                    setBookingRemarks={setBookingRemarks}
+                                    bookingActionLoading={bookingActionLoading}
+                                    handleUpdateBookingStatus={handleUpdateBookingStatus}
+                                />
+                            </>
+                        )}
                     </>
                 )}
             </div>

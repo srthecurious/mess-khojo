@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import packageJson from './package.json'
 // Trigger deployment
 import react from '@vitejs/plugin-react'
 import tailwindcss from 'tailwindcss'
@@ -12,6 +13,9 @@ export default defineConfig(({ mode }) => {
   const isProd = mode === 'production';
 
   return {
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VITE_APP_VERSION || packageJson.version || '1.0.0'),
+    },
     plugins: [
       react(),
 
@@ -89,15 +93,18 @@ export default defineConfig(({ mode }) => {
     // ── Dev Server Headers ────────────────────────────────────────────────
     server: {
       port: 5173,
+      host: '127.0.0.1',
+      allowedHosts: ['.loca.lt', '.ngrok-free.app', '.ngrok-free.dev'],
       headers: {
         'Content-Security-Policy': [
           "default-src 'self' https://*.firebaseio.com https://*.googleapis.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.firebaseio.com https://www.googletagmanager.com https://*.googleapis.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.google.com https://*.gstatic.com https://*.clarity.ms https://c.bing.com https://connect.facebook.net",
-          "connect-src 'self' https://*.google.com https://*.gstatic.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.google-analytics.com https://*.analytics.google.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.cloudfunctions.net https://api.telegram.org https://*.nsvcs.net https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://script.google.com https://script.googleusercontent.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://fonts.gstatic.com https://fonts.googleapis.com",
-          "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.firebaseapp.com https://firebasestorage.googleapis.com http://maps.google.com https://*.googleusercontent.com https://*.clarity.ms https://c.bing.com https://www.facebook.com",
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://*.google.com https://*.gstatic.com",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.firebaseio.com https://www.googletagmanager.com https://*.googleapis.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.google.com https://*.gstatic.com https://*.clarity.ms https://c.bing.com https://connect.facebook.net https://www.facebook.com https://*.facebook.com",
+          "connect-src 'self' https://*.google.com https://*.gstatic.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.google-analytics.com https://*.analytics.google.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.cloudfunctions.net https://api.telegram.org https://*.nsvcs.net https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://script.google.com https://script.googleusercontent.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.facebook.com https://connect.facebook.net https://fonts.gstatic.com https://fonts.googleapis.com",
+          "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.firebaseapp.com https://firebasestorage.googleapis.com http://maps.google.com https://*.googleusercontent.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.facebook.com https://*.fbcdn.net https://connect.facebook.net",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://*.google.com https://*.gstatic.com https://*.facebook.com https://connect.facebook.net",
           "font-src 'self' https://fonts.gstatic.com",
-          "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.google.com",
+          "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://www.facebook.com https://*.facebook.com https://connect.facebook.net",
+          "frame-ancestors 'self' https://www.facebook.com https://*.facebook.com",
           "worker-src 'self' blob:"
         ].join('; ')
       }

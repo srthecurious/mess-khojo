@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { toMessSlug } from '../utils/slugify';
 
 /**
  * SEO Component - Updates document title and meta tags dynamically
@@ -143,7 +144,7 @@ export function generateMessSchema(mess) {
         "@type": "Hostel",
         "name": mess.name,
         "description": mess.description || `${mess.name} is a ${mess.messType || 'premium'} accommodation in ${mess.address || 'Balasore'}. Hygienic food, safe environment, no broker.`,
-        "url": `https://messkhojo.com/mess/${mess._slug || mess.id}`,
+        "url": `https://messkhojo.com/mess/${mess._slug || (mess.name && mess.id ? toMessSlug(mess.name, mess.id) : mess.id)}`,
         "image": mess.posterUrl || mess.images?.[0] || "https://messkhojo.com/preview.png",
         "address": {
             "@type": "PostalAddress",

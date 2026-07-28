@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Search, Edit3, XCircle } from 'lucide-react';
+import { Layout, Search, Edit3, XCircle, Camera, CameraOff } from 'lucide-react';
 
 const RoomsTab = ({
     rooms,
@@ -65,6 +65,25 @@ const RoomsTab = ({
                                 <span className="text-xs text-slate-500 uppercase font-black">Availability</span>
                                 <span className="text-white font-bold">{room.availableCount} {room.occupancy === 'Single' ? 'Bed' : 'Seats'}</span>
                             </div>
+
+                            {/* Room Photo Status Badge */}
+                            {(() => {
+                                const photoCount = (room.imageUrls && room.imageUrls.length) || (room.imageUrl ? 1 : 0);
+                                const hasPhoto = photoCount > 0;
+                                return (
+                                    <div className={`px-2.5 py-1 rounded-lg border text-xs font-bold flex items-center justify-between mt-3 ${
+                                        hasPhoto
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                            : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                                    }`}>
+                                        <span className="flex items-center gap-1">
+                                            {hasPhoto ? <Camera size={13} /> : <CameraOff size={13} />}
+                                            {hasPhoto ? 'Photos Uploaded' : 'Missing Photos'}
+                                        </span>
+                                        <span>{hasPhoto ? `${photoCount} Pic(s)` : '0 Photos'}</span>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="flex gap-2 mt-auto">
