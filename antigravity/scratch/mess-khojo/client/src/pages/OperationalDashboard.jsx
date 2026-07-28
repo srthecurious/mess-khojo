@@ -957,18 +957,15 @@ const OperationalDashboard = () => {
         () => allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId).toLowerCase() === opFilterDistrict.toLowerCase()),
         [allClaims, opFilterDistrict, getMessDistrict]
     );
-
     // Live Metrics Calculations for Stats Overview Bar
     const statsTotalMesses = messes.length;
     const statsActiveMesses = messes.filter(m => !m.hidden).length;
     const statsHiddenMesses = messes.filter(m => m.hidden).length;
 
-    const statsPendingBookings = bookings.filter(b => b.status === 'pending').length;
     const statsPendingRegistrations = registrations.filter(r => r.status === 'pending').length;
     const statsPendingClaims = claims.filter(c => c.status === 'pending').length;
     const statsPendingInquiries = inquiries.filter(i => i.status === 'pending').length;
     const statsPendingFeedbacks = feedbacks.filter(f => f.status === 'pending').length;
-
     // Calculate unique messes contacted in the previous calendar month whose outreach status is pending or unset
     const statsPendingOwnerCalls = useMemo(() => {
         const now = new Date();
