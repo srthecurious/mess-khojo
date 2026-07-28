@@ -28,6 +28,12 @@ const Footer = () => {
                             SUPPORT
                         </h4>
                         <div className="flex flex-col gap-4">
+                            <Link to="/about-us" className="text-[15px] font-bold text-white hover:text-white/80 transition-colors">
+                                About Us
+                            </Link>
+                            <Link to="/team" className="text-[15px] font-bold text-white hover:text-white/80 transition-colors">
+                                Our Team
+                            </Link>
                             <a href="/terms-and-conditions" className="text-[15px] font-bold text-white hover:text-white/80 transition-colors">
                                 Terms & Conditions
                             </a>

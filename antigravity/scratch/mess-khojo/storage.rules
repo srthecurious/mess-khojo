@@ -50,5 +50,10 @@ service firebase.storage {
     match /hero_ads/{allPaths=**} {
       allow write: if isOperator() && isValidImage();
     }
+
+    // Team member profile avatars
+    match /team_avatars/{allPaths=**} {
+      allow write: if (isOperator() || isAdmin() || isAuthenticated()) && isValidImage();
+    }
   }
 }

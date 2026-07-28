@@ -1,40 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Eye, EyeOff, CheckCircle, XCircle, Trash2, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, Users, Eye, EyeOff, Trash2, Clock, Phone, Search, ChevronDown, XCircle } from 'lucide-react';
 import { db } from '../../../firebase';
 import { deleteDoc, doc } from 'firebase/firestore';
 
 const BookingsTab = ({
     bookings,
-    revealedIds,
-    setRevealedIds,
-    bookingRemarks,
-    setBookingRemarks,
-    bookingActionLoading,
-    handleBookingAction
+    revealedIds = {},
+    setRevealedIds = () => {}
 }) => {
-    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'confirmed', 'rejected'
+    const [searchQuery, setSearchQuery] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [datePreset, setDatePreset] = useState('all');
     const [visibleCount, setVisibleCount] = useState(10);
+    const [expandedGroups, setExpandedGroups] = useState({});
 
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-    const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
-    const [prevStartDate, setPrevStartDate] = useState(startDate);
-    const [prevEndDate, setPrevEndDate] = useState(endDate);
-    const [prevBookings, setPrevBookings] = useState(bookings);
 
-    // Reset pagination when filter or bookings prop change
-    if (
-        statusFilter !== prevStatusFilter || 
-        startDate !== prevStartDate ||
-        endDate !== prevEndDate ||
-        bookings !== prevBookings
-    ) {
-        setPrevStatusFilter(statusFilter);
-        setPrevStartDate(startDate);
-        setPrevEndDate(endDate);
-        setPrevBookings(bookings);
+    // Reset pagination when user changes a filter
+    const [prevFilter, setPrevFilter] = useState({ searchQuery, startDate, endDate });
+    if (prevFilter.searchQuery !== searchQuery || prevFilter.startDate !== startDate || prevFilter.endDate !== endDate) {
+        setPrevFilter({ searchQuery, startDate, endDate });
         setVisibleCount(10);
     }
 
@@ -80,7 +66,6 @@ const BookingsTab = ({
         setStartDate(start);
         setEndDate(end);
         
-        // Find if the start/end match any preset
         const today = new Date();
         const todayStr = getLocalDateString(today);
         
@@ -111,7 +96,7 @@ const BookingsTab = ({
         }
     };
 
-    // Keep the reference time updated every minute
+    // Keep reference time updated every minute
     useEffect(() => {
         const interval = setInterval(() => {
             setNow(Math.floor(Date.now() / 1000));
@@ -140,65 +125,131 @@ const BookingsTab = ({
         });
     };
 
-    // Filter bookings by status and date range
-    const filteredBookings = bookings.filter(booking => {
-        const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-
-        let matchesDate = true;
-        if (startDate || endDate) {
-            let bookingDate = null;
-            if (booking.createdAt) {
-                if (booking.createdAt.seconds) {
-                    bookingDate = new Date(booking.createdAt.seconds * 1000);
-                } else if (booking.createdAt.toDate && typeof booking.createdAt.toDate === 'function') {
-                    bookingDate = booking.createdAt.toDate();
-                } else {
-                    bookingDate = new Date(booking.createdAt);
-                }
+    // Filter bookings by date range & search query
+    const filteredBookings = useMemo(() => {
+        return bookings.filter(booking => {
+            // Search Filter
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase().trim();
+                const nameMatch = booking.userName?.toLowerCase().includes(q);
+                const phoneMatch = booking.userPhone?.toLowerCase().includes(q);
+                const messMatch = booking.messName?.toLowerCase().includes(q);
+                const idMatch = booking.userId?.toLowerCase().includes(q) || booking.id?.toLowerCase().includes(q);
+                if (!nameMatch && !phoneMatch && !messMatch && !idMatch) return false;
             }
 
-            if (!bookingDate || isNaN(bookingDate.getTime())) {
-                matchesDate = false;
-            } else {
+            // Date Range Filter
+            if (startDate || endDate) {
+                let bookingDate = null;
+                if (booking.createdAt) {
+                    if (booking.createdAt.seconds) {
+                        bookingDate = new Date(booking.createdAt.seconds * 1000);
+                    } else if (booking.createdAt.toDate && typeof booking.createdAt.toDate === 'function') {
+                        bookingDate = booking.createdAt.toDate();
+                    } else {
+                        bookingDate = new Date(booking.createdAt);
+                    }
+                }
+
+                if (!bookingDate || isNaN(bookingDate.getTime())) return false;
+
                 if (startDate) {
                     const start = new Date(startDate + "T00:00:00");
-                    if (bookingDate < start) matchesDate = false;
+                    if (bookingDate < start) return false;
                 }
                 if (endDate) {
                     const end = new Date(endDate + "T23:59:59");
-                    if (bookingDate > end) matchesDate = false;
+                    if (bookingDate > end) return false;
                 }
             }
-        }
 
-        return matchesStatus && matchesDate;
-    });
+            return true;
+        });
+    }, [bookings, searchQuery, startDate, endDate]);
 
-    const visibleBookings = filteredBookings.slice(0, visibleCount);
+    // Group bookings by User ID / User Identity
+    const userGroups = useMemo(() => {
+        const map = new Map();
+
+        filteredBookings.forEach(booking => {
+            // Key by userId if available, else userPhone or userName
+            const groupKey = booking.userId || booking.userPhone || booking.userName || 'unknown_user';
+
+            if (!map.has(groupKey)) {
+                map.set(groupKey, {
+                    groupKey,
+                    userId: booking.userId || null,
+                    userName: booking.userName || 'Guest User',
+                    userPhone: booking.userPhone || 'N/A',
+                    userEmail: booking.userEmail || '',
+                    logs: []
+                });
+            }
+
+            const group = map.get(groupKey);
+            if (booking.userName && group.userName === 'Guest User') group.userName = booking.userName;
+            if (booking.userPhone && group.userPhone === 'N/A') group.userPhone = booking.userPhone;
+            group.logs.push(booking);
+        });
+
+        // Convert map to array & sort logs within each group (latest first)
+        const groupsArray = Array.from(map.values()).map(group => {
+            group.logs.sort((a, b) => {
+                const timeA = a.createdAt?.seconds || (new Date(a.createdAt).getTime() / 1000) || 0;
+                const timeB = b.createdAt?.seconds || (new Date(b.createdAt).getTime() / 1000) || 0;
+                return timeB - timeA;
+            });
+            group.latestTimestamp = group.logs[0]?.createdAt;
+            return group;
+        });
+
+        // Sort groups by latest call activity
+        groupsArray.sort((a, b) => {
+            const timeA = a.latestTimestamp?.seconds || (new Date(a.latestTimestamp).getTime() / 1000) || 0;
+            const timeB = b.latestTimestamp?.seconds || (new Date(b.latestTimestamp).getTime() / 1000) || 0;
+            return timeB - timeA;
+        });
+
+        return groupsArray;
+    }, [filteredBookings]);
+
+    const visibleUserGroups = userGroups.slice(0, visibleCount);
+
+    const toggleGroupExpand = (groupKey) => {
+        setExpandedGroups(prev => ({
+            ...prev,
+            [groupKey]: !prev[groupKey]
+        }));
+    };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 className="text-2xl font-bold flex items-center gap-2 text-white">
-                    <Calendar className="text-emerald-500" />
-                    All Call Requests
+                    <Phone className="text-emerald-500" />
+                    User call logs
                 </h2>
                 
-                {/* Filters */}
+                {/* Search & Filters */}
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Status filter */}
-                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 shrink-0">
-                        <span className="text-xs font-semibold text-slate-400">Status:</span>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="bg-transparent text-slate-200 text-sm focus:outline-none cursor-pointer"
-                        >
-                            <option value="all" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>All</option>
-                            <option value="pending" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Pending</option>
-                            <option value="confirmed" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Approved</option>
-                            <option value="rejected" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>Rejected</option>
-                        </select>
+                    {/* Search Input */}
+                    <div className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 shrink-0 w-full sm:w-auto">
+                        <Search size={14} className="text-slate-400 mr-2 shrink-0" />
+                        <input
+                            type="text"
+                            placeholder="Search name, phone, mess..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-transparent text-slate-200 text-xs focus:outline-none w-full sm:w-44"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="text-slate-500 hover:text-white text-xs ml-1"
+                            >
+                                <XCircle size={14} />
+                            </button>
+                        )}
                     </div>
 
                     {/* Date Filters */}
@@ -252,106 +303,138 @@ const BookingsTab = ({
                         )}
                     </div>
 
-                    <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
-                        {filteredBookings.length} Found
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
+                            {userGroups.length} Users
+                        </span>
+                        <span className="bg-slate-700/50 text-slate-300 px-3 py-1 rounded-full text-xs font-bold border border-slate-600">
+                            {filteredBookings.length} Call Logs
+                        </span>
+                    </div>
                 </div>
             </div>
 
+            {/* Unified User Group Cards */}
             <div className="space-y-4">
-                {visibleBookings.length === 0 ? (
+                {visibleUserGroups.length === 0 ? (
                     <div className="text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
-                        No call requests found matching the filters.
+                        No user call logs found matching the filters.
                     </div>
                 ) : (
-                    visibleBookings.map(booking => {
+                    visibleUserGroups.map(group => {
+                        const isExpanded = !!expandedGroups[group.groupKey]; // Default collapsed
+                        const isPhoneRevealed = revealedIds[group.groupKey];
+
                         return (
-                            <div key={booking.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm flex flex-col md:flex-row justify-between gap-4 hover:border-slate-600 transition-colors">
-                                <div className="flex-1 space-y-1">
-                                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${booking.status === 'confirmed' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                                            booking.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                                                'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                                            }`}>
-                                            {booking.status}
-                                        </span>
-                                        <span className="text-slate-500 text-xs">ID: {booking.id.slice(0, 8)}</span>
-                                    </div>
-                                    <h3 className="font-bold text-white text-lg">{booking.messName}</h3>
-                                    <p className="text-slate-400 text-sm">{booking.roomType} Room • ₹{booking.price}/{booking.rentCycle === 'yearly' ? 'yr' : 'mo'}</p>
-                                    <div className="pt-2 flex flex-wrap items-center gap-4 text-sm">
-                                        <div className="flex items-center gap-1 text-slate-300">
-                                            <Users size={14} className="text-slate-500" /> {booking.userName}
+                            <div 
+                                key={group.groupKey} 
+                                className="bg-slate-800 rounded-2xl border border-slate-700/80 shadow-md overflow-hidden hover:border-slate-600 transition-colors"
+                            >
+                                {/* User Header */}
+                                <div 
+                                    onClick={() => toggleGroupExpand(group.groupKey)}
+                                    className="p-5 bg-slate-800/90 border-b border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+                                            {group.userName ? group.userName.charAt(0).toUpperCase() : <Users size={18} />}
                                         </div>
-                                        <div className="text-slate-400 flex items-center gap-2">
-                                            <span className="font-mono bg-slate-900 px-2 py-1 rounded text-xs text-slate-300">
-                                                {revealedIds[booking.id] ? booking.userPhone : booking.userPhone?.replace(/\d(?=\d{4})/g, "*")}
-                                            </span>
-                                            <button
-                                                onClick={() => setRevealedIds(prev => ({ ...prev, [booking.id]: !prev[booking.id] }))}
-                                                className="text-slate-500 hover:text-emerald-400 transition-colors"
-                                                title={revealedIds[booking.id] ? "Hide Number" : "Show Number"}
-                                            >
-                                                {revealedIds[booking.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-slate-500 text-xs font-medium">
-                                            <Clock size={12} />
-                                            {getRelativeTime(booking.createdAt)}
-                                            {booking.createdAt?.seconds && (
-                                                <span className="text-[10px] opacity-60"> ({new Date(booking.createdAt.seconds * 1000).toLocaleString()})</span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {booking.status !== 'pending' && booking.remark && (
-                                        <div className="mt-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700/50 text-xs text-slate-400 italic">
-                                            Remark: {booking.remark}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex flex-col gap-3 min-w-[280px] justify-center items-end md:items-stretch">
-                                    {booking.status === 'pending' ? (
-                                        <div className="flex flex-col gap-2 w-full">
-                                            <textarea
-                                                placeholder="Write a remark (optional)..."
-                                                value={bookingRemarks[booking.id] || ''}
-                                                onChange={(e) => setBookingRemarks(prev => ({ ...prev, [booking.id]: e.target.value }))}
-                                                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-1 focus:ring-emerald-500 outline-none resize-none h-14"
-                                            />
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => handleBookingAction(booking.id, 'confirmed')}
-                                                    disabled={!!bookingActionLoading[booking.id]}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-400 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-colors shadow-lg shadow-green-950/20 text-xs"
-                                                >
-                                                    {bookingActionLoading[booking.id] ? '...' : <><CheckCircle size={14} /> Approve</>}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleBookingAction(booking.id, 'rejected')}
-                                                    disabled={!!bookingActionLoading[booking.id]}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-slate-700 hover:bg-slate-650 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 rounded-lg font-bold transition-colors border border-slate-600 text-xs"
-                                                >
-                                                    {bookingActionLoading[booking.id] ? '...' : <><XCircle size={14} /> Reject</>}
-                                                </button>
+                                        <div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h3 className="font-bold text-white text-lg">{group.userName}</h3>
+                                                {group.userId && (
+                                                    <span className="text-[10px] font-mono bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
+                                                        UID: {group.userId.slice(0, 10)}...
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-1 text-xs">
+                                                <div className="text-slate-300 flex items-center gap-1.5 font-mono" onClick={(e) => e.stopPropagation()}>
+                                                    <Phone size={12} className="text-slate-500" />
+                                                    <span className="bg-slate-900/80 px-2 py-0.5 rounded text-slate-200">
+                                                        {isPhoneRevealed ? group.userPhone : group.userPhone?.replace(/\d(?=\d{4})/g, "*")}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setRevealedIds(prev => ({ ...prev, [group.groupKey]: !prev[group.groupKey] }));
+                                                        }}
+                                                        className="text-slate-500 hover:text-emerald-400 transition-colors p-0.5"
+                                                        title={isPhoneRevealed ? "Hide Number" : "Show Number"}
+                                                    >
+                                                        {isPhoneRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                    </button>
+                                                </div>
+                                                <span className="text-slate-500">•</span>
+                                                <span className="text-slate-400 flex items-center gap-1">
+                                                    <Clock size={12} className="text-slate-500" />
+                                                    Latest: {getRelativeTime(group.latestTimestamp)}
+                                                </span>
                                             </div>
                                         </div>
-                                    ) : (
+                                    </div>
+
+                                    {/* Header Badges & Collapse Toggle */}
+                                    <div className="flex items-center gap-3 self-end md:self-auto">
+                                        <span className="bg-emerald-500/15 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full border border-emerald-500/20">
+                                            {group.logs.length} {group.logs.length === 1 ? 'Call Log' : 'Call Logs'}
+                                        </span>
                                         <button
-                                            onClick={async () => {
-                                                if (window.confirm("Delete this completed booking record?")) {
-                                                    try {
-                                                        await deleteDoc(doc(db, "bookings", booking.id));
-                                                    } catch { alert("Delete failed"); }
-                                                }
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleGroupExpand(group.groupKey);
                                             }}
-                                            className="flex items-center justify-center gap-1 px-4 py-2.5 bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-xs font-bold transition-all border border-slate-600 w-full"
+                                            className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                            title={isExpanded ? "Collapse logs" : "Expand logs"}
                                         >
-                                            <Trash2 size={14} /> Delete Record
+                                            <ChevronDown size={18} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                                         </button>
-                                    )}
+                                    </div>
                                 </div>
+
+                                {/* Call Logs List for this User */}
+                                {isExpanded && (
+                                    <div className="p-4 bg-slate-900/40 space-y-3">
+                                        {group.logs.map((log, idx) => (
+                                            <div 
+                                                key={log.id || idx}
+                                                className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-650 transition-colors"
+                                            >
+                                                <div className="space-y-1 flex-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h4 className="font-semibold text-slate-100 text-base">{log.messName || 'Mess Details'}</h4>
+                                                        <span className="text-slate-500 text-[11px] font-mono">ID: {log.id?.slice(0, 8)}</span>
+                                                    </div>
+                                                    <p className="text-slate-400 text-xs">
+                                                        {log.roomType || 'Standard'} Room • ₹{log.price || 0}/{log.rentCycle === 'yearly' ? 'yr' : 'mo'}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 text-slate-500 text-[11px] pt-1">
+                                                        <Clock size={12} />
+                                                        <span>Contacted {getRelativeTime(log.createdAt)}</span>
+                                                        {log.createdAt?.seconds && (
+                                                            <span className="text-[10px] opacity-60">({new Date(log.createdAt.seconds * 1000).toLocaleString()})</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (window.confirm("Delete this call log record?")) {
+                                                                try {
+                                                                    await deleteDoc(doc(db, "bookings", log.id));
+                                                                } catch { alert("Delete failed"); }
+                                                            }
+                                                        }}
+                                                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg text-xs font-semibold transition-all border border-slate-650"
+                                                    >
+                                                        <Trash2 size={14} /> Delete Log
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         );
                     })
@@ -359,13 +442,13 @@ const BookingsTab = ({
             </div>
 
             {/* Pagination View More Button */}
-            {visibleCount < filteredBookings.length && (
+            {visibleCount < userGroups.length && (
                 <div className="flex justify-center pt-4">
                     <button
                         onClick={() => setVisibleCount(prev => prev + 10)}
                         className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 transition-all hover:scale-105 active:scale-95 shadow-md flex items-center gap-2 text-sm"
                     >
-                        View More ({filteredBookings.length - visibleCount} remaining)
+                        View More Users ({userGroups.length - visibleCount} remaining)
                     </button>
                 </div>
             )}

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { storage } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { toMessSlug } from '../utils/slugify';
-const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlistToggle, compact = false, layout = 'grid' }) => {
+const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlistToggle, compact = false, layout = 'grid', linkState }) => {
     const [imageUrl, setImageUrl] = useState(null);
     const [imgLoading, setImgLoading] = useState(true);
     const handleToggle = onToggleWishlist || onWishlistToggle;
@@ -47,7 +47,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
     if (layout === 'horizontal') {
         return (
             <div className="bg-white rounded-3xl p-3 border border-gray-100/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex gap-4 relative w-full group card-fade-in">
-                <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} className="flex gap-4 w-full text-left">
+                <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} state={linkState} className="flex gap-4 w-full text-left">
                     {/* Image container */}
                     <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shrink-0 bg-gray-50 relative border border-gray-100 shadow-inner">
                         {imageUrl ? (
@@ -73,7 +73,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
                     <div className="flex flex-col justify-between flex-grow min-w-0 pr-8 py-0.5">
                         <div>
                             <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate tracking-tight">{mess.name}</h3>
-                            <p className="text-xs sm:text-sm text-gray-500 truncate mt-0.5">{mess.address || "Near landmark"}</p>
+                            <p className="text-xs sm:text-sm text-gray-500 truncate mt-0.5">{mess.locality || mess.landmark || mess.address || "Area not specified"}</p>
                         </div>
 
                     </div>
@@ -116,7 +116,7 @@ const MessCard = memo(({ mess, isWishlisted = false, onToggleWishlist, onWishlis
             ? "flex flex-col h-full group relative card-fade-in" 
             : "uiverse-card flex flex-col h-full group bg-gradient-to-br from-white via-white to-purple-50/50 card-fade-in"}
         >
-            <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} className="block h-full flex flex-col">
+            <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} state={linkState} className="block h-full flex flex-col">
                 {/* Poster Image (Optional - reduced height to fit style) */}
                 <div className={`w-full ${compact ? 'aspect-[4/3]' : 'aspect-[16/9]'} rounded-3xl overflow-hidden mb-2 relative shadow-sm bg-gray-100`}>
                     {imageUrl ? (
@@ -268,7 +268,8 @@ MessCard.propTypes = {
     onToggleWishlist: PropTypes.func,
     onWishlistToggle: PropTypes.func,
     compact: PropTypes.bool,
-    layout: PropTypes.string
+    layout: PropTypes.string,
+    linkState: PropTypes.object
 };
 
 MessCard.displayName = 'MessCard';

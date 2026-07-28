@@ -8,10 +8,12 @@ import { trackMessRegistration } from '../analytics';
 import usePageSEO from '../hooks/usePageSEO';
 import { useToast } from '../context/ToastContext';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { useDistrict } from '../context/DistrictContext';
 
 const MessRegistration = () => {
     const navigate = useNavigate();
     const { error: toastError } = useToast();
+    const { localitiesConfig, getLocalitiesForCity } = useDistrict();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [gpsLoading, setGpsLoading] = useState(false);
@@ -26,7 +28,7 @@ const MessRegistration = () => {
         includedInRent: [],
         advancePayment: { type: '', customAmount: '' },
         maintenanceCharge: { taken: false, amount: '', frequency: 'Per Year' },
-        landmark: '',
+        locality: '',   // replaces legacy 'landmark' field
         gpsLatitude: null,
         gpsLongitude: null,
         gpsAccuracy: null,
@@ -155,6 +157,7 @@ const MessRegistration = () => {
         try {
             const registrationData = {
                 ...formData,
+                landmark: formData.locality,  // backwards compat for existing code reading 'landmark'
                 createdAt: serverTimestamp(),
                 status: 'pending' // pending operator review
             };
@@ -505,29 +508,145 @@ const MessRegistration = () => {
                         </div>
                     </div>
                 );
-            case 6:
+            case 6: {
+                // Was case 8 — now moved earlier so city is known before step 8 locality
+                const availableCitiesStep6 = formData.district ? DISTRICTS_CONFIG[formData.district]?.cities || [] : [];
+                return (
+                    <div className="space-y-6">
+                        <div className="text-center space-y-3">
+                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-[28px] shadow-inner flex items-center justify-center mx-auto mb-2 relative group">
+                                <MapPin size={36} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+                            </div>
+                            <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 leading-tight">
+                                Select Location
+                            </h2>
+                            <p className="text-gray-500 font-medium text-sm">Which district and city is your mess located in?</p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Step 1: Select District</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {Object.keys(DISTRICTS_CONFIG).map(dist => (
+                                        <button
+                                            key={dist}
+                                            type="button"
+                                            onClick={() => {
+                                                handleChange('district', dist);
+                                                handleChange('city', ''); // reset city if district changes
+                                                handleChange('locality', ''); // reset locality too
+                                            }}
+                                            className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${formData.district === dist
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md shadow-indigo-500/10'
+                                                : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
+                                                }`}
+                                        >
+                                            <span className="font-bold capitalize">{dist}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {formData.district && availableCitiesStep6.length > 0 && (
+                                <div className="animate-fadeIn mt-4 border-t border-gray-100 pt-4">
+                                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Step 2: Select City / Town</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {availableCitiesStep6.map(city => (
+                                            <button
+                                                key={city.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    handleChange('city', city.id);
+                                                    handleChange('locality', ''); // reset locality when city changes
+                                                }}
+                                                className={`p-3 rounded-xl border-2 text-xs transition-all flex flex-col items-center justify-center text-center leading-snug ${formData.city === city.id
+                                                    ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm shadow-purple-500/10'
+                                                    : 'border-gray-100 bg-white hover:border-purple-200 text-gray-600'
+                                                    }`}
+                                            >
+                                                <span className="font-bold">{city.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+            case 7:
+                return (
+                    <div className="space-y-6">
+                        <div className="text-center space-y-2">
+                            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Wifi size={32} className="text-indigo-600" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-800">Facilities Available</h2>
+                            <p className="text-gray-500">Select all amenities properly</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].map(facility => (
+                                <button
+                                    key={facility}
+                                    onClick={() => handleCheckboxChange('facilities', facility)}
+                                    className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${formData.facilities.includes(facility)
+                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                        : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
+                                        }`}
+                                >
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${formData.facilities.includes(facility) ? 'bg-indigo-500 text-white' : 'bg-gray-100'}`}>
+                                        {formData.facilities.includes(facility) && <Check size={12} />}
+                                    </div>
+                                    <span className="font-bold">{facility === 'InverterPower' ? 'Inverter' : facility === 'Food Facility' ? 'Food' : facility}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 8: {
+                // Was case 6 — locality + GPS, now uses dropdown from localitiesConfig
+                const availableLocalities = getLocalitiesForCity(formData.city, localitiesConfig);
                 return (
                     <div className="space-y-6 max-h-[60vh] overflow-y-auto px-1 pb-4">
                         <div className="text-center space-y-2">
-                            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <MapPin size={32} className="text-amber-600" />
+                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <MapPin size={32} className="text-purple-600" />
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-800">Where is it located?</h2>
-                            <p className="text-gray-500">Provide a nearby landmark and capture GPS location</p>
+                            <h2 className="text-2xl font-bold text-gray-800">Select Your Area</h2>
+                            <p className="text-gray-500">Choose the locality your mess is in</p>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nearby Landmark</label>
-                                <input
-                                    type="text"
-                                    value={formData.landmark}
-                                    onChange={(e) => handleChange('landmark', e.target.value)}
-                                    placeholder="e.g., Near City College Main Gate"
-                                    className="w-full text-lg p-4 border-2 border-amber-100 rounded-2xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all text-center placeholder:text-gray-300"
-                                    autoFocus
-                                />
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Locality / Area</label>
+                                {availableLocalities.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {availableLocalities.map(loc => (
+                                            <button
+                                                key={loc}
+                                                type="button"
+                                                onClick={() => handleChange('locality', loc)}
+                                                className={`p-3 rounded-xl border-2 text-sm transition-all font-semibold text-center ${
+                                                    formData.locality === loc
+                                                        ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
+                                                        : 'border-gray-100 bg-white hover:border-purple-200 text-gray-600'
+                                                }`}
+                                            >
+                                                {loc}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-4">
+                                        <p className="text-gray-400 text-sm">No localities configured for this city yet.</p>
+                                        <p className="text-gray-400 text-xs mt-1">Please contact us to add your area.</p>
+                                    </div>
+                                )}
+                                {formData.locality && (
+                                    <p className="text-xs text-purple-600 font-semibold mt-2 text-center">Selected: {formData.locality} ✓</p>
+                                )}
                             </div>
 
+                            {/* GPS Section */}
                             <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-2xl space-y-3">
                                 <div className="flex items-start gap-3">
                                     <div className="bg-amber-100 p-2 rounded-xl text-amber-700 mt-0.5">
@@ -562,95 +681,6 @@ const MessRegistration = () => {
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
-                );
-            case 7:
-                return (
-                    <div className="space-y-6">
-                        <div className="text-center space-y-2">
-                            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Wifi size={32} className="text-indigo-600" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-gray-800">Facilities Available</h2>
-                            <p className="text-gray-500">Select all amenities properly</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].map(facility => (
-                                <button
-                                    key={facility}
-                                    onClick={() => handleCheckboxChange('facilities', facility)}
-                                    className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${formData.facilities.includes(facility)
-                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                        : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
-                                        }`}
-                                >
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${formData.facilities.includes(facility) ? 'bg-indigo-500 text-white' : 'bg-gray-100'}`}>
-                                        {formData.facilities.includes(facility) && <Check size={12} />}
-                                    </div>
-                                    <span className="font-bold">{facility === 'InverterPower' ? 'Inverter' : facility === 'Food Facility' ? 'Food' : facility}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                );
-            case 8: {
-                const availableCities = formData.district ? DISTRICTS_CONFIG[formData.district]?.cities || [] : [];
-                return (
-                    <div className="space-y-6">
-                        <div className="text-center space-y-3">
-                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-[28px] shadow-inner flex items-center justify-center mx-auto mb-2 relative group">
-                                <MapPin size={36} className="text-indigo-600 group-hover:scale-110 transition-transform" />
-                            </div>
-                            <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 leading-tight">
-                                Select Location
-                            </h2>
-                            <p className="text-gray-500 font-medium text-sm">Which district and city is your mess located in?</p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Step 1: Select District</label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {Object.keys(DISTRICTS_CONFIG).map(dist => (
-                                        <button
-                                            key={dist}
-                                            type="button"
-                                            onClick={() => {
-                                                handleChange('district', dist);
-                                                handleChange('city', ''); // reset city if district changes
-                                            }}
-                                            className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${formData.district === dist
-                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md shadow-indigo-500/10'
-                                                : 'border-gray-100 bg-white hover:border-indigo-200 text-gray-600'
-                                                }`}
-                                        >
-                                            <span className="font-bold capitalize">{dist}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {formData.district && availableCities.length > 0 && (
-                                <div className="animate-fadeIn mt-4 border-t border-gray-100 pt-4">
-                                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Step 2: Select City / Town</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {availableCities.map(city => (
-                                            <button
-                                                key={city.id}
-                                                type="button"
-                                                onClick={() => handleChange('city', city.id)}
-                                                className={`p-3 rounded-xl border-2 text-xs transition-all flex flex-col items-center justify-center text-center leading-snug ${formData.city === city.id
-                                                    ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm shadow-purple-500/10'
-                                                    : 'border-gray-100 bg-white hover:border-purple-200 text-gray-600'
-                                                    }`}
-                                            >
-                                                <span className="font-bold">{city.name}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 );
@@ -730,9 +760,9 @@ const MessRegistration = () => {
                 if (formData.advancePayment.type === 'Custom Amount' && (!formData.advancePayment.customAmount || formData.advancePayment.customAmount.trim().length === 0)) return false;
                 if (formData.maintenanceCharge.taken && (!formData.maintenanceCharge.amount || formData.maintenanceCharge.amount.trim().length === 0)) return false;
                 return true;
-            case 6: return formData.landmark.trim().length > 0;
-            case 7: return true;
-            case 8: return formData.district !== '' && formData.city !== '';
+            case 6: return formData.district !== '' && formData.city !== '';  // Location step (was step 8)
+            case 7: return true;  // Facilities
+            case 8: return formData.locality.trim().length > 0;  // Locality + GPS (was step 6)
             case 9: return formData.phoneNumber.length === 10 && formData.consent;
             default: return true;
         }

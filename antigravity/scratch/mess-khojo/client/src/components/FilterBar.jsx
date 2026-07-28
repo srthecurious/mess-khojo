@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Filter, X, Check, Search, MapPin, Loader2, TrendingUp, Map, Home } from 'lucide-react';
 import MultiSelectDropdown from './MultiSelectDropdown';
+import { useDistrict } from '../context/DistrictContext';
 
 const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocation, userLocation, messes = [] }) => {
+    const { districtConfig, localitiesConfig, getLocalitiesForCity } = useDistrict();
     const [isOpen, setIsOpen] = useState(false);
     const [showSuggestionsMobile, setShowSuggestionsMobile] = useState(false);
     const [showSuggestionsDesktop, setShowSuggestionsDesktop] = useState(false);
@@ -33,23 +35,22 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
 
     // Memoize suggestions so we don't recalculate on every render
     const allSuggestions = useMemo(() => {
-        const predefinedLandmarks = [
-            { name: 'Mansingh Bazar', type: 'landmark', icon: MapPin },
-            { name: 'Fakir Mohan Golei', type: 'landmark', icon: MapPin },
-            { name: 'Station Square', type: 'landmark', icon: MapPin },
-            { name: 'Remuna', type: 'landmark', icon: MapPin },
-            { name: 'Sahadev Khuntha', type: 'landmark', icon: MapPin },
-            { name: 'Azimabad', type: 'landmark', icon: MapPin },
-            { name: 'ITB', type: 'landmark', icon: MapPin },
-            { name: 'Balasore', type: 'landmark', icon: MapPin }
-        ];
+        // Build locality names from context (with static fallback)
+        const districtCities = districtConfig?.cities || [];
+        const localitySet = new Set();
+        districtCities.forEach(city => {
+            getLocalitiesForCity(city.id, localitiesConfig).forEach(l => localitySet.add(l));
+        });
+        (districtConfig?.landmarks || []).forEach(l => localitySet.add(l.name));
 
-        const validLandmarks = predefinedLandmarks.filter(landmark => {
+        const allLocalities = Array.from(localitySet).map(name => ({ name, type: 'locality', icon: MapPin }));
+
+        const validLocalities = allLocalities.filter(loc => {
             return messes.some(mess => {
-                const nm = mess.name || '';
-                const ad = mess.address || '';
-                const q = landmark.name.toLowerCase();
-                return nm.toLowerCase().includes(q) || ad.toLowerCase().includes(q);
+                const area = (mess.locality || mess.landmark || '').toLowerCase();
+                const ad = (mess.address || '').toLowerCase();
+                const q = loc.name.toLowerCase();
+                return area.includes(q) || ad.includes(q);
             });
         });
 
@@ -64,8 +65,8 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                 posterUrl: m.posterUrl
             }));
 
-        return [...sponsoredMesses, ...validLandmarks];
-    }, [messes]);
+        return [...sponsoredMesses, ...validLocalities];
+    }, [messes, districtConfig, localitiesConfig, getLocalitiesForCity]);
 
     const filters = currentFilters || {
         location: '',
@@ -155,9 +156,9 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
             .map(name => ({ name, type: 'recent', label: 'Recent Search', icon: Search }));
 
         const sponsored = fuzzyMatched.filter(s => s.label === 'Sponsored');
-        const landmarks = fuzzyMatched.filter(s => s.type === 'landmark');
+        const localities = fuzzyMatched.filter(s => s.type === 'locality');
 
-        const totalResults = activeRecents.length + sponsored.length + landmarks.length;
+        const totalResults = activeRecents.length + sponsored.length + localities.length;
 
         if (searchTerm && totalResults === 0) {
             return null;
@@ -183,14 +184,14 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                     />
                 ) : (
                     <div className={`p-1.5 rounded-full transition-colors ${item.type === 'recent' ? 'bg-gray-50 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600' : 'bg-gray-100 group-hover:bg-purple-100 group-hover:text-purple-600'}`}>
-                        <item.icon size={14} className={item.type === 'landmark' ? 'text-gray-500 group-hover:text-purple-600' : (item.type === 'recent' ? '' : 'text-blue-500 group-hover:text-purple-600')} />
+                        <item.icon size={14} className={item.type === 'locality' ? 'text-gray-500 group-hover:text-purple-600' : (item.type === 'recent' ? '' : 'text-blue-500 group-hover:text-purple-600')} />
                     </div>
                 )}
                 <div>
                     <span className="text-sm font-medium text-gray-700 group-hover:text-purple-700 block">
                         {renderHighlightedText(item.name, searchTerm)}
                     </span>
-                    <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'landmark' ? 'Landmark' : (item.label || 'Recommended')}</span>
+                    <span className="text-[10px] text-gray-400 capitalize block -mt-0.5">{item.type === 'locality' ? 'Locality' : (item.label || 'Recommended')}</span>
                 </div>
             </button>
         );
@@ -216,10 +217,10 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                         </div>
                     )}
 
-                    {landmarks.length > 0 && (
+                    {localities.length > 0 && (
                         <div className="p-2 border-b border-gray-50">
-                            <div className="text-[10px] font-bold text-gray-400 uppercase px-3 py-1.5 tracking-wider">Popular Landmarks</div>
-                            {landmarks.map((item, idx) => renderSuggestion(item, `land-${idx}`))}
+                            <div className="text-[10px] font-bold text-gray-400 uppercase px-3 py-1.5 tracking-wider">Popular Areas</div>
+                            {localities.map((item, idx) => renderSuggestion(item, `loc-${idx}`))}
                         </div>
                     )}
 
@@ -274,7 +275,7 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                             <input
                                 ref={mobileInputRef}
                                 type="text"
-                                placeholder="Search landmark or mess..."
+                                placeholder="Search locality or mess..."
                                 className="w-full pl-8 pr-8 py-2.5 bg-white rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/30 outline-none transition-all placeholder:text-gray-400"
                                 value={filters.location}
                                 onChange={(e) => setFilters({ ...filters, location: e.target.value })}
@@ -366,7 +367,7 @@ const FilterBar = ({ onFilterChange, currentFilters, onGps, onMap, loadingLocati
                                 <input
                                     ref={desktopInputRef}
                                     type="text"
-                                    placeholder="Search for Mess Name or Landmark"
+                                    placeholder="Search for Mess Name or Locality"
                                     className="w-full pl-10 pr-10 bg-white border border-gray-200 rounded-xl text-sm focus:border-brand-primary/30 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all shadow-sm placeholder:text-gray-400 text-black font-sans"
                                     style={{ height: '48px' }}
                                     value={filters.location}

@@ -10,15 +10,10 @@ const OwnerCallsTab = ({ bookings, messes }) => {
     const [visibleCount, setVisibleCount] = useState(10);
     const [expandedMesses, setExpandedMesses] = useState({}); // { messId: true/false }
 
-    const [prevTimeframe, setPrevTimeframe] = useState(timeframe);
-    const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
-    const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
-
-    // Reset pagination when filter states change
-    if (timeframe !== prevTimeframe || statusFilter !== prevStatusFilter || searchQuery !== prevSearchQuery) {
-        setPrevTimeframe(timeframe);
-        setPrevStatusFilter(statusFilter);
-        setPrevSearchQuery(searchQuery);
+    // Reset pagination when user changes a filter
+    const [prevFilter, setPrevFilter] = useState({ timeframe, statusFilter, searchQuery });
+    if (prevFilter.timeframe !== timeframe || prevFilter.statusFilter !== statusFilter || prevFilter.searchQuery !== searchQuery) {
+        setPrevFilter({ timeframe, statusFilter, searchQuery });
         setVisibleCount(10);
     }
 

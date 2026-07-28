@@ -9,6 +9,7 @@ import { getCleanOccupancy } from '../utils/occupancy';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
 import PastSuggestionsModal from '../components/PastSuggestionsModal';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -120,10 +121,10 @@ const MessCard = ({ mess, index }) => {
                     {mess.name}
                 </h3>
 
-                {mess.landmark && (
+                {(mess.locality || mess.landmark) && (
                     <p className="flex items-center gap-1 text-xs text-gray-500 mb-3">
                         <MapPin size={12} className="text-brand-primary shrink-0" />
-                        {mess.landmark}
+                        {mess.locality || mess.landmark}
                     </p>
                 )}
 
@@ -182,6 +183,8 @@ const FindYourRoomResults = () => {
     // ---- Past Suggestions History State ----
     const [pastInquiries, setPastInquiries] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+    useBodyScrollLock(isHistoryModalOpen);
 
     useEffect(() => {
         try {
@@ -427,7 +430,7 @@ const FindYourRoomResults = () => {
                                 {/* Footer CTA */}
                                 <div className="mt-10 bg-white border border-gray-100 rounded-2xl p-6 text-center shadow-sm">
                                     <p className="text-gray-500 text-sm mb-4">
-                                        Not satisfied with these options? Our team can help you find a better match.
+                                        Not satisfied with these options? Try submitting another request tomorrow by changing some preferences to find a better match.
                                     </p>
                                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                         <Link

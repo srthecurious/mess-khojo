@@ -1,29 +1,51 @@
 import ReactGA from 'react-ga4';
 
+// App Version for GA4 & Clarity Tracking
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
+
 // Initialize Google Analytics
 let isInitialized = false;
 
 export const initializeAnalytics = () => {
     const measurementId = import.meta.env.VITE_GA4_MEASUREMENT_ID;
-
-    // Only initialize in production or if explicitly enabled
+    const clarityId = import.meta.env.VITE_CLARITY_PROJECT_ID;
     const isDevelopment = import.meta.env.DEV;
 
-    if (!measurementId) {
-        console.warn('⚠️ Google Analytics Measurement ID not found');
-        return;
-    }
-
-    if (!isInitialized) {
+    if (measurementId && !isInitialized) {
         ReactGA.initialize(measurementId, {
             gaOptions: {
                 debug_mode: isDevelopment, // Enable debug mode in development
+                app_version: APP_VERSION,
             },
+            gtagOptions: {
+                app_version: APP_VERSION,
+                version: APP_VERSION,
+            }
         });
+
+        // Set global parameters for all hits and user properties
+        ReactGA.set({
+            app_version: APP_VERSION,
+            version: APP_VERSION,
+        });
+
         isInitialized = true;
 
         if (isDevelopment) {
-            console.log('📊 Google Analytics initialized (Development Mode)');
+            console.log(`📊 Google Analytics initialized (v${APP_VERSION}, Development Mode)`);
+        }
+    }
+
+    if (clarityId) {
+        if (!isDevelopment) {
+            import('@microsoft/clarity').then(({ clarity }) => {
+                clarity.init(clarityId);
+                clarity.set("app_version", APP_VERSION);
+            }).catch(err => {
+                console.error('⚠️ Failed to load Microsoft Clarity:', err);
+            });
+        } else {
+            console.log(`📊 Microsoft Clarity Mock Initialized (Project ID: ${clarityId}, Version: ${APP_VERSION})`);
         }
     }
 };
@@ -36,7 +58,9 @@ export const trackPageView = (path, title) => {
         ReactGA.send({
             hitType: 'pageview',
             page: path,
-            title: title || document.title
+            title: title || document.title,
+            app_version: APP_VERSION,
+            version: APP_VERSION,
         });
     }
 
@@ -50,7 +74,7 @@ export const trackPageView = (path, title) => {
     }
 
     if (import.meta.env.DEV) {
-        console.log('📊 Page View:', path, title);
+        console.log(`📊 Page View (v${APP_VERSION}):`, path, title);
     }
 };
 
@@ -63,10 +87,12 @@ export const trackEvent = (category, action, label, value) => {
         action,
         label,
         value,
+        app_version: APP_VERSION,
+        version: APP_VERSION,
     });
 
     if (import.meta.env.DEV) {
-        console.log('📊 Event:', { category, action, label, value });
+        console.log(`📊 Event (v${APP_VERSION}):`, { category, action, label, value });
     }
 };
 
@@ -178,6 +204,24 @@ export const trackAccountDelete = (success, errorMsg = '') => {
     trackEvent('Authentication', 'account_deleted', success ? 'success' : `failure: ${errorMsg}`);
 };
 
+// Track user identification
+export const identifyUser = (userId, properties) => {
+    const clarityId = import.meta.env.VITE_CLARITY_PROJECT_ID;
+    const isDevelopment = import.meta.env.DEV;
+
+    if (clarityId) {
+        if (!isDevelopment) {
+            import('@microsoft/clarity').then(({ clarity }) => {
+                clarity.identify(userId, properties);
+            }).catch(err => {
+                console.error('⚠️ Failed to identify user in Microsoft Clarity:', err);
+            });
+        } else {
+            console.log('📊 Clarity Identify:', userId, properties);
+        }
+    }
+};
+
 // Track mess registration
 export const trackMessRegistration = (started, messId = null) => {
     if (started) {
@@ -280,6 +324,7 @@ export default {
     trackSignupAttempt,
     trackLogout,
     trackAccountDelete,
+    identifyUser,
     trackMessRegistration,
     trackMessExplorer,
     trackViewMore,

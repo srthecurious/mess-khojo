@@ -52,15 +52,18 @@ export const telegramTemplates = {
             timeStyle: 'short'
         });
 
-        return `📞 <b>OWNER CONTACTED!</b>\n\n` +
-            `🏢 <b>Mess:</b> ${booking.messName}\n` +
-            `🛏️ <b>Room:</b> ${booking.roomType}\n` +
-            `👤 <b>User:</b> ${booking.userName}\n` +
-            `📱 <b>User Phone:</b> ${booking.userPhone}\n` +
-            `💰 <b>Price:</b> ₹${booking.price}/${booking.rentCycle === 'yearly' ? 'year' : 'month'}\n\n` +
-            `ℹ️ <i>User has been given the owner's contact number to call directly.</i>\n\n` +
+        const roomLabel = booking.roomType || 'General Inquiry';
+        const priceLabel = booking.price ? `₹${booking.price}/${booking.rentCycle === 'yearly' ? 'year' : 'month'}` : 'N/A';
+
+        return `📞 <b>USER CONTACTED OWNER!</b>\n\n` +
+            `🏢 <b>Mess:</b> ${esc(booking.messName)}\n` +
+            `🛏️ <b>Inquiring Occupancy:</b> ${esc(roomLabel)}\n` +
+            `👤 <b>User Name:</b> ${esc(booking.userName)}\n` +
+            `📱 <b>User Phone:</b> ${esc(booking.userPhone)}\n` +
+            `💰 <b>Price / Rent:</b> ${esc(priceLabel)}\n\n` +
+            `ℹ️ <i>User contacted the mess owner directly via phone call.</i>\n\n` +
             `⏰ <i>${time}</i>\n\n` +
-            `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;
+            `<a href="${window.location.origin}/operational">📊 View Operational Dashboard</a>`;
     },
 
     /**
@@ -176,7 +179,7 @@ export const telegramTemplates = {
             `💰 <b>Budget:</b> ${esc(inquiry.budget)}\n` +
             `👥 <b>Occupancy:</b> ${esc(inquiry.occupancy)}\n` +
             `📅 <b>Move-in:</b> ${esc(inquiry.expectedMoveIn)}\n` +
-            `${inquiry.contactMethod ? `📞 <b>Prefer:</b> ${esc(inquiry.contactMethod).toUpperCase()}\n` : ''}` +
+            `${inquiry.whatsapp ? `🟢 <b>WhatsApp:</b> ${esc(inquiry.whatsapp)}\n` : ''}` +
             `${inquiry.requirements ? `📝 <b>Requirements:</b> ${esc(inquiry.requirements).substring(0, 80)}\n` : ''}` +
             `\n⏰ <i>${time}</i>\n\n` +
             `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;

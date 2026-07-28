@@ -67,10 +67,18 @@ const AboutUs = () => {
                             We are committed to continuously improving our platform to make accommodation hunting easier, smarter, and more accessible for everyone.
                         </p>
 
-                        <div className="mt-10 p-6 bg-gradient-to-r from-brand-primary/10 to-brand-accent-blue/10 rounded-2xl border border-brand-primary/20 text-center">
+                        <div className="mt-10 p-6 bg-gradient-to-r from-brand-primary/10 to-brand-accent-blue/10 rounded-2xl border border-brand-primary/20 text-center space-y-3">
                             <p className="text-xl font-bold text-brand-primary italic">
                                 "MessKhojo – Find your mess, find your comfort"
                             </p>
+                            <div className="pt-2">
+                                <Link
+                                    to="/team"
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-purple-800 transition-colors shadow-md"
+                                >
+                                    👥 Meet Our Team & Leadership →
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </motion.div>

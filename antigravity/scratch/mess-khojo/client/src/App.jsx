@@ -11,6 +11,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import { WishlistProvider } from './context/WishlistContext';
 
+// Disable browser's automatic scroll restoration globally at load time
+if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
+
 const CityLandingPage = React.lazy(() => import('./pages/CityLandingPage'));
 
 // Route-level code splitting — only the visited page's code is downloaded
@@ -32,6 +37,7 @@ const FindYourRoomResults = React.lazy(() => import('./pages/FindYourRoomResults
 const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
 const TermsAndConditions = React.lazy(() => import('./pages/TermsAndConditions'));
 const AboutUs = React.lazy(() => import('./pages/AboutUs'));
+const TeamPage = React.lazy(() => import('./pages/TeamPage'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const Wishlist = React.lazy(() => import('./pages/Wishlist'));
 const Sitemap = React.lazy(() => import('./pages/Sitemap'));
@@ -46,10 +52,23 @@ const RouteLoader = () => (
   </div>
 );
 
-// Scroll to top on every route change
+// Scroll to top on every route change (except pages that handle their own scroll restore)
 function ScrollToTop() {
   const location = useLocation();
   useEffect(() => {
+    // Disable browser's built-in scroll restoration — we handle it manually
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    // These pages save/restore their own scroll position:
+    //   '/'          → CityLandingPage
+    //   '/district/' → CityPage (canonical route)
+    //   '/city/'     → CityPage (legacy route)
+    if (
+      location.pathname === '/' ||
+      location.pathname.startsWith('/district/') ||
+      location.pathname.startsWith('/city/')
+    ) return;
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname]);
   return null;
@@ -127,10 +146,12 @@ function AppContent() {
               <Route path="/find-your-room/results" element={<FindYourRoomResults />} />
               <Route path="/find-your-room" element={<BookRoomComingSoon />} />
 
-              {/* Legal Pages */}
+              {/* Legal Pages & Company Info */}
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
               <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/our-team" element={<TeamPage />} />
               <Route path="/sitemap" element={<Sitemap />} />
 
               {/* 404 Catch-all */}

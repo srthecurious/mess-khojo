@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, startAt, endAt } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -200,6 +200,17 @@ const RoomDetails = () => {
         fetchDetails();
     }, [resolvedMessId, resolvedRoomId]);
 
+    // Ensure URL in address bar displays canonical mess and room slugs format
+    useEffect(() => {
+        if (mess && mess.name && mess.id && room && room.occupancy && room.id) {
+            const canonicalMessSlug = toMessSlug(mess.name, mess.id);
+            const canonicalRoomSlug = toRoomSlug(room.occupancy, room.id);
+            if (messSlug !== canonicalMessSlug || roomSlug !== canonicalRoomSlug) {
+                navigate(`/room/${canonicalMessSlug}/${canonicalRoomSlug}${window.location.search}${window.location.hash}`, { replace: true });
+            }
+        }
+    }, [mess, room, messSlug, roomSlug, navigate]);
+
     // Track room view when component mounts
     useEffect(() => {
         if (mess && room) {
@@ -257,11 +268,14 @@ const RoomDetails = () => {
                 }
             });
 
-            // 3. Same Landmark, Same Occupancy, Not User Sourced, Same Type (Boys/Girls)
-            if (results.length < 6 && mess.landmark) {
+            // 3. Same Locality (or fallback to Landmark), Same Type (Boys/Girls)
+            // Query locality first; fall back to landmark for messes not yet migrated
+            const localityValue = mess.locality || mess.landmark;
+            if (results.length < 6 && localityValue) {
+                const localityField = mess.locality ? 'locality' : 'landmark';
                 const messesQuery = query(
                     collection(db, "messes"),
-                    where("landmark", "==", mess.landmark)
+                    where(localityField, "==", localityValue)
                 );
                 const messesSnap = await getDocs(messesQuery);
                 const currentTypes = Array.isArray(mess.messType) ? mess.messType : (mess.messType ? [mess.messType] : []);
@@ -358,7 +372,7 @@ const RoomDetails = () => {
     const handleBookClick = async () => {
         if (!currentUser) {
             // Redirect to Login with return URL ensuring action=book is preserved
-            const returnUrl = `/room/${messId}/${roomId}?action=book`;
+            const returnUrl = `/room/${messSlug}/${roomSlug}?action=book`;
             console.log('🔗 Redirecting to login with return URL:', returnUrl);
             navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
             return;
@@ -610,7 +624,9 @@ const RoomDetails = () => {
                         </div>
                         <div className="flex items-center gap-2 text-brand-text-gray">
                             <MapPin size={16} className="text-brand-primary" />
-                            <span className="font-medium text-brand-primary">{mess.name}</span>
+                            <Link to={`/mess/${toMessSlug(mess.name, mess.id)}`} className="font-medium text-brand-primary hover:underline">
+                                {mess.name}
+                            </Link>
                         </div>
                     </div>
                     <div className="text-left md:text-right">
