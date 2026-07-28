@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -7,12 +7,13 @@ import { collection, updateDoc, doc, serverTimestamp, addDoc, getDoc, setDoc, ge
 
 
 import { useNavigate } from 'react-router-dom';
-import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp, Menu, X } from 'lucide-react';
+import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp, Menu, X, IdCard } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { useDistrict } from '../context/DistrictContext';
 import { trackLogout } from '../analytics';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -27,10 +28,13 @@ import FeedbacksTab from './OperationalDashboard/tabs/FeedbacksTab';
 import MessesTab from './OperationalDashboard/tabs/MessesTab';
 import HeroAdsTab from './OperationalDashboard/tabs/HeroAdsTab';
 import OwnerCallsTab from './OperationalDashboard/tabs/OwnerCallsTab';
+import LocalitiesTab from './OperationalDashboard/tabs/LocalitiesTab';
+import TeamManagementTab from './AdminDashboard/tabs/TeamManagementTab';
 
 // Hooks
 import { useOperationalData } from './OperationalDashboard/hooks/useOperationalData';
 import { useHeroAds } from './OperationalDashboard/hooks/useHeroAds';
+import { useTeamData } from '../hooks/useTeamData';
 import { backfillRoomDistricts } from '../utils/migrations';
 
 const compressImage = async (file) => {
@@ -53,11 +57,13 @@ const OperationalDashboard = () => {
     const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'partners', 'claims', 'inquiries', 'feedbacks', 'messes'
     const [feedbackReplies, setFeedbackReplies] = useState({}); // { feedbackId: replyText }
     const opData = useOperationalData();
+    const teamData = useTeamData();
     const { bookings: allBookings, claims: allClaims, inquiries: allInquiries, roomInquiries: allRoomInquiries, feedbacks, registrations: allRegistrations, messes: allMesses, rooms: allRooms } = opData;
     
     const heroAds = useHeroAds();
     const { carouselEnabled, desktopAds, mobileAds, heroAdUploading, heroAdForm, setHeroAdForm, desktopAdFile, setDesktopAdFile, mobileAdFile, setMobileAdFile, handleToggleCarousel, handleHeroAdUpload, handleReorderHeroAd, handleToggleHeroAd, handleDeleteHeroAd } = heroAds;
 
+    const { localitiesConfig, getLocalitiesForCity } = useDistrict();
     const [opFilterDistrict, setOpFilterDistrict] = useState('all');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
@@ -197,6 +203,7 @@ const OperationalDashboard = () => {
                     name: item.name || '',
                     district: item.district || 'balasore', // Operator CAN change district
                     city: item.city || '',
+                    locality: item.locality || item.landmark || '',  // fallback to landmark for legacy messes
                     address: item.address || '',
                     contact: item.contact || '',
                     locationUrl: item.locationUrl || '',
@@ -869,24 +876,87 @@ const OperationalDashboard = () => {
     };
 
     const handleLogout = async () => {
-        trackLogout('operator');
-        await signOut(auth);
-        navigate('/');
+        if (window.confirm("Are you sure you want to log out?")) {
+            trackLogout('operator');
+            await signOut(auth);
+            navigate('/');
+        }
     };
 
-    const getMessDistrict = (messId) => {
+    // Stable helper — only recreates when allMesses or the district filter changes
+    const getMessDistrict = useCallback((messId) => {
         if (!messId) return 'balasore';
         const mess = allMesses.find(m => m.id === messId);
         return mess?.district || 'balasore';
-    };
+    }, [allMesses]);
 
-    const registrations = allRegistrations.filter(r => opFilterDistrict === 'all' || (r.district || 'balasore').toLowerCase() === opFilterDistrict.toLowerCase());
-    const bookings = allBookings.filter(b => opFilterDistrict === 'all' || getMessDistrict(b.messId).toLowerCase() === opFilterDistrict.toLowerCase());
-    const inquiries = allInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId).toLowerCase() === opFilterDistrict.toLowerCase());
-    const roomInquiries = allRoomInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId).toLowerCase() === opFilterDistrict.toLowerCase());
-    const claims = allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId).toLowerCase() === opFilterDistrict.toLowerCase());
-    const messes = allMesses.filter(m => opFilterDistrict === 'all' || (m.district || 'balasore').toLowerCase() === opFilterDistrict.toLowerCase());
-    const rooms = allRooms.filter(r => opFilterDistrict === 'all' || (r.district || getMessDistrict(r.messId)).toLowerCase() === opFilterDistrict.toLowerCase());
+    // Memoised filtered slices — new array references only when source data or filter changes,
+    // NOT on every unrelated Firestore snapshot / state update.
+    const messes = useMemo(
+        () => allMesses.filter(m => opFilterDistrict === 'all' || (m.district || 'balasore').toLowerCase() === opFilterDistrict.toLowerCase()),
+        [allMesses, opFilterDistrict]
+    );
+
+    const rooms = useMemo(
+        () => allRooms.filter(r => opFilterDistrict === 'all' || (r.district || getMessDistrict(r.messId)).toLowerCase() === opFilterDistrict.toLowerCase()),
+        [allRooms, opFilterDistrict, getMessDistrict]
+    );
+
+    const registrations = useMemo(
+        () => allRegistrations.filter(r => opFilterDistrict === 'all' || (r.district || 'balasore').toLowerCase() === opFilterDistrict.toLowerCase()),
+        [allRegistrations, opFilterDistrict]
+    );
+
+    const bookings = useMemo(
+        () => allBookings.filter(b => opFilterDistrict === 'all' || getMessDistrict(b.messId).toLowerCase() === opFilterDistrict.toLowerCase()),
+        [allBookings, opFilterDistrict, getMessDistrict]
+    );
+
+    const inquiries = useMemo(
+        () => allInquiries.filter(i => opFilterDistrict === 'all' || getMessDistrict(i.messId).toLowerCase() === opFilterDistrict.toLowerCase()),
+        [allInquiries, opFilterDistrict, getMessDistrict]
+    );
+
+    const roomInquiries = useMemo(
+        () => allRoomInquiries.filter(i => {
+            if (!opFilterDistrict || opFilterDistrict === 'all') return true;
+            const target = opFilterDistrict.toLowerCase().trim();
+            const inqCity = (i.city || '').toLowerCase().trim();
+            const inqDist = (i.district || '').toLowerCase().trim();
+            const inqLoc = (i.location || '').toLowerCase().trim();
+
+            // Direct district or city match
+            if (inqDist === target || inqCity === target) return true;
+
+            // Check DISTRICTS_CONFIG for cities and landmarks under target district
+            const distConfig = DISTRICTS_CONFIG[target];
+            if (distConfig && distConfig.cities) {
+                const cityMatch = distConfig.cities.some(c => 
+                    (inqCity && (c.id.toLowerCase() === inqCity || c.name.toLowerCase().includes(inqCity))) ||
+                    (inqDist && (c.id.toLowerCase() === inqDist || c.name.toLowerCase().includes(inqDist))) ||
+                    (inqLoc && (inqLoc.includes(c.id.toLowerCase()) || inqLoc.includes(c.name.toLowerCase())))
+                );
+                if (cityMatch) return true;
+
+                if (distConfig.landmarks && distConfig.landmarks.some(l => inqLoc.includes(l.name.toLowerCase()))) {
+                    return true;
+                }
+            }
+
+            // Fallback aliases for known cities
+            if ((inqCity === 'baripada' || inqLoc.includes('baripada')) && target === 'mayurbhanj') return true;
+            if ((inqCity === 'baleshwar' || inqCity === 'remuna' || inqCity === 'balasore' || inqLoc.includes('balasore')) && target === 'balasore') return true;
+            if ((inqCity === 'bhadrak' || inqCity === 'basudevpur' || inqLoc.includes('bhadrak')) && target === 'bhadrak') return true;
+
+            return false;
+        }),
+        [allRoomInquiries, opFilterDistrict]
+    );
+
+    const claims = useMemo(
+        () => allClaims.filter(c => opFilterDistrict === 'all' || getMessDistrict(c.messId).toLowerCase() === opFilterDistrict.toLowerCase()),
+        [allClaims, opFilterDistrict, getMessDistrict]
+    );
 
     // Live Metrics Calculations for Stats Overview Bar
     const statsTotalMesses = messes.length;
@@ -991,7 +1061,7 @@ const OperationalDashboard = () => {
                             }`}
                     >
                         <Calendar size={20} />
-                        Call Requests
+                        User call logs
                     </button>
                     <button
                         onClick={() => setActiveTab('owner_calls')}
@@ -1110,6 +1180,19 @@ const OperationalDashboard = () => {
                             {messes.length}
                         </span>
                     </button>
+                    <button
+                        onClick={() => setActiveTab('team')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'team'
+                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            }`}
+                    >
+                        <IdCard size={20} />
+                        Team Directory
+                        <span className="ml-auto bg-white/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-60">
+                            {teamData?.stats?.total || 0}
+                        </span>
+                    </button>
  
                     <div className="pt-4 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4">
                         Marketing
@@ -1123,6 +1206,16 @@ const OperationalDashboard = () => {
                     >
                         <Image size={20} />
                         Hero Ads
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('localities')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'localities'
+                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            }`}
+                    >
+                        <MapPin size={20} />
+                        Localities
                     </button>
                 </aside>
 
@@ -1140,12 +1233,12 @@ const OperationalDashboard = () => {
                         </div>
 
                         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col justify-between shadow-lg">
-                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">Pending Calls</span>
+                            <span className="text-[10px] font-bold text-slate-550 text-slate-400 uppercase tracking-wider">User Call Logs</span>
                             <div className="flex flex-col gap-0.5 mt-1.5">
-                                <span className={`text-2xl font-extrabold ${statsPendingBookings > 0 ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`}>
-                                    {statsPendingBookings}
+                                <span className="text-2xl font-extrabold text-emerald-400">
+                                    {bookings.length}
                                 </span>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase">Requests</span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase">Total Logs</span>
                             </div>
                         </div>
 
@@ -1275,6 +1368,11 @@ const OperationalDashboard = () => {
                         <MessesTab messes={messes} rooms={rooms} searchQuery={messesSearchQuery} setSearchQuery={setMessesSearchQuery} handleToggleVisibility={handleToggleVisibility} handleToggleSponsored={handleToggleSponsored} handleEditItem={handleEditItem} />
                     )}
 
+                    {/* TEAM DIRECTORY TAB */}
+                    {activeTab === 'team' && (
+                        <TeamManagementTab teamData={teamData} />
+                    )}
+
                     {/* HERO ADS TAB */}
                     {activeTab === 'hero_ads' && (
                         <HeroAdsTab 
@@ -1286,6 +1384,11 @@ const OperationalDashboard = () => {
                             handleHeroAdUpload={handleHeroAdUpload} handleReorderHeroAd={handleReorderHeroAd} 
                             handleToggleHeroAd={handleToggleHeroAd} handleDeleteHeroAd={handleDeleteHeroAd} 
                         />
+                    )}
+
+                    {/* LOCALITIES TAB */}
+                    {activeTab === 'localities' && (
+                        <LocalitiesTab />
                     )}
                 </main>
             </div>
@@ -1386,13 +1489,33 @@ const OperationalDashboard = () => {
                                         </div>
                                     </div>
 
+                                    {/* Locality Dropdown */}
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Address</label>
+                                        <label className="block text-xs font-bold text-purple-400 uppercase mb-2">Locality / Area</label>
+                                        <select
+                                            className="w-full bg-slate-900 border border-purple-500/40 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                                            value={editForm.locality || ''}
+                                            onChange={e => setEditForm({ ...editForm, locality: e.target.value })}
+                                        >
+                                            <option value="">— Select Locality —</option>
+                                            {editForm.locality && !getLocalitiesForCity(editForm.city, localitiesConfig).includes(editForm.locality) && (
+                                                <option value={editForm.locality}>{editForm.locality} (current – not in official list)</option>
+                                            )}
+                                            {getLocalitiesForCity(editForm.city, localitiesConfig).map(loc => (
+                                                <option key={loc} value={loc}>{loc}</option>
+                                            ))}
+                                        </select>
+                                        {!editForm.city && (
+                                            <p className="text-xs text-slate-500 mt-1">Select a city above to see available localities.</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Street Address (optional)</label>
                                         <textarea
                                             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 h-20 resize-none"
                                             value={editForm.address}
                                             onChange={e => setEditForm({ ...editForm, address: e.target.value })}
-                                            required
                                         />
                                     </div>
 
@@ -1860,7 +1983,7 @@ const OperationalDashboard = () => {
                                             }`}
                                     >
                                         <Calendar size={18} />
-                                        Call Requests
+                                        User call logs
                                     </button>
 
                                     <button
@@ -1988,6 +2111,20 @@ const OperationalDashboard = () => {
                                         </span>
                                     </button>
 
+                                    <button
+                                        onClick={() => { setActiveTab('team'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'team'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <IdCard size={18} />
+                                        Team Directory
+                                        <span className="ml-auto bg-white/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-60">
+                                            {teamData?.stats?.total || 0}
+                                        </span>
+                                    </button>
+
                                     <div className="pt-4 pb-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest px-4">
                                         Marketing
                                     </div>
@@ -2001,6 +2138,16 @@ const OperationalDashboard = () => {
                                     >
                                         <Image size={18} />
                                         Hero Ads
+                                    </button>
+                                    <button
+                                        onClick={() => { setActiveTab('localities'); setMobileMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-semibold ${activeTab === 'localities'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <MapPin size={18} />
+                                        Localities
                                     </button>
                                 </div>
                             </div>

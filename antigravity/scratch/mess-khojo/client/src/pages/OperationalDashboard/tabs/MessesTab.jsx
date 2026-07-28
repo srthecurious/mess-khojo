@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Search, Server, EyeOff, Eye, CheckCircle, TrendingUp, Edit3, MapPin, SlidersHorizontal, Navigation, XCircle, ChevronDown, ChevronRight, BedDouble, Layout, Copy, Check } from 'lucide-react';
+import { Database, Search, Server, EyeOff, Eye, CheckCircle, TrendingUp, Edit3, MapPin, SlidersHorizontal, Navigation, XCircle, ChevronDown, ChevronRight, BedDouble, Layout, Copy, Check, Camera, CameraOff } from 'lucide-react';
 
 const MessesTab = ({
     messes,
@@ -54,6 +54,14 @@ const MessesTab = ({
                 return !!mess.isSponsored;
             case 'sourced':
                 return !!mess.isUserSourced;
+            case 'missing_photos': {
+                const messRooms = rooms.filter(r => r.messId === mess.id);
+                return messRooms.length === 0 || messRooms.some(r => !(r.imageUrls && r.imageUrls.length > 0) && !r.imageUrl);
+            }
+            case 'all_photos': {
+                const messRooms = rooms.filter(r => r.messId === mess.id);
+                return messRooms.length > 0 && messRooms.every(r => (r.imageUrls && r.imageUrls.length > 0) || !!r.imageUrl);
+            }
             case 'all':
             default:
                 return true;
@@ -102,6 +110,8 @@ const MessesTab = ({
                             className="bg-transparent text-slate-200 text-sm focus:outline-none cursor-pointer"
                         >
                             <option value="all" className="bg-slate-800">All Messes</option>
+                            <option value="missing_photos" className="bg-slate-800">📷 Photos Not Available</option>
+                            <option value="all_photos" className="bg-slate-800">📸 All Room Photos Uploaded</option>
                             <option value="public" className="bg-slate-800">Public Listings</option>
                             <option value="private" className="bg-slate-800">Private (Hidden)</option>
                             <option value="sponsored" className="bg-slate-800">Sponsored</option>
@@ -220,6 +230,34 @@ const MessesTab = ({
                                                 <span>ID: {mess.id}</span>
                                                 {mess.contact && <span>• Phone: {mess.contact}</span>}
                                             </div>
+
+                                            {/* Room Photo Status Breakdown Chips */}
+                                            {messRooms.length > 0 && (
+                                                <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                                                    <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Room Photos:</span>
+                                                    {messRooms.map(room => {
+                                                        const photoCount = (room.imageUrls && room.imageUrls.length) || (room.imageUrl ? 1 : 0);
+                                                        const hasPhoto = photoCount > 0;
+                                                        return (
+                                                            <span
+                                                                key={room.id}
+                                                                className={`text-[9px] px-2 py-0.5 rounded-lg border font-bold flex items-center gap-1.5 transition-all ${
+                                                                    hasPhoto
+                                                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                                                        : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                                                                }`}
+                                                                title={hasPhoto ? `${room.occupancy || 'Room'} has ${photoCount} photo(s)` : `${room.occupancy || 'Room'} has NO photos!`}
+                                                            >
+                                                                {hasPhoto ? <Camera size={10} className="text-emerald-400" /> : <CameraOff size={10} className="text-rose-400" />}
+                                                                <span>{room.occupancy || 'Room'}</span>
+                                                                <span className={`px-1 rounded text-[8px] font-black ${hasPhoto ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                                                                    {hasPhoto ? `${photoCount} Pic${photoCount > 1 ? 's' : ''}` : 'No Pic'}
+                                                                </span>
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -349,6 +387,25 @@ const MessesTab = ({
                                                                     {room.availableCount} {room.occupancy === 'Single' ? 'Bed' : 'Seat'}{Number(room.availableCount) !== 1 ? 's' : ''}
                                                                 </span>
                                                             </div>
+
+                                                            {/* Room Photo Status Badge */}
+                                                            {(() => {
+                                                                const photoCount = (room.imageUrls && room.imageUrls.length) || (room.imageUrl ? 1 : 0);
+                                                                const hasPhoto = photoCount > 0;
+                                                                return (
+                                                                    <div className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold flex items-center justify-between mt-2 ${
+                                                                        hasPhoto
+                                                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                                            : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                                                                    }`}>
+                                                                        <span className="flex items-center gap-1">
+                                                                            {hasPhoto ? <Camera size={11} /> : <CameraOff size={11} />}
+                                                                            {hasPhoto ? 'Photos Uploaded' : 'Missing Photos'}
+                                                                        </span>
+                                                                        <span>{hasPhoto ? `${photoCount} Pic(s)` : '0 Photos'}</span>
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
 
                                                         {/* Edit button */}

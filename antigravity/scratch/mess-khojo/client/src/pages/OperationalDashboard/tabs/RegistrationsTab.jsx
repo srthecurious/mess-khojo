@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Calendar, Trash2, Phone, MapPin, Monitor, CheckCircle, Navigation, User, ArrowUpDown, SlidersHorizontal, X, Plus } from 'lucide-react';
 import { db } from '../../../firebase';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { DISTRICTS_CONFIG } from '../../../context/DistrictContext';
+import { DISTRICTS_CONFIG, getLocalitiesForCity } from '../../../context/DistrictContext';
+import { useDistrict } from '../../../context/DistrictContext';
 
 const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'approved'
@@ -11,18 +12,12 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
     const [editingRegistration, setEditingRegistration] = useState(null);
     const [editForm, setEditForm] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const { localitiesConfig } = useDistrict();
 
-    const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
-    const [prevSortOrder, setPrevSortOrder] = useState(sortOrder);
-    const [prevRegistrations, setPrevRegistrations] = useState(registrations);
-
-    // Reset pagination when filters, sort or registrations list change
-    if (statusFilter !== prevStatusFilter || sortOrder !== prevSortOrder || registrations !== prevRegistrations) {
-        setPrevStatusFilter(statusFilter);
-        setPrevSortOrder(sortOrder);
-        setPrevRegistrations(registrations);
+    // Reset pagination only when the user actively changes a filter or sort — NOT on data refresh
+    useEffect(() => {
         setVisibleCount(10);
-    }
+    }, [statusFilter, sortOrder]);
 
     // Handle Google Maps Redirect
     const getGoogleMapsUrl = (lat, lng) => {
@@ -61,7 +56,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             gender: reg.gender || 'Boys',
             managedBy: reg.managedBy || '',
             messType: reg.messType || [],
-            landmark: reg.landmark || '',
+            landmark: reg.landmark || '',   // kept for legacy read
+            locality: reg.locality || reg.landmark || '',  // new field, fallback to landmark
             gpsLatitude: reg.gpsLatitude !== undefined && reg.gpsLatitude !== null ? String(reg.gpsLatitude) : '',
             gpsLongitude: reg.gpsLongitude !== undefined && reg.gpsLongitude !== null ? String(reg.gpsLongitude) : '',
             rentCycle: reg.rentCycle || 'monthly',
@@ -142,7 +138,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                 gender: editForm.gender,
                 managedBy: editForm.managedBy,
                 messType: editForm.messType,
-                landmark: editForm.landmark,
+                landmark: editForm.locality,  // write to both for backwards compat
+                locality: editForm.locality,
                 gpsLatitude: gpsLatitude,
                 gpsLongitude: gpsLongitude,
                 rentCycle: editForm.rentCycle,
@@ -595,13 +592,23 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Landmark / Address</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.landmark}
-                                            onChange={e => setEditForm({ ...editForm, landmark: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                        />
+                                        <label className="block text-xs font-bold text-purple-400 mb-1.5 uppercase">Locality / Area</label>
+                                        <select
+                                            value={editForm.locality || ''}
+                                            onChange={e => setEditForm({ ...editForm, locality: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-950 border border-purple-700 rounded-xl text-white focus:ring-2 focus:ring-purple-500 outline-none text-sm cursor-pointer"
+                                        >
+                                            <option value="">— Select Locality —</option>
+                                            {editForm.locality && !getLocalitiesForCity(editForm.city, localitiesConfig).includes(editForm.locality) && (
+                                                <option value={editForm.locality}>{editForm.locality} (current)</option>
+                                            )}
+                                            {getLocalitiesForCity(editForm.city, localitiesConfig).map(loc => (
+                                                <option key={loc} value={loc} className="bg-slate-900">{loc}</option>
+                                            ))}
+                                        </select>
+                                        {!editForm.city && (
+                                            <p className="text-[10px] text-slate-500 mt-1">Select a city above to see localities.</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -844,7 +851,6 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
 
                             {/* SECTION 5: ROOM VARIANTS EDITOR */}
                             <div className="space-y-4 pt-2 border-t border-slate-800/80">
-                                {console.log("editForm.roomVariants:", editForm?.roomVariants)}
                                 <h4 className="text-sm font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-1 text-left">Room Configurations & Pricing</h4>
                                 
                                 <div className="space-y-4">
@@ -985,7 +991,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                 Cancel
                             </button>
                             <button
-                                onClick={handleSaveEdits}
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); handleSaveEdits(e); }}
                                 disabled={isSaving}
                                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-lg shadow-blue-950/20"
                             >

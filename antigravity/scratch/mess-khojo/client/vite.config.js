@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import packageJson from './package.json'
 // Trigger deployment
 import react from '@vitejs/plugin-react'
 import tailwindcss from 'tailwindcss'
@@ -12,6 +13,9 @@ export default defineConfig(({ mode }) => {
   const isProd = mode === 'production';
 
   return {
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VITE_APP_VERSION || packageJson.version || '1.0.0'),
+    },
     plugins: [
       react(),
 

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut as firebaseSignOut, deleteUser } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { identifyUser } from "../analytics";
 
 const AuthContext = createContext();
 
@@ -19,6 +20,9 @@ export function AuthProvider({ children }) {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setCurrentUser(user);
+                let resolvedRole = 'user';
+                let resolvedName = user.displayName || 'User';
+
                 // Check user role from Firestore
                 try {
                     const userDocRef = doc(db, "users", user.uid);
@@ -26,22 +30,41 @@ export function AuthProvider({ children }) {
 
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
-                        // Use the 'role' field from the document
-                        setUserRole(userData.role || 'user');
+                        resolvedRole = userData.role || 'user';
+                        resolvedName = userData.name || resolvedName;
+                        setUserRole(resolvedRole);
+                        identifyUser(user.uid, {
+                            role: resolvedRole,
+                            email: user.email,
+                            name: resolvedName
+                        });
                     } else {
                         // Document doesn't exist yet - check if it's a partner/admin
                         const messesRef = doc(db, "messes", user.uid);
                         const messDoc = await getDoc(messesRef);
 
                         if (messDoc.exists()) {
-                            setUserRole("admin"); // Partner who owns a mess
+                            resolvedRole = "admin";
+                            setUserRole(resolvedRole);
+                            identifyUser(user.uid, {
+                                role: resolvedRole,
+                                email: user.email,
+                                name: resolvedName
+                            });
                         } else {
                             // New user - document might be created soon
                             // Watch the document for creation
                             const unsubUser = onSnapshot(userDocRef, (snap) => {
                                 if (snap.exists()) {
                                     const retryUserData = snap.data();
-                                    setUserRole(retryUserData.role || 'user');
+                                    resolvedRole = retryUserData.role || 'user';
+                                    resolvedName = retryUserData.name || resolvedName;
+                                    setUserRole(resolvedRole);
+                                    identifyUser(user.uid, {
+                                        role: resolvedRole,
+                                        email: user.email,
+                                        name: resolvedName
+                                    });
                                     unsubUser(); // stop watching once we have the data
                                 }
                             });
@@ -50,6 +73,11 @@ export function AuthProvider({ children }) {
                 } catch (error) {
                     console.error("Error fetching user role:", error);
                     setUserRole('user'); // Default to user on error
+                    identifyUser(user.uid, {
+                        role: 'user',
+                        email: user.email,
+                        name: resolvedName
+                    });
                 }
             } else {
                 setCurrentUser(null);

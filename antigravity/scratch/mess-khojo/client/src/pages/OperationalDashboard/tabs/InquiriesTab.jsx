@@ -8,15 +8,10 @@ const InquiriesTab = ({ inquiries }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [visibleCount, setVisibleCount] = useState(10);
 
-    const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
-    const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
-    const [prevInquiries, setPrevInquiries] = useState(inquiries);
-
-    // Reset pagination when filters or data change
-    if (statusFilter !== prevStatusFilter || searchQuery !== prevSearchQuery || inquiries !== prevInquiries) {
-        setPrevStatusFilter(statusFilter);
-        setPrevSearchQuery(searchQuery);
-        setPrevInquiries(inquiries);
+    // Reset pagination when user changes a filter
+    const [prevFilter, setPrevFilter] = useState({ statusFilter, searchQuery });
+    if (prevFilter.statusFilter !== statusFilter || prevFilter.searchQuery !== searchQuery) {
+        setPrevFilter({ statusFilter, searchQuery });
         setVisibleCount(10);
     }
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2, Bell } from 'lucide-react';
 import { auth } from '../firebase';
 import { serverTimestamp, collection, getDocs, query, orderBy, startAt, endAt, doc, getDoc, addDoc, where } from 'firebase/firestore';
@@ -31,6 +31,7 @@ const MessDetails = () => {
     });
     const messId = resolvedMessId;
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const { currentUser, userRole } = useAuth();
     const { success: toastSuccess, error: toastError } = useToast();
@@ -71,6 +72,25 @@ const MessDetails = () => {
     const [submittingInquiry, setSubmittingInquiry] = useState(false);
     const [showUserSourcedListing, setShowUserSourcedListing] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
+    const [selectedOccupancy, setSelectedOccupancy] = useState('');
+
+    // Extract unique available occupancies from rooms
+    const availableOccupancies = useMemo(() => {
+        if (!rooms || rooms.length === 0) return [];
+        const map = new Map();
+        rooms.forEach(r => {
+            const occName = r.occupancy || r.name || 'Standard Room';
+            if (!map.has(occName)) {
+                map.set(occName, {
+                    occupancy: occName,
+                    price: Number(r.price || r.rent || 0),
+                    rentCycle: r.rentCycle || 'monthly',
+                    roomId: r.id || null
+                });
+            }
+        });
+        return Array.from(map.values());
+    }, [rooms]);
 
     const handleShare = async () => {
         const shareData = {
@@ -94,7 +114,7 @@ const MessDetails = () => {
         }
     };
 
-    const handleBookClick = async () => {
+    const handleBookClick = async (targetRoom = null) => {
         if (!currentUser) {
             const returnUrl = `/mess/${messSlug}?action=book`;
             console.log('🔗 Redirecting to login with return URL:', returnUrl);
@@ -145,8 +165,10 @@ const MessDetails = () => {
         const userData = userDoc.exists() ? userDoc.data() : {};
         const phone = userData.phone || '';
 
-        trackBookingInitiated(null, messId, mess.startingPrice || 0);
-        trackContactOwner('button_clicked', messId, null);
+        trackBookingInitiated(targetRoom?.id || null, messId, targetRoom?.price || mess.startingPrice || 0);
+        trackContactOwner('button_clicked', messId, targetRoom?.id || null);
+
+        setSelectedOccupancy('');
 
         if (!phone || phone === 'N/A') {
             setShowPhoneModal(true);
@@ -157,10 +179,15 @@ const MessDetails = () => {
     };
 
     const handleConfirmBooking = async () => {
+        if (!selectedOccupancy) return;
         setBookingProcessing(true);
         try {
             const userDoc = await getDoc(doc(db, "users", currentUser.uid));
             const userData = userDoc.exists() ? userDoc.data() : {};
+
+            const activeOccObj = availableOccupancies.find(o => o.occupancy === selectedOccupancy);
+            const chosenOccupancy = selectedOccupancy || (availableOccupancies[0]?.occupancy) || "General Inquiry";
+            const chosenPrice = activeOccObj?.price || mess.startingPrice || 0;
 
             const bookingData = {
                 userId: currentUser.uid,
@@ -168,9 +195,10 @@ const MessDetails = () => {
                 userPhone: userPhone || userData.phone || "N/A",
                 messId: mess.id,
                 messName: mess.name,
-                roomId: null,
-                roomType: "General",
-                price: mess.startingPrice || 0,
+                roomId: activeOccObj?.roomId || null,
+                roomType: chosenOccupancy,
+                price: chosenPrice,
+                rentCycle: activeOccObj?.rentCycle || 'monthly',
                 ownerPhone: mess.contact,
                 status: 'contacted',
                 createdAt: serverTimestamp()
@@ -178,9 +206,14 @@ const MessDetails = () => {
 
             await addDoc(collection(db, "bookings"), bookingData);
 
+            // Send Telegram Notification
+            import('../utils/telegramNotifier').then(({ sendTelegramNotification, telegramTemplates }) => {
+                sendTelegramNotification(telegramTemplates.newBooking(bookingData));
+            }).catch(err => console.error("Telegram notification error:", err));
+
             setShowConfirmModal(false);
 
-            trackContactOwner('call_confirmed', messId, null);
+            trackContactOwner('call_confirmed', messId, activeOccObj?.roomId || null);
             window.location.href = `tel:${mess.contact}`;
         } catch (error) {
             console.error("Contact owner failed:", error);
@@ -364,6 +397,16 @@ const MessDetails = () => {
         window.scrollTo(0, 0);
     }, [messId]);
 
+    // Ensure URL in address bar displays canonical mess name and ID slug format
+    useEffect(() => {
+        if (mess && mess.name && mess.id) {
+            const canonicalSlug = toMessSlug(mess.name, mess.id);
+            if (messSlug !== canonicalSlug) {
+                navigate(`/mess/${canonicalSlug}${window.location.search}${window.location.hash}`, { replace: true });
+            }
+        }
+    }, [mess, messSlug, navigate]);
+
 
     // Track mess view when component mounts
     useEffect(() => {
@@ -383,7 +426,7 @@ const MessDetails = () => {
         structuredData: mess ? generateMessSchema({ ...mess, _slug: toMessSlug(mess.name, mess.id) }) : null
     });
 
-    useBodyScrollLock(showInquiryModal);
+    useBodyScrollLock(showInquiryModal || showConfirmModal || showPhoneModal || showClaimModal);
 
     // Inject structured data for this mess
     useEffect(() => {
@@ -586,9 +629,14 @@ const MessDetails = () => {
                             <button
                                 onClick={() => {
                                     if (window.history.length > 1) {
+                                        // Primary: go back in browser history (preserves full history stack)
                                         navigate(-1);
                                     } else {
-                                        navigate('/');
+                                        // Fallback for direct page loads (e.g. opened via shared link):
+                                        // navigate to the originating city page if CityPage passed it in state,
+                                        // otherwise fall back to the homepage.
+                                        const fromCityPath = location.state?.fromCityPath;
+                                        navigate(fromCityPath || '/');
                                     }
                                 }}
                                 className="inline-flex items-center text-sm font-semibold text-white bg-black/30 hover:bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm transition-all"
@@ -1193,29 +1241,61 @@ const MessDetails = () => {
                             </div>
 
                             <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Property</span>
+                                <div className="flex justify-between items-center text-sm pb-2 border-b border-gray-200">
+                                    <span className="text-gray-500 font-medium">Property</span>
                                     <span className="font-bold text-gray-900">{mess.name}</span>
                                 </div>
-                                {mess.startingPrice && (
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Starting Rent</span>
-                                        <span className="font-bold text-gray-900">₹{mess.startingPrice}/mo</span>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                        Which occupancy are you calling for?
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {availableOccupancies.map(occObj => (
+                                            <button
+                                                key={occObj.occupancy}
+                                                type="button"
+                                                onClick={() => setSelectedOccupancy(occObj.occupancy)}
+                                                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                    selectedOccupancy === occObj.occupancy
+                                                        ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                                                }`}
+                                            >
+                                                {occObj.occupancy}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedOccupancy('General Inquiry')}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                                selectedOccupancy === 'General Inquiry'
+                                                    ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                                                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            General Inquiry
+                                        </button>
                                     </div>
-                                )}
+                                    {!selectedOccupancy && (
+                                        <p className="text-[11px] text-amber-700 font-medium mt-2">
+                                            * Please select an option above to proceed with the call.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setShowConfirmModal(false)}
-                                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors text-sm"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleConfirmBooking}
-                                    disabled={bookingProcessing}
-                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-green-200 disabled:opacity-70 flex items-center justify-center gap-2"
+                                    disabled={bookingProcessing || !selectedOccupancy}
+                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-green-200 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                                 >
                                     {bookingProcessing ? 'Connecting...' : 'Call Now'}
                                 </button>

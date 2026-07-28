@@ -5,8 +5,9 @@ import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePageSEO } from '../hooks/usePageSEO';
-import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { DISTRICTS_CONFIG, useDistrict } from '../context/DistrictContext';
 import PastSuggestionsModal from '../components/PastSuggestionsModal';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 
 const WhatsAppIcon = ({ size = 18, className = "" }) => (
@@ -74,7 +75,8 @@ const BookRoomComingSoon = () => {
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
-        contactMethod: 'whatsapp',
+        whatsapp: '',
+        sameAsPhone: true,
         city: searchParams.get('city') || '',
         location: '',
         budget: '500-7000+',
@@ -103,6 +105,8 @@ const BookRoomComingSoon = () => {
     const [alreadySubmittedToday, setAlreadySubmittedToday] = useState(false);
     const [pastInquiries, setPastInquiries] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+    useBodyScrollLock(isHistoryModalOpen);
 
     useEffect(() => {
         try {
@@ -189,7 +193,7 @@ const BookRoomComingSoon = () => {
                     if (!data.hidden) {
                         messesData.push({
                             city: data.city ? data.city.trim().toLowerCase() : '',
-                            landmark: data.landmark ? data.landmark.trim() : ''
+                            locality: (data.locality || data.landmark || '').trim()
                         });
                     }
                 });
@@ -201,22 +205,26 @@ const BookRoomComingSoon = () => {
         fetchMesses();
     }, []);
 
-    // Get available landmarks for the selected city
-    const availableLandmarks = React.useMemo(() => {
+    // Get available localities for the selected city — loads from localitiesConfig first (instant)
+    const { localitiesConfig, getLocalitiesForCity } = useDistrict();
+    const availableLocalities = React.useMemo(() => {
         if (!formData.city) return [];
 
         const cityId = formData.city.toLowerCase();
-        const landmarkSet = new Set();
+        // Primary: official locality list from operator-configured Firestore data
+        const officialLocalities = getLocalitiesForCity(cityId, localitiesConfig);
 
-        // Add dynamic landmarks from active messes in this city
+        // Safety net: also include any locality/landmark values from messes that
+        // aren't already in the official list (handles legacy free-text data)
+        const localitySet = new Set(officialLocalities);
         allMessesData.forEach(mess => {
-            if (mess.city === cityId && mess.landmark) {
-                landmarkSet.add(mess.landmark.trim());
+            if (mess.city === cityId && mess.locality) {
+                localitySet.add(mess.locality);
             }
         });
 
-        return Array.from(landmarkSet).sort((a, b) => a.localeCompare(b));
-    }, [formData.city, allMessesData]);
+        return Array.from(localitySet).sort((a, b) => a.localeCompare(b));
+    }, [formData.city, allMessesData, localitiesConfig, getLocalitiesForCity]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -225,6 +233,9 @@ const BookRoomComingSoon = () => {
                 ...prev,
                 [name]: value
             };
+            if (name === 'phone' && prev.sameAsPhone) {
+                updated.whatsapp = value;
+            }
             // Clear location if city changes
             if (name === 'city') {
                 updated.location = '';
@@ -266,8 +277,19 @@ const BookRoomComingSoon = () => {
         setError('');
 
         try {
+            const calculatedWhatsapp = formData.sameAsPhone ? formData.phone : formData.whatsapp;
             const inquiryData = {
-                ...formData,
+                name: formData.name,
+                phone: formData.phone,
+                whatsapp: calculatedWhatsapp,
+                city: formData.city,
+                location: formData.location,
+                budget: formData.budget,
+                gender: formData.gender,
+                occupancy: formData.occupancy,
+                expectedMoveIn: formData.expectedMoveIn,
+                requirements: formData.requirements,
+                consent: formData.consent,
                 createdAt: serverTimestamp(),
                 status: 'new'
             };
@@ -571,11 +593,11 @@ const BookRoomComingSoon = () => {
                                                 <option value="">
                                                     {!formData.city 
                                                         ? "Select preferred city first" 
-                                                        : availableLandmarks.length === 0 
+                                                        : availableLocalities.length === 0 
                                                             ? "No areas available in this city" 
                                                             : "Select preferred area"}
                                                 </option>
-                                                {availableLandmarks.map((area, idx) => (
+                                                {availableLocalities.map((area, idx) => (
                                                     <option key={idx} value={area}>
                                                         {area}
                                                     </option>
@@ -806,38 +828,52 @@ const BookRoomComingSoon = () => {
                                                 {phoneError && <p className="text-xs text-red-500 font-medium">{phoneError}</p>}
                                             </div>
 
-                                            {/* Contact Method */}
-                                            <div className="space-y-3 pt-2">
-                                                <label className="text-sm font-semibold text-brand-text-dark">Preferred Contact Method</label>
-                                                <div className="grid grid-cols-2 gap-3" role="radiogroup">
-                                                    <button
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={formData.contactMethod === 'whatsapp'}
-                                                        onClick={() => setFormData(prev => ({ ...prev, contactMethod: 'whatsapp' }))}
-                                                        className={`py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${
-                                                            formData.contactMethod === 'whatsapp' 
-                                                                ? 'bg-green-50 border-green-500 text-green-700 font-semibold' 
-                                                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                            {/* WhatsApp */}
+                                            <div className="space-y-2 pt-1">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-sm font-semibold text-brand-text-dark flex items-center gap-2">
+                                                        <WhatsAppIcon size={16} className="text-green-600" />
+                                                        WhatsApp Number <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                                                    </label>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="same-as-whatsapp"
+                                                            checked={formData.sameAsPhone}
+                                                            onChange={(e) => {
+                                                                const checked = e.target.checked;
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    sameAsPhone: checked,
+                                                                    whatsapp: checked ? prev.phone : ''
+                                                                }));
+                                                            }}
+                                                            className="w-3.5 h-3.5 accent-brand-primary cursor-pointer rounded"
+                                                        />
+                                                        <label htmlFor="same-as-whatsapp" className="text-xs text-gray-500 cursor-pointer select-none">
+                                                            Same as WhatsApp number
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">+91</span>
+                                                    <input
+                                                        type="tel"
+                                                        name="whatsapp"
+                                                        disabled={formData.sameAsPhone}
+                                                        value={formData.sameAsPhone ? formData.phone : formData.whatsapp}
+                                                        maxLength="10"
+                                                        onChange={(e) => {
+                                                            const val = e.target.value.replace(/\D/g, '');
+                                                            setFormData(prev => ({ ...prev, whatsapp: val }));
+                                                        }}
+                                                        placeholder={formData.sameAsPhone ? "Same as phone number" : "10 digit WhatsApp number"}
+                                                        className={`w-full pl-12 pr-4 py-3 bg-gray-50 border rounded-xl outline-none transition-all ${
+                                                            formData.sameAsPhone 
+                                                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                                                                : 'focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary border-gray-200'
                                                         }`}
-                                                    >
-                                                        <WhatsAppIcon size={18} className={formData.contactMethod === 'whatsapp' ? 'text-green-500' : 'text-gray-400'} />
-                                                        WhatsApp
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={formData.contactMethod === 'call'}
-                                                        onClick={() => setFormData(prev => ({ ...prev, contactMethod: 'call' }))}
-                                                        className={`py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${
-                                                            formData.contactMethod === 'call' 
-                                                                ? 'bg-blue-50 border-blue-500 text-blue-700 font-semibold' 
-                                                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                                                        }`}
-                                                    >
-                                                        <Phone size={18} className={formData.contactMethod === 'call' ? 'text-blue-500' : ''} />
-                                                        Phone Call
-                                                    </button>
+                                                    />
                                                 </div>
                                             </div>
 

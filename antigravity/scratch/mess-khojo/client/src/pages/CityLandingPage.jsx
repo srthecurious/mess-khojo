@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, ArrowRight, Search, X, BedDouble, Home, Compass, ArrowUpRight, ChevronDown } from 'lucide-react';
 import Header from '../components/Header';
@@ -11,8 +11,9 @@ import useAllCityMesses from '../hooks/useAllCityMesses';
 import { PAGINATION } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
-import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { DISTRICTS_CONFIG, useDistrict } from '../context/DistrictContext';
 import { trackRegisterMessClick } from '../analytics';
+import { toMessSlug } from '../utils/slugify';
 
 const CITY_NAMES = Object.values(DISTRICTS_CONFIG).reduce((acc, district) => {
     (district.cities || []).forEach(city => {
@@ -43,26 +44,88 @@ const CityLandingPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Unique landmarks extractor
-    const allUniqueLandmarks = React.useMemo(() => {
-        const landmarkSet = new Set();
+    // Scroll to the city section when returning via back button (hash navigation)
+    const location = useLocation();
 
-        // Predefined landmarks from DISTRICTS_CONFIG
+    // Save scroll position to sessionStorage before navigating away
+    React.useEffect(() => {
+        const saveScroll = () => {
+            sessionStorage.setItem('cityLandingScrollY', String(window.scrollY));
+        };
+        // Save on any click that might navigate away
+        document.addEventListener('click', saveScroll, { capture: true });
+        return () => document.removeEventListener('click', saveScroll, { capture: true });
+    }, []);
+
+    // Restore scroll position after data has loaded (handles async skeleton → content transition)
+    const hasRestoredScroll = React.useRef(false);
+    React.useEffect(() => {
+        if (loading) return; // wait until data is loaded and sections are in DOM
+        if (hasRestoredScroll.current) return;
+
+        const savedScrollY = sessionStorage.getItem('cityLandingScrollY');
+
+        if (location.hash || (savedScrollY && parseInt(savedScrollY, 10) > 100)) {
+            hasRestoredScroll.current = true;
+
+            const MAX_ATTEMPTS = 10;
+            let attempts = 0;
+            let timerId;
+
+            const tryRestore = () => {
+                attempts++;
+                let restored = false;
+
+                // Priority 1: Restore exact pixel scrollY if saved (most accurate for returning via back)
+                if (savedScrollY && parseInt(savedScrollY, 10) > 100) {
+                    window.scrollTo({ top: parseInt(savedScrollY, 10), behavior: 'instant' });
+                    restored = true;
+                }
+
+                // Priority 2: Hash navigation fallback (e.g. #city-basudevpur)
+                if (!restored && location.hash) {
+                    const el = document.querySelector(location.hash);
+                    if (el && el.offsetParent !== null) {
+                        el.scrollIntoView({ behavior: 'instant', block: 'start' });
+                        restored = true;
+                    }
+                }
+
+                if (restored || attempts >= MAX_ATTEMPTS) {
+                    try { sessionStorage.removeItem('cityLandingScrollY'); } catch (err) { console.warn(err); }
+                    return;
+                }
+
+                timerId = setTimeout(tryRestore, 80);
+            };
+
+            timerId = setTimeout(tryRestore, 50);
+            return () => clearTimeout(timerId);
+        }
+    }, [loading, location.hash]);
+
+    // Unique localities extractor — reads mess.locality || mess.landmark for backwards compat
+    const { localitiesConfig, getLocalitiesForCity, districtConfig } = useDistrict();
+    const allUniqueLocalities = React.useMemo(() => {
+        const localitySet = new Set();
+
+        // Add all operator-configured localities from context
+        const districtCities = districtConfig?.cities || [];
+        districtCities.forEach(city => {
+            getLocalitiesForCity(city.id, localitiesConfig).forEach(l => localitySet.add(l));
+        });
+        // Fallback: static landmark names from DISTRICTS_CONFIG
         Object.values(DISTRICTS_CONFIG).forEach(district => {
-            if (district.landmarks) {
-                district.landmarks.forEach(lm => {
-                    if (lm.name) landmarkSet.add(lm.name.trim());
-                });
-            }
+            (district.landmarks || []).forEach(lm => { if (lm.name) localitySet.add(lm.name.trim()); });
         });
-
-        // Dynamic landmarks/addresses from allMesses
+        // Dynamic: pull locality/landmark from actual mess docs
         allMesses.forEach(mess => {
-            if (mess.landmark) landmarkSet.add(mess.landmark.trim());
+            const val = mess.locality || mess.landmark;
+            if (val) localitySet.add(val.trim());
         });
 
-        return Array.from(landmarkSet);
-    }, [allMesses]);
+        return Array.from(localitySet);
+    }, [allMesses, localitiesConfig, districtConfig, getLocalitiesForCity]);
 
     // Grouped and sorted suggestions based on query
     const suggestions = React.useMemo(() => {
@@ -82,7 +145,7 @@ const CityLandingPage = () => {
             return {
                 districts: matchedDistricts,
                 messes: [],
-                landmarks: [],
+                localities: [],
                 cities: [],
                 count: matchedDistricts.length
             };
@@ -102,13 +165,13 @@ const CityLandingPage = () => {
                 posterUrl: mess.posterUrl
             }));
 
-        // 3. Landmarks / Areas - Max 3
-        const matchedLandmarks = allUniqueLandmarks
+        // 3. Localities / Areas — Max 3
+        const matchedLocalities = allUniqueLocalities
             .filter(lm => lm.toLowerCase().includes(query))
             .slice(0, 3)
             .map(lm => ({
                 name: lm,
-                type: 'landmark'
+                type: 'locality'
             }));
 
         // 4. Cities - Max 3
@@ -127,16 +190,16 @@ const CityLandingPage = () => {
                 };
             });
 
-        const count = matchedDistricts.length + matchedMesses.length + matchedLandmarks.length + matchedCities.length;
+        const count = matchedDistricts.length + matchedMesses.length + matchedLocalities.length + matchedCities.length;
 
         return {
             districts: matchedDistricts,
             messes: matchedMesses,
-            landmarks: matchedLandmarks,
+            localities: matchedLocalities,
             cities: matchedCities,
             count
         };
-    }, [searchQuery, allMesses, allUniqueLandmarks]);
+    }, [searchQuery, allMesses, allUniqueLocalities]);
 
     usePageSEO({
         title: "Find Boys & Girls Mess in Balasore & Bhadrak | MessKhojo",
@@ -328,7 +391,7 @@ const CityLandingPage = () => {
                                                                 key={mess.id}
                                                                 onClick={() => {
                                                                     setShowDropdown(false);
-                                                                    navigate(`/mess/${mess.id}`);
+                                                                    navigate(`/mess/${toMessSlug(mess.name, mess.id)}`);
                                                                 }}
                                                                 className="w-full text-left px-3 py-2.5 hover:bg-brand-primary/5 rounded-xl transition-all duration-200 flex items-center justify-between group animate-fadeIn"
                                                             >
@@ -359,14 +422,14 @@ const CityLandingPage = () => {
                                                 </div>
                                             )}
 
-                                            {/* 3. LANDMARK MATCHES */}
-                                            {suggestions.landmarks.length > 0 && (
+                                            {/* 3. LOCALITY MATCHES */}
+                                            {suggestions.localities.length > 0 && (
                                                 <div>
                                                     <div className="px-3 py-1.5 text-[10px] font-extrabold text-brand-accent-green uppercase tracking-wider bg-brand-accent-green/10 rounded-lg mb-1 inline-block ml-2">
-                                                        Landmarks & Areas
+                                                        Localities &amp; Areas
                                                     </div>
                                                     <div className="space-y-0.5">
-                                                        {suggestions.landmarks.map((lm, idx) => (
+                                                        {suggestions.localities.map((lm, idx) => (
                                                             <button
                                                                 key={idx}
                                                                 onClick={() => {
@@ -482,6 +545,7 @@ const CityLandingPage = () => {
                                 return (
                                     <section
                                         key={cityId}
+                                        id={`city-${cityId}`}
                                         className="relative"
                                     >
                                         {/* City Header */}

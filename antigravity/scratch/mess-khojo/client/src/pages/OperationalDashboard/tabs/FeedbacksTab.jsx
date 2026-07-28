@@ -6,13 +6,6 @@ import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 const FeedbacksTab = ({ feedbacks, feedbackReplies, setFeedbackReplies }) => {
     const [visibleCount, setVisibleCount] = useState(10);
 
-    const [prevFeedbacks, setPrevFeedbacks] = useState(feedbacks);
-
-    // Reset pagination when data changes
-    if (feedbacks !== prevFeedbacks) {
-        setPrevFeedbacks(feedbacks);
-        setVisibleCount(10);
-    }
 
     const visibleFeedbacks = feedbacks.slice(0, visibleCount);
 

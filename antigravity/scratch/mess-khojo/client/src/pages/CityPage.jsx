@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, MapPin, Search, ChevronRight } from 'lucide-react';
 
 import Header from '../components/Header';
@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { usePageSEO } from '../hooks/usePageSEO';
 import useMesses from '../hooks/useMesses';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { createSearchIndex, searchMesses } from '../utils/search';
 import { trackLocationUsage } from '../analytics';
 
@@ -92,10 +93,21 @@ const CityPage = () => {
 
     // 4. State variables for filters, pagination, location
     const seaterRowRef = useRef(null);
+    const sentinelRef = useRef(null);   // bottom sentinel for Intersection Observer auto-load
+    const hasRestoredScroll = useRef(false); // guard: only restore scroll once per mount
+    const mainRef = useRef(null);
     const [showScrollHint, setShowScrollHint] = useState(false);
-    const [displayCount, setDisplayCount] = useState(PAGINATION.MESSES_PER_PAGE);
+    // Persist displayCount in sessionStorage so back-navigation restores the same card count
+    const [displayCount, setDisplayCount] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem(`cityPage_${cityId}_displayCount`);
+            return saved ? Math.max(PAGINATION.MESSES_PER_PAGE, parseInt(saved, 10)) : PAGINATION.MESSES_PER_PAGE;
+        } catch { return PAGINATION.MESSES_PER_PAGE; }
+    });
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+
+    useBodyScrollLock(isLocationModalOpen);
 
     useEffect(() => {
         const el = seaterRowRef.current;
@@ -155,11 +167,38 @@ const CityPage = () => {
     }, [userLocation]);
 
 
-
-    // Reset display count when filters change
+    // Keep sessionStorage in sync with displayCount (so back-nav restores it)
     useEffect(() => {
+        try { sessionStorage.setItem(`cityPage_${cityId}_displayCount`, String(displayCount)); } catch (err) { console.warn(err); }
+    }, [displayCount, cityId]);
+
+    // Custom filter change handler to safely clear pagination/scroll state only on actual user filter actions
+    const handleFilterChange = (newFiltersOrFn) => {
+        try {
+            sessionStorage.removeItem(`cityPage_${cityId}_displayCount`);
+            sessionStorage.removeItem(`cityPage_${cityId}_lastCardId`);
+            sessionStorage.removeItem(`cityPage_${cityId}_scrollY`);
+        } catch (err) { console.warn(err); }
         setDisplayCount(PAGINATION.MESSES_PER_PAGE);
-    }, [filters]);
+        setFilters(newFiltersOrFn);
+    };
+
+    // Helper: saves current scroll position + card ID to sessionStorage before navigating away.
+    // Called directly from each card's onClick — no fragile document-level listener needed.
+    const saveCardScroll = (cardId) => {
+        try {
+            sessionStorage.setItem(`cityPage_${cityId}_lastCardId`, cardId);
+            sessionStorage.setItem(`cityPage_${cityId}_scrollY`, String(window.scrollY));
+        } catch (err) { console.warn(err); }
+    };
+
+    // Build the location.state payload that MessDetails will read from on back-navigation.
+    // fromCityPath lets MessDetails fall back to a direct navigate() if history is empty.
+    const location = useLocation();
+    const cityLinkState = { fromCityPath: location.pathname };
+
+
+
 
     // 5. Interaction Handlers for GPS & Map modal
     const handleLocationSelect = (coords) => {
@@ -170,7 +209,7 @@ const CityPage = () => {
                 lng: coords.lng,
                 address: coords.address || "Pinned Location"
             });
-            setFilters(prev => ({ ...prev, location: '' }));
+            handleFilterChange(prev => ({ ...prev, location: '' }));
             setIsLocationModalOpen(false);
         }
     };
@@ -195,7 +234,7 @@ const CityPage = () => {
                     lng: longitude,
                     address: "Your Location"
                 });
-                setFilters(prev => ({ ...prev, location: '' }));
+                handleFilterChange(prev => ({ ...prev, location: '' }));
                 trackLocationUsage('gps');
                 setLoadingLocation(false);
             };
@@ -490,6 +529,99 @@ const CityPage = () => {
         return result;
     }, [messes, rooms, filters, cityId]);
 
+    // Scroll to top immediately on fresh city page navigation (when not restoring a card position from back navigation)
+    useEffect(() => {
+        try {
+            const lastCardId = sessionStorage.getItem(`cityPage_${cityId}_lastCardId`);
+            const savedY = sessionStorage.getItem(`cityPage_${cityId}_scrollY`);
+            if (!lastCardId && (!savedY || parseInt(savedY, 10) <= 50)) {
+                window.scrollTo({ top: 0, behavior: 'instant' });
+            }
+        } catch (err) { console.warn(err); }
+    }, [cityId]);
+
+    // Restore scroll position or target card element after Firestore data has loaded.
+    // Uses a retry loop (up to ~800ms) so we wait for the card's DOM element to appear
+    // before giving up — eliminating the previous race condition with the 250ms cleanup timer.
+    useEffect(() => {
+        if (loading) return;
+        const listEmpty = filters.occupancy ? filteredRoomsList.length === 0 : filteredMessesList.length === 0;
+        if (listEmpty) return;
+        if (hasRestoredScroll.current) return;
+
+        try {
+            const lastCardId = sessionStorage.getItem(`cityPage_${cityId}_lastCardId`);
+            const savedY = sessionStorage.getItem(`cityPage_${cityId}_scrollY`);
+
+            if (!lastCardId && (!savedY || parseInt(savedY, 10) <= 50)) return;
+
+            hasRestoredScroll.current = true;
+
+            // Ensure displayCount is large enough if target card was beyond the current paginated window.
+            if (lastCardId) {
+                const targetMessIndex = filteredMessesList.findIndex(m => m.id === lastCardId);
+                const targetRoomIndex = filteredRoomsList.findIndex(r => r.id === lastCardId);
+                const targetIdx = targetMessIndex !== -1 ? targetMessIndex : targetRoomIndex;
+
+                if (targetIdx !== -1 && targetIdx >= displayCount) {
+                    const requiredCount = Math.ceil((targetIdx + 1) / PAGINATION.MESSES_PER_PAGE) * PAGINATION.MESSES_PER_PAGE;
+                    setDisplayCount(requiredCount);
+                }
+            }
+
+            // Retry-based scroll: keep trying every 80ms until the card element is in the DOM
+            // (needed because lazy-loaded images or async render may delay card mounting).
+            // Cleans up sessionStorage only after a successful scroll or after max retries.
+            const MAX_ATTEMPTS = 10; // 10 × 80ms = 800ms max wait
+            let attempts = 0;
+            let timerId;
+
+            const tryScroll = () => {
+                attempts++;
+                let restored = false;
+
+                if (lastCardId) {
+                    // Find the first *visible* card element — on mobile the desktop card
+                    // (mess-card-{id}) is display:none so scrollIntoView would silently fail.
+                    const candidates = [
+                        document.getElementById(`mess-card-${lastCardId}`),
+                        document.getElementById(`mess-card-mobile-${lastCardId}`),
+                        document.getElementById(`room-card-${lastCardId}`)
+                    ];
+                    const el = candidates.find(e => e && e.offsetParent !== null);
+                    if (el) {
+                        el.scrollIntoView({ block: 'center', behavior: 'instant' });
+                        restored = true;
+                    }
+                }
+
+                if (!restored && savedY && parseInt(savedY, 10) > 50) {
+                    window.scrollTo({ top: parseInt(savedY, 10), behavior: 'instant' });
+                    restored = true;
+                }
+
+                if (restored || attempts >= MAX_ATTEMPTS) {
+                    // Clean up only after a successful scroll or max retries — never prematurely.
+                    try {
+                        sessionStorage.removeItem(`cityPage_${cityId}_lastCardId`);
+                        sessionStorage.removeItem(`cityPage_${cityId}_scrollY`);
+                    } catch (err) { console.warn(err); }
+                    return;
+                }
+
+                // Not yet found — wait 80ms and retry
+                timerId = setTimeout(tryScroll, 80);
+            };
+
+            // First attempt after a short initial delay (lets React commit the card DOM nodes)
+            timerId = setTimeout(tryScroll, 50);
+
+            return () => clearTimeout(timerId);
+        } catch (err) {
+            console.error("❌ CityPage: failed to restore scroll:", err);
+        }
+    }, [loading, cityId, filteredMessesList, filteredRoomsList, displayCount, filters.occupancy]);
+
     // Paginated subset (swaps between messes and rooms)
     const paginatedItems = useMemo(() => {
         if (filters.occupancy) {
@@ -509,21 +641,75 @@ const CityPage = () => {
         setDisplayCount(prev => prev + PAGINATION.MESSES_PER_PAGE);
     };
 
+    // Auto-load more cards when user approaches the bottom of the page
+    useEffect(() => {
+        if (!hasMore) return;
+
+        // 1. Intersection Observer with 400px root margin (triggers ahead of time)
+        const sentinel = sentinelRef.current;
+        let observer;
+        if (sentinel) {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        loadMore();
+                    }
+                },
+                { rootMargin: '400px 0px' }
+            );
+            observer.observe(sentinel);
+        }
+
+        // 2. Window scroll listener fallback for fast scrolling & all browsers
+        const handleScroll = () => {
+            const scrollBottom = window.innerHeight + window.scrollY;
+            const docHeight = document.documentElement.scrollHeight;
+            if (docHeight - scrollBottom < 500) {
+                loadMore();
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        // 3. Check immediately on mount/update (for large screens where 12 cards don't fill page height)
+        const checkInitial = setTimeout(() => {
+            const scrollBottom = window.innerHeight + window.scrollY;
+            const docHeight = document.documentElement.scrollHeight;
+            if (docHeight - scrollBottom < 500) {
+                loadMore();
+            }
+        }, 200);
+
+        return () => {
+            if (observer) observer.disconnect();
+            window.removeEventListener('scroll', handleScroll);
+            clearTimeout(checkInitial);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasMore, displayCount]);
+
     return (
         <div className="min-h-screen bg-brand-secondary flex flex-col animate-fadeIn">
             <Header showSearch={false} />
 
-            <main className="flex-grow py-2 sm:py-8">
+            <main ref={mainRef} className="flex-grow py-2 sm:py-8">
                 {/* Header Bar: Back to Homepage + City Name Title */}
                 <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mb-2 sm:mb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <Link
-                                to="/"
+                            <button
+                                onClick={() => {
+                                    if (window.history.length > 1) {
+                                        navigate(-1);
+                                    } else {
+                                        navigate(`/#city-${cityId}`);
+                                    }
+                                }}
                                 className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-600 hover:text-brand-primary shadow-sm active:scale-95 transition-all"
+                                aria-label="Go back to landing page"
                             >
                                 <ArrowLeft size={20} />
-                            </Link>
+                            </button>
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-text-dark tracking-tight leading-tight">
                                     Messes in {cityName}
@@ -539,7 +725,7 @@ const CityPage = () => {
                 {/* FilterBar with GPS and Map buttons passed */}
                 <div className="mb-2 sm:mb-8">
                     <FilterBar
-                        onFilterChange={setFilters}
+                        onFilterChange={handleFilterChange}
                         currentFilters={filters}
                         onGps={handleGps}
                         onMap={() => setIsLocationModalOpen(true)}
@@ -560,11 +746,11 @@ const CityPage = () => {
 
                 {/* Gender Toggle filter */}
                 <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mb-2 sm:mb-6">
-                    <div className="flex items-center justify-between bg-white/40 backdrop-blur-sm p-1.5 rounded-2xl border border-gray-100/50 max-w-[240px]">
+                    <div className="flex items-center justify-between bg-white/40 backdrop-blur-sm p-1.5 rounded-2xl border border-gray-100/55 max-w-[240px]">
                         {['', 'boys', 'girls'].map((type) => (
                             <button
                                 key={type || 'all'}
-                                onClick={() => setFilters(prev => ({ ...prev, messType: type }))}
+                                onClick={() => handleFilterChange(prev => ({ ...prev, messType: type }))}
                                 className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all duration-300 ${filters.messType === type
                                         ? 'bg-gradient-to-r from-brand-primary to-[#3F256F] text-white shadow-md shadow-brand-primary/15'
                                         : 'text-gray-500 hover:text-gray-800'
@@ -597,7 +783,7 @@ const CityPage = () => {
                                 return (
                                     <button
                                         key={opt.id}
-                                        onClick={() => setFilters(prev => ({ ...prev, occupancy: opt.id }))}
+                                        onClick={() => handleFilterChange(prev => ({ ...prev, occupancy: opt.id }))}
                                         className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border ${isActive
                                                 ? 'bg-gradient-to-r from-brand-primary to-[#3F256F] text-white border-transparent shadow-md'
                                                 : 'bg-white/80 border-gray-100 text-gray-500 hover:text-gray-800'
@@ -655,7 +841,7 @@ const CityPage = () => {
                             <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">Try clearing your filters or refining your search location.</p>
                             {Object.values(filters.amenities).some(Boolean) || filters.location || filters.messType || filters.occupancy || filters.availableOnly || filters.minPrice || filters.maxPrice ? (
                                 <button
-                                    onClick={() => setFilters({
+                                    onClick={() => handleFilterChange({
                                         location: '',
                                         minPrice: '',
                                         maxPrice: '',
@@ -675,7 +861,7 @@ const CityPage = () => {
                             {filters.occupancy ? (
                                 <div className="flex flex-wrap justify-start gap-2 sm:gap-6 max-w-[1440px] mx-auto w-full animate-fadeIn">
                                     {paginatedItems.map(room => (
-                                        <div key={room.id} className="w-[calc(50%-4px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
+                                        <div key={room.id} id={`room-card-${room.id}`} data-room-id={room.id} className="w-[calc(50%-4px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn" onClick={() => saveCardScroll(room.id)}>
                                             <RoomCard
                                                 room={room}
                                                 messName={room.messName}
@@ -691,13 +877,14 @@ const CityPage = () => {
                                     {/* Desktop UI: Centered Flex of compact MessCards */}
                                     <div className="hidden md:flex flex-wrap justify-start gap-4 sm:gap-6 max-w-[1440px] mx-auto w-full animate-fadeIn">
                                         {paginatedItems.map(mess => (
-                                            <div key={mess.id} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn">
+                                            <div key={mess.id} id={`mess-card-${mess.id}`} data-mess-id={mess.id} className="w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] shrink-0 animate-fadeIn" onClick={() => saveCardScroll(mess.id)}>
                                                 <MessCard
                                                     mess={mess}
                                                     rooms={rooms.filter(r => r.messId === mess.id)}
                                                     onWishlistToggle={handleMessWishlistToggle}
                                                     isWishlisted={isMessWishlisted(mess.id)}
                                                     compact={true}
+                                                    linkState={cityLinkState}
                                                 />
                                             </div>
                                         ))}
@@ -705,29 +892,24 @@ const CityPage = () => {
                                     {/* Mobile UI: Vertical list of horizontal MessCards */}
                                     <div className="flex md:hidden flex-col gap-2 max-w-3xl mx-auto w-full animate-fadeIn">
                                         {paginatedItems.map(mess => (
-                                            <MessCard
-                                                key={mess.id}
-                                                mess={mess}
-                                                rooms={rooms.filter(r => r.messId === mess.id)}
-                                                onWishlistToggle={handleMessWishlistToggle}
-                                                isWishlisted={isMessWishlisted(mess.id)}
-                                                layout="horizontal"
-                                            />
+                                            <div key={mess.id} id={`mess-card-mobile-${mess.id}`} data-mess-id={mess.id} onClick={() => saveCardScroll(mess.id)}>
+                                                <MessCard
+                                                    mess={mess}
+                                                    rooms={rooms.filter(r => r.messId === mess.id)}
+                                                    onWishlistToggle={handleMessWishlistToggle}
+                                                    isWishlisted={isMessWishlisted(mess.id)}
+                                                    layout="horizontal"
+                                                    linkState={cityLinkState}
+                                                />
+                                            </div>
                                         ))}
                                     </div>
                                 </>
                             )}
 
-                            {/* Load more button */}
+                            {/* Sentinel div — Intersection Observer watches this to auto-load more cards */}
                             {hasMore && (
-                                <div className="mt-10 text-center">
-                                    <button
-                                        onClick={loadMore}
-                                        className="px-8 py-3.5 bg-gradient-to-r from-brand-primary to-[#3F256F] text-white font-bold rounded-2xl hover:shadow-lg hover:shadow-brand-primary/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 shadow-md flex items-center gap-2 mx-auto"
-                                    >
-                                        {filters.occupancy ? 'Load More Rooms' : 'Load More Messes'}
-                                    </button>
-                                </div>
+                                <div ref={sentinelRef} className="h-16 w-full" aria-hidden="true" />
                             )}
                         </>
                     )}

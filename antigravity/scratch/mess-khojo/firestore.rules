@@ -174,5 +174,14 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isOperator();
     }
+
+    // ─── Team Members ────────────────────────────────────────────────────────
+    // • Public read (team page searchable by everyone).
+    // • Authenticated admins and operators may create, update, delete.
+
+    match /team_members/{memberId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
   }
 }
