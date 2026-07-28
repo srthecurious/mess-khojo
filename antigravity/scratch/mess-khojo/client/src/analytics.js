@@ -38,11 +38,22 @@ export const initializeAnalytics = () => {
 
     if (clarityId) {
         if (!isDevelopment) {
-            import('@microsoft/clarity').then(({ clarity }) => {
-                clarity.init(clarityId);
-                clarity.set("app_version", APP_VERSION);
+            import('@microsoft/clarity').then((mod) => {
+                const clarity = mod.clarity || mod.default || mod;
+                if (clarity && typeof clarity.init === 'function') {
+                    clarity.init(clarityId);
+                    if (typeof clarity.set === 'function') {
+                        clarity.set("app_version", APP_VERSION);
+                    }
+                } else if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
+                    window.clarity("set", "app_version", APP_VERSION);
+                }
             }).catch(err => {
-                console.error('⚠️ Failed to load Microsoft Clarity:', err);
+                if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
+                    try { window.clarity("set", "app_version", APP_VERSION); } catch (_) {}
+                } else {
+                    console.warn('⚠️ Microsoft Clarity SDK load note:', err?.message || err);
+                }
             });
         } else {
             console.log(`📊 Microsoft Clarity Mock Initialized (Project ID: ${clarityId}, Version: ${APP_VERSION})`);
@@ -211,10 +222,17 @@ export const identifyUser = (userId, properties) => {
 
     if (clarityId) {
         if (!isDevelopment) {
-            import('@microsoft/clarity').then(({ clarity }) => {
-                clarity.identify(userId, properties);
-            }).catch(err => {
-                console.error('⚠️ Failed to identify user in Microsoft Clarity:', err);
+            import('@microsoft/clarity').then((mod) => {
+                const clarity = mod.clarity || mod.default || mod;
+                if (clarity && typeof clarity.identify === 'function') {
+                    clarity.identify(userId, properties);
+                } else if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
+                    window.clarity("identify", userId, properties);
+                }
+            }).catch(() => {
+                if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
+                    try { window.clarity("identify", userId, properties); } catch (_) {}
+                }
             });
         } else {
             console.log('📊 Clarity Identify:', userId, properties);
