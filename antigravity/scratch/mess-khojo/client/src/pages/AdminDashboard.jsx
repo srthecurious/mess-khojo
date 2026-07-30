@@ -5,7 +5,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
 import RoomCard from '../components/RoomCard';
-import { Pencil, Trash2, X } from 'lucide-react';
+import { Pencil, Trash2, X, Home, LogOut } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import imageCompression from 'browser-image-compression';
 const MapPicker = React.lazy(() => import('../components/MapPicker'));
@@ -15,18 +15,15 @@ import { useAdminData } from './AdminDashboard/hooks/useAdminData';
 import MessProfileTab from './AdminDashboard/tabs/MessProfileTab';
 import RoomManagementTab from './AdminDashboard/tabs/RoomManagementTab';
 import BookingsOverviewTab from './AdminDashboard/tabs/BookingsOverviewTab';
-import TeamManagementTab from './AdminDashboard/tabs/TeamManagementTab';
-import { useTeamData } from '../hooks/useTeamData';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { trackLogout } from '../analytics';
 
 
 const AdminDashboard = () => {
     usePageSEO({ title: 'Admin Dashboard | MessKhojo', noindex: true });
     const adminData = useAdminData();
-    const teamData = useTeamData();
     const { user, messProfile, rooms, setRooms, bookings, loadingProfile, setMessProfile } = adminData;
-    const [activeAdminTab, setActiveAdminTab] = useState('overview'); // 'overview' | 'team'
 
 
     const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
@@ -129,6 +126,10 @@ const AdminDashboard = () => {
     const [imageFiles, setImageFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [editingRoomId, setEditingRoomId] = useState(null);
+    const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+
+    // Lock body scroll when any modal is open
+    useBodyScrollLock(isRoomModalOpen || isEditingMess || showMapPicker);
 
     // Booking State
     const [bookingRemarks, setBookingRemarks] = useState({}); // { bookingId: remarkText }
@@ -460,6 +461,7 @@ const AdminDashboard = () => {
             });
             setImageFiles([]);
             setEditingRoomId(null);
+            setIsRoomModalOpen(false);
         } catch (error) {
             console.error("Error saving room: ", error);
             showToast(`❌ Error saving room: ${error.message}`, 'error');
@@ -470,9 +472,29 @@ const AdminDashboard = () => {
 
     const handleEditRoomClick = (room) => {
         setEditingRoomId(room.id);
+        const occ = room.occupancy || '1';
+        const occName = ({
+            '1': '1 Seater',
+            '2': '2 Seater',
+            '3': '3 Seater',
+            '4': '4 Seater',
+            '5': '5 Seater',
+            '6': '6 Seater',
+            '7': '7 Seater',
+            'Single': '1 Seater',
+            'Double': '2 Seater',
+            'Triple': '3 Seater'
+        })[occ] || `${occ} Seater`;
+
+        const rawCat = (room.category || '').trim();
+        const isRedundantCategory = !rawCat ||
+            rawCat.toLowerCase() === occName.toLowerCase() ||
+            rawCat.toLowerCase() === `${occ} seater`.toLowerCase() ||
+            rawCat.toLowerCase() === occ.toLowerCase();
+
         setFormData({
-            occupancy: room.occupancy || '1',
-            category: room.category || '',
+            occupancy: occ,
+            category: isRedundantCategory ? '' : rawCat,
             totalInventory: room.totalInventory || 1,
             price: room.price || room.rent || '', // Fallback for old data
             amenities: room.amenities || {
@@ -482,7 +504,7 @@ const AdminDashboard = () => {
             otherInfo: room.otherInfo || '',
             availableCount: room.availableCount !== undefined ? room.availableCount : (room.available ? 1 : 0)
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setIsRoomModalOpen(true);
     };
 
     const handleCancelEditRoom = () => {
@@ -500,6 +522,25 @@ const AdminDashboard = () => {
             availableCount: 0
         });
         setImageFiles([]);
+        setIsRoomModalOpen(false);
+    };
+
+    const handleAddNewRoomClick = () => {
+        setEditingRoomId(null);
+        setFormData({
+            occupancy: '1',
+            category: '',
+            totalInventory: 1,
+            price: '',
+            amenities: {
+                ac: false,
+                attachedBathroom: false
+            },
+            otherInfo: '',
+            availableCount: 0
+        });
+        setImageFiles([]);
+        setIsRoomModalOpen(true);
     };
 
     const removeImage = async (imageUrlToRemove) => {
@@ -579,97 +620,84 @@ const AdminDashboard = () => {
                 </div>
             )}
 
-            <nav className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-xl font-bold text-brand-primary">Admin Dashboard</h1>
-                    <a href="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-                        ← Home
+            <nav className="bg-brand-primary text-white shadow-md px-3 py-3 flex justify-between items-center sticky top-0 z-50">
+                <div className="flex items-center gap-2.5">
+                    <a
+                        href="/"
+                        className="text-white hover:text-purple-200 transition-colors flex items-center justify-center p-1 rounded-lg hover:bg-white/10"
+                        title="Go to Home"
+                        aria-label="Go to Home"
+                    >
+                        <Home className="w-6 h-6" />
                     </a>
+                    <h1 className="text-xl font-bold text-white tracking-wide">Admin Dashboard</h1>
                 </div>
                 <div className="flex items-center gap-4">
-                    {messProfile && <span className="font-semibold text-brand-text-dark">{messProfile.name}</span>}
-                    <button onClick={handleLogout} className="text-brand-red hover:text-red-700 font-medium transition-colors">Logout</button>
+                    {messProfile && (
+                        <span className="font-semibold text-white/90 text-sm hidden sm:inline-block">
+                            {messProfile.name}
+                        </span>
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        className="text-orange-500 hover:text-orange-400 font-semibold transition-colors flex items-center gap-2 text-base"
+                    >
+                        Logout
+                        <LogOut className="w-5 h-5 stroke-[2.5]" />
+                    </button>
                 </div>
             </nav>
 
-            <div className="max-w-5xl mx-auto p-6">
-                {/* Admin Sub-navigation Tabs */}
-                <div className="flex items-center gap-3 mb-6 bg-white p-2 rounded-2xl shadow-sm border border-purple-100">
-                    <button
-                        onClick={() => setActiveAdminTab('overview')}
-                        className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
-                            activeAdminTab === 'overview'
-                                ? 'bg-brand-primary text-white shadow-md'
-                                : 'text-brand-text-gray hover:bg-purple-50 hover:text-brand-primary'
-                        }`}
-                    >
-                        🏠 Mess & Operations Management
-                    </button>
-                    <button
-                        onClick={() => setActiveAdminTab('team')}
-                        className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
-                            activeAdminTab === 'team'
-                                ? 'bg-brand-primary text-white shadow-md'
-                                : 'text-brand-text-gray hover:bg-purple-50 hover:text-brand-primary'
-                        }`}
-                    >
-                        👥 Team Members Directory ({teamData?.stats?.total || 0})
-                    </button>
-                </div>
+            <div className="max-w-5xl mx-auto px-6 pt-6 pb-2">
+                {/* Mess Profile Section */}
+                <MessProfileTab 
+                    messProfile={messProfile}
+                    messForm={messForm}
+                    setMessForm={setMessForm}
+                    posterFile={posterFile}
+                    setPosterFile={setPosterFile}
+                    galleryFiles={galleryFiles}
+                    setGalleryFiles={setGalleryFiles}
+                    isEditingMess={isEditingMess}
+                    uploading={uploading}
+                    handleMessSubmit={handleMessSubmit}
+                    handleEditMessClick={handleEditMessClick}
+                    handleCancelEditMess={handleCancelEditMess}
+                    removeGalleryImage={removeGalleryImage}
+                    geocoding={geocoding}
+                    handleGeocode={handleGeocode}
+                    setShowMapPicker={setShowMapPicker}
+                    handleLocationUrlChange={handleLocationUrlChange}
+                />
 
-                {activeAdminTab === 'team' ? (
-                    <TeamManagementTab teamData={teamData} />
-                ) : (
+                {/* Room Management Section */}
+                {messProfile && (
                     <>
-                        {/* Mess Profile Section */}
-                        <MessProfileTab 
-                            messProfile={messProfile}
-                            messForm={messForm}
-                            setMessForm={setMessForm}
-                            posterFile={posterFile}
-                            setPosterFile={setPosterFile}
-                            galleryFiles={galleryFiles}
-                            setGalleryFiles={setGalleryFiles}
-                            isEditingMess={isEditingMess}
+                        <RoomManagementTab 
+                            rooms={rooms}
+                            formData={formData}
+                            setFormData={setFormData}
+                            editingRoomId={editingRoomId}
+                            imageFiles={imageFiles}
+                            setImageFiles={setImageFiles}
                             uploading={uploading}
-                            handleMessSubmit={handleMessSubmit}
-                            handleEditMessClick={handleEditMessClick}
-                            handleCancelEditMess={handleCancelEditMess}
-                            removeGalleryImage={removeGalleryImage}
-                            geocoding={geocoding}
-                            handleGeocode={handleGeocode}
-                            setShowMapPicker={setShowMapPicker}
-                            handleLocationUrlChange={handleLocationUrlChange}
+                            handleRoomSubmit={handleRoomSubmit}
+                            handleEditRoomClick={handleEditRoomClick}
+                            handleCancelEditRoom={handleCancelEditRoom}
+                            removeImage={removeImage}
+                            handleDelete={handleDelete}
+                            messProfile={messProfile}
+                            isRoomModalOpen={isRoomModalOpen}
+                            handleAddNewRoomClick={handleAddNewRoomClick}
                         />
 
-                        {/* Room Management Section */}
-                        {messProfile && !isEditingMess && (
-                            <>
-                                <RoomManagementTab 
-                                    rooms={rooms}
-                                    formData={formData}
-                                    setFormData={setFormData}
-                                    editingRoomId={editingRoomId}
-                                    imageFiles={imageFiles}
-                                    setImageFiles={setImageFiles}
-                                    uploading={uploading}
-                                    handleRoomSubmit={handleRoomSubmit}
-                                    handleEditRoomClick={handleEditRoomClick}
-                                    handleCancelEditRoom={handleCancelEditRoom}
-                                    removeImage={removeImage}
-                                    handleDelete={handleDelete}
-                                    messProfile={messProfile}
-                                />
-
-                                <BookingsOverviewTab 
-                                    bookings={bookings}
-                                    bookingRemarks={bookingRemarks}
-                                    setBookingRemarks={setBookingRemarks}
-                                    bookingActionLoading={bookingActionLoading}
-                                    handleUpdateBookingStatus={handleUpdateBookingStatus}
-                                />
-                            </>
-                        )}
+                        <BookingsOverviewTab 
+                            bookings={bookings}
+                            bookingRemarks={bookingRemarks}
+                            setBookingRemarks={setBookingRemarks}
+                            bookingActionLoading={bookingActionLoading}
+                            handleUpdateBookingStatus={handleUpdateBookingStatus}
+                        />
                     </>
                 )}
             </div>

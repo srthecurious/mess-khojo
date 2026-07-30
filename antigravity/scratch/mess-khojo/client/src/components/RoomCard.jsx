@@ -1,13 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers, ArrowRight, Heart } from 'lucide-react';
+import { MapPin, Users, Home, Utensils, Droplets, Check, X, Wifi, Zap, Wind, Layers, ArrowRight, Heart, Pencil, Trash2 } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
 import { OCCUPANCY_MAP } from '../constants';
 import { toMessSlug, toRoomSlug } from '../utils/slugify';
 import { getCleanOccupancy } from '../utils/occupancy';
 
-const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishlist, isUserSourced = false, messName = '', compact = false }) => {
+const RoomCard = ({ room, isAdmin, onEdit, onDelete, isWishlisted = false, onToggleWishlist, isUserSourced = false, messName = '', compact = false }) => {
     // Handle both old (imageUrl) and new (imageUrls) data structures
     const displayImage = (room.imageUrls && room.imageUrls.length > 0)
         ? room.imageUrls[0]
@@ -19,6 +19,16 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
     const displayOccupancy = getCleanOccupancy(room.occupancy);
     const title = displayOccupancy ? `${displayOccupancy} Seater` : `Room ${room.roomNumber}`;
     const price = room.price || room.rent;
+
+    const cleanCategory = room.category?.trim() || '';
+    const isCategoryRedundant = !cleanCategory ||
+        cleanCategory.toLowerCase() === title.toLowerCase() ||
+        cleanCategory.toLowerCase() === `${displayOccupancy} seater`.toLowerCase() ||
+        cleanCategory.toLowerCase() === `${room.occupancy} seater`.toLowerCase() ||
+        cleanCategory.toLowerCase() === `${displayOccupancy}`.toLowerCase() ||
+        cleanCategory.toLowerCase() === `${room.occupancy}`.toLowerCase();
+
+    const showCategory = !isCategoryRedundant ? cleanCategory : null;
 
     const cardContent = (
         <>
@@ -91,44 +101,42 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
                             </span>
                         </div>
                         <div className="flex justify-between items-center mt-0.5 text-xs text-gray-500">
-                            <span className="truncate flex-grow">{messName ? title : (room.category || "Room")}</span>
+                            <span className="truncate flex-grow">{messName ? title : (showCategory || "Room")}</span>
                             <span className="shrink-0">{room.rentCycle === 'yearly' ? '/year' : '/month'}</span>
                         </div>
                     </div>
                 ) : (
                     <>
-                        <div className="mb-2">
+                        <div className="mb-1">
                             <h3 className="text-xl font-bold text-gray-900 line-clamp-1">
                                 {title}
                             </h3>
-                            {room.category && <p className="text-sm font-medium text-gray-500">{room.category}</p>}
+                            {showCategory && <p className="text-sm font-medium text-gray-500">{showCategory}</p>}
                         </div>
 
                         {/* Amenities - Explicit Tags */}
-                        <div className="flex flex-wrap gap-2 mt-1 mb-4">
-                            {am.ac && (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold">
-                                    <Wind size={13} strokeWidth={2.5} /> AC
-                                </span>
-                            )}
-                            {am.attachedBathroom && (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-cyan-50 text-cyan-800 text-xs font-bold">
-                                    <Droplets size={13} strokeWidth={2.5} /> Attached Bath
-                                </span>
-                            )}
-                            {am.furnished && (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-800 text-xs font-bold">
-                                    <Home size={13} strokeWidth={2.5} /> Furnished
-                                </span>
-                            )}
-                            {/* Fallback spacer to keep cards roughly same height if no amenities */}
-                            {!am.ac && !am.attachedBathroom && !am.furnished && (
-                                 <span className="inline-flex items-center py-1 opacity-0 select-none text-xs">Spacer</span>
-                            )}
-                        </div>
+                        {(am.ac || am.attachedBathroom || am.furnished) && (
+                            <div className="flex flex-wrap gap-2 mt-1 mb-2.5">
+                                {am.ac && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold">
+                                        <Wind size={13} strokeWidth={2.5} /> AC
+                                    </span>
+                                )}
+                                {am.attachedBathroom && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-cyan-50 text-cyan-800 text-xs font-bold">
+                                        <Droplets size={13} strokeWidth={2.5} /> Attached Bath
+                                    </span>
+                                )}
+                                {am.furnished && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-800 text-xs font-bold">
+                                        <Home size={13} strokeWidth={2.5} /> Furnished
+                                    </span>
+                                )}
+                            </div>
+                        )}
 
-                        {/* Footer Section - Pushed to bottom */}
-                        <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+                        {/* Footer Section */}
+                        <div className="mt-2 pt-2.5 border-t border-gray-100 flex items-center justify-between">
                             <div>
                                 <div className="text-2xl font-extrabold text-brand-primary leading-none">₹{price}</div>
                                 <div className="text-xs font-medium text-gray-500 mt-0.5">
@@ -142,12 +150,30 @@ const RoomCard = ({ room, isAdmin, onDelete, isWishlisted = false, onToggleWishl
                             </div>
 
                             {isAdmin ? (
-                                <button
-                                    onClick={(e) => { e.preventDefault(); onDelete(room.id); }}
-                                    className="px-3 py-1.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 transition-colors"
-                                >
-                                    Delete
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {onEdit && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(room); }}
+                                            className="p-2.5 text-brand-amber bg-amber-50 hover:bg-amber-100 rounded-full transition-all border border-amber-200 shadow-sm"
+                                            title="Edit Room"
+                                            aria-label="Edit Room"
+                                        >
+                                            <Pencil size={20} strokeWidth={2.2} />
+                                        </button>
+                                    )}
+                                    {onDelete && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(room.id); }}
+                                            className="p-2.5 text-brand-red bg-red-50 hover:bg-red-100 rounded-full transition-all border border-red-200 shadow-sm"
+                                            title="Delete Room"
+                                            aria-label="Delete Room"
+                                        >
+                                            <Trash2 size={20} strokeWidth={2.2} />
+                                        </button>
+                                    )}
+                                </div>
                             ) : (
                                 <div className="flex items-center gap-1 px-3 py-2 bg-brand-primary/5 rounded-lg text-sm font-bold text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-all duration-300">
                                     View <ArrowRight size={16} className="transform group-hover:translate-x-0.5 transition-transform" />
