@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { ChevronDown, Check } from 'lucide-react';
 
-const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indigo', theme = 'dark', placeholder = 'Select options...', prefixIcon: PrefixIcon = null, showLabel = true }) => {
+const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indigo', theme = 'light', placeholder = 'Select options...', prefixIcon: PrefixIcon = null, showLabel = true }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -38,22 +38,22 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
         // Base styles based on theme
         const base = {
             button: isLight
-                ? 'bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-700 shadow-sm hover:shadow-md'
+                ? 'bg-white border border-gray-300 text-gray-800 shadow-sm hover:border-brand-primary'
                 : 'bg-slate-900 border border-slate-700 text-white',
             dropdown: isLight
-                ? (color === 'brand' ? 'bg-white border-brand-primary/10' : 'bg-white border-purple-100')
+                ? 'bg-white border border-gray-200 shadow-xl'
                 : 'bg-slate-800 border-slate-700',
             itemHover: isLight 
-                ? (color === 'brand' ? 'hover:bg-brand-primary/5' : 'hover:bg-purple-50') 
+                ? 'hover:bg-purple-50' 
                 : 'hover:bg-slate-700/50',
             checkboxEmpty: isLight
-                ? (color === 'brand' ? 'bg-white border-gray-300 group-hover:border-brand-primary/30' : 'bg-white border-gray-300 group-hover:border-purple-400')
+                ? 'bg-white border-gray-300 group-hover:border-purple-400'
                 : 'bg-slate-900 border-slate-600 group-hover:border-slate-500',
             textSelected: isLight 
-                ? (color === 'brand' ? 'text-brand-primary font-bold' : 'text-purple-700 font-bold') 
+                ? 'text-gray-900 font-bold' 
                 : 'text-white font-medium',
-            textNormal: isLight ? 'text-gray-600 group-hover:text-gray-900' : 'text-slate-400 group-hover:text-slate-200',
-            label: isLight ? 'text-gray-700' : 'text-slate-500'
+            textNormal: isLight ? 'text-gray-700 group-hover:text-gray-900' : 'text-slate-400 group-hover:text-slate-200',
+            label: isLight ? 'text-gray-800 font-semibold' : 'text-slate-500'
         };
 
         // Color specific styles (Focused ring & Checked background)
