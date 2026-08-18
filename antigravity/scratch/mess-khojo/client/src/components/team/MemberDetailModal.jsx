@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { X, Mail, Linkedin, Twitter, Github, IdCard, Calendar, Briefcase, Award, CheckCircle2 } from 'lucide-react';
+import { X, Mail, Linkedin, Twitter, Github, Instagram, IdCard, Calendar, Briefcase, Award, CheckCircle2, Maximize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import ImageModal from '../ImageModal';
 
 const MemberDetailModal = ({ member, onClose }) => {
   const [imageError, setImageError] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   useBodyScrollLock(!!member);
 
   if (!member) return null;
@@ -54,12 +56,21 @@ const MemberDetailModal = ({ member, onClose }) => {
             <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between -mt-14 mb-6 gap-4">
               <div className="relative">
                 {member.avatarUrl && !imageError ? (
-                  <img
-                    src={member.avatarUrl}
-                    alt={member.name}
-                    onError={() => setImageError(true)}
-                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-white shadow-xl bg-white"
-                  />
+                  <div 
+                    className="relative group/avatar cursor-pointer"
+                    onClick={() => setIsImageModalOpen(true)}
+                    title="Click to view full photo"
+                  >
+                    <img
+                      src={member.avatarUrl}
+                      alt={member.name}
+                      onError={() => setImageError(true)}
+                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-white shadow-xl bg-white group-hover/avatar:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/30 rounded-3xl opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                      <Maximize2 size={24} className="text-white drop-shadow-lg" />
+                    </div>
+                  </div>
                 ) : (
                   <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-br from-brand-primary to-indigo-700 text-white font-black text-3xl flex items-center justify-center border-4 border-white shadow-xl">
                     {initials}
@@ -112,6 +123,17 @@ const MemberDetailModal = ({ member, onClose }) => {
                     title="GitHub Profile"
                   >
                     <Github size={18} />
+                  </a>
+                )}
+                {member.instagram && (
+                  <a
+                    href={member.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2.5 bg-pink-50 text-pink-600 rounded-xl hover:bg-pink-100 transition-colors border border-pink-200"
+                    title="Instagram Profile"
+                  >
+                    <Instagram size={18} />
                   </a>
                 )}
               </div>
@@ -190,6 +212,13 @@ const MemberDetailModal = ({ member, onClose }) => {
           </div>
         </motion.div>
       </div>
+
+      <ImageModal
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        src={member.avatarUrl}
+        title={member.name}
+      />
     </AnimatePresence>
   );
 };

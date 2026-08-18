@@ -130,7 +130,7 @@ function AppContent() {
               <Route
                 path="/operational/dashboard"
                 element={
-                  <ProtectedRoute requiredRole="any" redirectTo="/operational/login">
+                  <ProtectedRoute requiredRole="any" redirectTo="/">
                     <OperationalDashboard />
                   </ProtectedRoute>
                 }

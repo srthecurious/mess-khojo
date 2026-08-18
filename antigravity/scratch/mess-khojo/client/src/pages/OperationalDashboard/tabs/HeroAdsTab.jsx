@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, ToggleRight, ToggleLeft, Monitor, Smartphone, ArrowUp, ArrowDown, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { DISTRICTS_CONFIG } from '../../../context/DistrictContext';
+import ConfirmDeleteModal from '../../../components/ConfirmDeleteModal';
 
 const HeroAdsTab = ({
     carouselEnabled,
@@ -19,6 +20,20 @@ const HeroAdsTab = ({
     handleToggleHeroAd,
     handleDeleteHeroAd
 }) => {
+    const [deletingAd, setDeletingAd] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const confirmDeleteAd = async () => {
+        if (!deletingAd) return;
+        try {
+            setIsDeleting(true);
+            await handleDeleteHeroAd(deletingAd.id, deletingAd.section);
+        } finally {
+            setIsDeleting(false);
+            setDeletingAd(null);
+        }
+    };
+
     return (
         <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-white">
@@ -185,8 +200,8 @@ const HeroAdsTab = ({
                                                 {ad.active ? <Eye size={14} /> : <EyeOff size={14} />}
                                             </button>
                                             <button
-                                                onClick={() => handleDeleteHeroAd(ad.id, section)}
-                                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                onClick={() => setDeletingAd({ id: ad.id, section, title: ad.title || 'Hero Banner' })}
+                                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
                                                 title="Delete"
                                             >
                                                 <Trash2 size={14} />
@@ -199,6 +214,17 @@ const HeroAdsTab = ({
                     </div>
                 ))}
             </div>
+
+            {/* Confirmation Warning Modal before deleting hero banner */}
+            <ConfirmDeleteModal
+                isOpen={!!deletingAd}
+                onClose={() => setDeletingAd(null)}
+                onConfirm={confirmDeleteAd}
+                title="Delete Banner Advertisement"
+                itemName={deletingAd ? `${deletingAd.title} (${deletingAd.section.toUpperCase()})` : ''}
+                description="Are you sure you want to delete this promotional banner? This banner will be permanently removed from the landing page carousel."
+                loading={isDeleting}
+            />
         </div>
     );
 };

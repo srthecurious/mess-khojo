@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, Linkedin, Twitter, Github, IdCard, ChevronRight, Award } from 'lucide-react';
+import { Mail, Linkedin, Twitter, Github, Instagram, IdCard, ChevronRight, Award, Maximize2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import ImageModal from '../ImageModal';
 
 const getRoleBadgeStyle = (category = '') => {
   switch (category.toLowerCase()) {
@@ -26,6 +27,7 @@ const getRoleBadgeStyle = (category = '') => {
 
 const MemberCard = ({ member, onClick }) => {
   const [imageError, setImageError] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   // Fallback initial avatar generator
   const initials = member.name
@@ -61,12 +63,24 @@ const MemberCard = ({ member, onClick }) => {
         <div className="flex items-start gap-4 mb-4">
           <div className="relative shrink-0">
             {member.avatarUrl && !imageError ? (
-              <img
-                src={member.avatarUrl}
-                alt={member.name}
-                onError={() => setImageError(true)}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md group-hover:scale-105 transition-transform duration-300"
-              />
+              <div 
+                className="relative group/avatar cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsImageModalOpen(true);
+                }}
+                title="Click to view full photo"
+              >
+                <img
+                  src={member.avatarUrl}
+                  alt={member.name}
+                  onError={() => setImageError(true)}
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md group-hover/avatar:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/30 rounded-2xl opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                  <Maximize2 size={16} className="text-white drop-shadow" />
+                </div>
+              </div>
             ) : (
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-indigo-600 text-white font-extrabold text-xl flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform duration-300">
                 {initials}
@@ -161,6 +175,17 @@ const MemberCard = ({ member, onClick }) => {
               <Github size={15} />
             </a>
           )}
+          {member.instagram && (
+            <a
+              href={member.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-lg text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors"
+              title="Instagram Profile"
+            >
+              <Instagram size={15} />
+            </a>
+          )}
         </div>
 
         <span className="inline-flex items-center gap-1 text-xs font-bold text-brand-primary group-hover:translate-x-1 transition-transform">
@@ -168,6 +193,13 @@ const MemberCard = ({ member, onClick }) => {
           <ChevronRight size={14} />
         </span>
       </div>
+
+      <ImageModal
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        src={member.avatarUrl}
+        title={member.name}
+      />
     </motion.div>
   );
 };

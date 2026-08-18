@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart, Maximize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { trackLogout, trackAccountDelete } from '../analytics';
+import ImageModal from '../components/ImageModal';
 
 const UserProfile = () => {
     usePageSEO({ title: 'My Profile | MessKhojo', noindex: true });
@@ -22,6 +23,7 @@ const UserProfile = () => {
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [deleteError, setDeleteError] = useState('');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -208,17 +210,30 @@ const UserProfile = () => {
                             {/* Avatar with enhanced styling */}
                             <div className="relative group">
                                 <div className="absolute inset-0 bg-gradient-to-br from-brand-primary to-purple-500 rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity"></div>
-                                <div className="relative w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-brand-primary/20 to-purple-400/10 rounded-3xl flex items-center justify-center text-brand-primary border-2 border-white shadow-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300">
+                                <div 
+                                    className={`relative w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-brand-primary/20 to-purple-400/10 rounded-3xl flex items-center justify-center text-brand-primary border-2 border-white shadow-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300 ${currentUser?.photoURL ? 'cursor-pointer' : ''}`}
+                                    onClick={() => {
+                                        if (currentUser?.photoURL) {
+                                            setIsImageModalOpen(true);
+                                        }
+                                    }}
+                                    title={currentUser?.photoURL ? "Click to view full profile photo" : ""}
+                                >
                                     {currentUser && currentUser.photoURL ? (
-                                        <img
-                                            src={currentUser.photoURL}
-                                            alt="User profile"
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                                e.target.nextElementSibling.style.display = 'flex';
-                                            }}
-                                        />
+                                        <>
+                                            <img
+                                                src={currentUser.photoURL}
+                                                alt="User profile"
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextElementSibling.style.display = 'flex';
+                                                }}
+                                            />
+                                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                <Maximize2 size={24} className="text-white drop-shadow-md" />
+                                            </div>
+                                        </>
                                     ) : null}
                                     <div 
                                         className="w-full h-full flex items-center justify-center"
@@ -502,6 +517,14 @@ const UserProfile = () => {
                     </div>
                 </div>
             )}
+
+            {/* Profile Photo Popup Modal */}
+            <ImageModal
+                isOpen={isImageModalOpen}
+                onClose={() => setIsImageModalOpen(false)}
+                src={currentUser?.photoURL}
+                title={userData?.name ? `${userData.name} - Profile Photo` : 'Profile Photo'}
+            />
         </div>
     );
 };

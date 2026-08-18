@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { BedDouble, Phone, Trash2, PhoneCall, PhoneOff, Search, SlidersHorizontal, XCircle, Calendar, Image, MapPin, CheckCircle2, Clock, UserCheck, XSquare, AlertCircle, MessageSquare, Home, Building } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { BedDouble, Phone, Trash2, PhoneCall, PhoneOff, Search, SlidersHorizontal, XCircle, Calendar, Image, MapPin, CheckCircle2, Clock, UserCheck, XSquare, AlertCircle, MessageSquare, Home, Building, GraduationCap, Share2 } from 'lucide-react';
 import { db, auth } from '../../../firebase';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { toMessSlug } from '../../../utils/slugify';
+import ConfirmDeleteModal from '../../../components/ConfirmDeleteModal';
 import { getSuggestions } from '../../../utils/suggestionEngine';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 
@@ -130,6 +132,10 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
     const [callStatus, setCallStatus] = useState('connected'); // 'connected', 'no_answer', 'busy_switched_off', 'invalid_number'
     const [feedbackStatus, setFeedbackStatus] = useState('still_searching'); // 'joined_messkhojo', 'still_searching', 'found_elsewhere', 'cancelled', 'callback'
     const [currentStaying, setCurrentStaying] = useState('home'); // 'home', 'mess', 'other'
+    const [userCategory, setUserCategory] = useState(''); // 'college', 'competitive_exams', 'job_aspirant', 'others'
+    const [userCategoryDetail, setUserCategoryDetail] = useState(''); // detail text for college, custom reason for others, or exam/job info
+    const [discoverySource, setDiscoverySource] = useState(''); // 'search_engine', 'mess_owner', 'instagram', 'friends', 'posters_banners', 'others'
+    const [discoverySourceDetail, setDiscoverySourceDetail] = useState(''); // detail text if others
     const [joinedMessId, setJoinedMessId] = useState('');
     const [isUnlistedMess, setIsUnlistedMess] = useState(false);
     const [unlistedMessName, setUnlistedMessName] = useState('');
@@ -138,6 +144,8 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
     const [followUpDate, setFollowUpDate] = useState('');
     const [messSearchQuery, setMessSearchQuery] = useState('');
     const [isSavingFeedback, setIsSavingFeedback] = useState(false);
+    const [deletingFeedbackGroup, setDeletingFeedbackGroup] = useState(null);
+    const [isDeletingFeedback, setIsDeletingFeedback] = useState(false);
 
     // Reset pagination when user changes a filter
     const [prevFilter, setPrevFilter] = useState({ searchQuery, calledFilter, cityFilter, startDate, endDate });
@@ -242,6 +250,10 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
         setCallStatus(latestInq.callStatus || 'connected');
         setFeedbackStatus(latestInq.feedbackStatus || 'still_searching');
         setCurrentStaying(latestInq.currentStaying || 'home');
+        setUserCategory(latestInq.userCategory || '');
+        setUserCategoryDetail(latestInq.userCategoryDetail || '');
+        setDiscoverySource(latestInq.discoverySource || '');
+        setDiscoverySourceDetail(latestInq.discoverySourceDetail || '');
         setJoinedMessId(latestInq.joinedMessId || '');
         setIsUnlistedMess(!!latestInq.isUnlistedMess);
         setUnlistedMessName(latestInq.unlistedMessName || '');
@@ -276,6 +288,10 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                 callStatus,
                 feedbackStatus: callStatus === 'connected' ? feedbackStatus : 'no_answer',
                 currentStaying: callStatus === 'connected' ? currentStaying : null,
+                userCategory: callStatus === 'connected' ? (userCategory || null) : null,
+                userCategoryDetail: (callStatus === 'connected' && userCategory) ? (userCategoryDetail.trim() || null) : null,
+                discoverySource: callStatus === 'connected' ? (discoverySource || null) : null,
+                discoverySourceDetail: (callStatus === 'connected' && discoverySource) ? (discoverySourceDetail.trim() || null) : null,
                 isUnlistedMess: (callStatus === 'connected' && isUnlistedMess),
                 unlistedMessName: (callStatus === 'connected' && isUnlistedMess) ? unlistedMessName.trim() : null,
                 joinedMessId: finalJoinedMessId,
@@ -299,15 +315,20 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
     };
 
     // Clear/Delete Call Feedback Log for a group
-    const handleDeleteFeedbackLog = async (group) => {
-        if (!window.confirm("Are you sure you want to delete this call feedback log?")) return;
+    const confirmDeleteFeedbackLog = async () => {
+        if (!deletingFeedbackGroup) return;
         try {
+            setIsDeletingFeedback(true);
             const updateData = {
                 called: false,
                 calledAt: null,
                 callStatus: null,
                 feedbackStatus: null,
                 currentStaying: null,
+                userCategory: null,
+                userCategoryDetail: null,
+                discoverySource: null,
+                discoverySourceDetail: null,
                 isUnlistedMess: null,
                 unlistedMessName: null,
                 joinedMessId: null,
@@ -317,18 +338,20 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                 lastCallOperator: null
             };
 
-            await Promise.all(group.all.map(inq =>
+            await Promise.all(deletingFeedbackGroup.all.map(inq =>
                 updateDoc(doc(db, "room_inquiries", inq.id), updateData)
             ));
 
-            if (feedbackModalGroup?.id === group.id) {
-                setFeedbackModalGroup(null);
-            }
+            setDeletingFeedbackGroup(null);
+            setFeedbackModalGroup(null);
         } catch (err) {
             console.error("Failed to delete feedback log:", err);
             alert("Failed to delete feedback log");
+        } finally {
+            setIsDeletingFeedback(false);
         }
     };
+
 
     // Helper to get messes in the request's city/district
     const getCityMesses = (inquiry, messesList, showAll) => {
@@ -394,7 +417,12 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
             (inquiry.location || '').toLowerCase().includes(q) ||
             (inquiry.requirements || '').toLowerCase().includes(q) ||
             (inquiry.occupancy || '').toLowerCase().includes(q) ||
+            (inquiry.gender || '').toLowerCase().includes(q) ||
             (inquiry.feedbackNotes || '').toLowerCase().includes(q) ||
+            (inquiry.userCategory || '').toLowerCase().includes(q) ||
+            (inquiry.userCategoryDetail || '').toLowerCase().includes(q) ||
+            (inquiry.discoverySource || '').toLowerCase().includes(q) ||
+            (inquiry.discoverySourceDetail || '').toLowerCase().includes(q) ||
             (inquiry.joinedMessName || '').toLowerCase().includes(q);
 
         // Date range filtering
@@ -733,9 +761,17 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                                 <p className="text-emerald-400 font-bold">{inquiry.budget}</p>
                                             </div>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] uppercase font-bold text-slate-500">Occupancy</p>
-                                            <p className="text-slate-200 capitalize font-medium">{inquiry.occupancy}</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <p className="text-[10px] uppercase font-bold text-slate-500">Occupancy</p>
+                                                <p className="text-slate-200 capitalize font-medium">{inquiry.occupancy}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] uppercase font-bold text-slate-500">Gender</p>
+                                                <p className="text-orange-400 capitalize font-bold">
+                                                    {inquiry.gender ? (inquiry.gender.charAt(0).toUpperCase() + inquiry.gender.slice(1)) : 'Any'}
+                                                </p>
+                                            </div>
                                         </div>
                                         {inquiry.requirements && (
                                             <div>
@@ -746,7 +782,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                     </div>
 
                                     {/* Latest Operator Feedback Note Box */}
-                                    {inquiry.called && (inquiry.feedbackNotes || inquiry.lastCallOperator || inquiry.currentStaying || inquiry.joinedMessName) && (
+                                    {inquiry.called && (inquiry.feedbackNotes || inquiry.lastCallOperator || inquiry.currentStaying || inquiry.joinedMessName || inquiry.userCategory) && (
                                         <div className="mt-3 bg-slate-950/80 p-3 rounded-lg border border-slate-700/70 text-xs space-y-1.5">
                                             <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold border-b border-slate-800 pb-1">
                                                 <span>Operator Feedback Log</span>
@@ -762,6 +798,44 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                                     </button>
                                                 </div>
                                             </div>
+
+                                            {inquiry.userCategory && (
+                                                <div className="text-[11px] font-medium flex items-center gap-1.5 text-slate-300">
+                                                    <span className="text-amber-400 font-semibold flex items-center gap-1">
+                                                        <GraduationCap size={12} /> Purpose:
+                                                    </span>
+                                                    <span>
+                                                        {inquiry.userCategory === 'college' && (
+                                                            `College: ${inquiry.userCategoryDetail || 'Looking for College'}`
+                                                        )}
+                                                        {inquiry.userCategory === 'competitive_exams' && (
+                                                            `Competitive Exams${inquiry.userCategoryDetail ? ` (${inquiry.userCategoryDetail})` : ''}`
+                                                        )}
+                                                        {inquiry.userCategory === 'job_aspirant' && (
+                                                            `Job Aspirant${inquiry.userCategoryDetail ? ` (${inquiry.userCategoryDetail})` : ''}`
+                                                        )}
+                                                        {inquiry.userCategory === 'others' && (
+                                                            `${inquiry.userCategoryDetail || 'Others'}`
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {inquiry.discoverySource && (
+                                                <div className="text-[11px] font-medium flex items-center gap-1.5 text-slate-300">
+                                                    <span className="text-sky-400 font-semibold flex items-center gap-1">
+                                                        <Share2 size={12} /> Source:
+                                                    </span>
+                                                    <span>
+                                                        {inquiry.discoverySource === 'search_engine' && 'Google / Search Engine'}
+                                                        {inquiry.discoverySource === 'mess_owner' && 'Mess Owner / Hostel'}
+                                                        {inquiry.discoverySource === 'instagram' && 'Instagram / Social Media'}
+                                                        {inquiry.discoverySource === 'friends' && 'Friends / Word of Mouth'}
+                                                        {inquiry.discoverySource === 'posters_banners' && 'Poster / Banner / Pamphlet'}
+                                                        {inquiry.discoverySource === 'others' && (inquiry.discoverySourceDetail ? inquiry.discoverySourceDetail : 'Others')}
+                                                    </span>
+                                                </div>
+                                            )}
 
                                             {inquiry.currentStaying && (
                                                 <div className="text-[11px] font-medium flex items-center gap-1 text-slate-300">
@@ -830,9 +904,13 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                                                         <span className="text-[9px] text-slate-500 uppercase font-bold">Budget: </span>
                                                                         <span className="text-emerald-450 font-semibold text-[11px]">{oldInq.budget}</span>
                                                                     </div>
-                                                                    <div className="col-span-2">
+                                                                    <div>
                                                                         <span className="text-[9px] text-slate-500 uppercase font-bold">Occupancy: </span>
                                                                         <span className="text-slate-300 capitalize text-[11px]">{oldInq.occupancy}</span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-[9px] text-slate-500 uppercase font-bold">Gender: </span>
+                                                                        <span className="text-orange-400 capitalize text-[11px] font-semibold">{oldInq.gender ? (oldInq.gender.charAt(0).toUpperCase() + oldInq.gender.slice(1)) : 'Any'}</span>
                                                                     </div>
                                                                 </div>
                                                                 {oldInq.requirements && (
@@ -920,8 +998,8 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
             </div>
 
             {/* Log Feedback Modal */}
-            {feedbackModalGroup && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            {feedbackModalGroup && createPortal(
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
                     <div className="bg-slate-900 border border-slate-700 w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-6 shadow-2xl space-y-4 relative text-slate-200 animate-fadeIn custom-scrollbar">
                         <button
                             onClick={() => setFeedbackModalGroup(null)}
@@ -983,11 +1061,11 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                 </label>
                                 <div className="space-y-1.5">
                                     {[
-                                        { id: 'still_searching', label: '🟡 Still Searching (Active Lead)' },
-                                        { id: 'joined_messkhojo', label: '🟢 Joined Mess via MessKhojo' },
-                                        { id: 'found_elsewhere', label: '🔵 Found Mess Elsewhere' },
-                                        { id: 'cancelled', label: '🔴 Cancelled / Not Needed' },
-                                        { id: 'callback', label: '⏳ Schedule Follow-up Call' }
+                                        { id: 'still_searching', label: 'Still Searching (Active Lead)' },
+                                        { id: 'joined_messkhojo', label: 'Joined Mess via MessKhojo' },
+                                        { id: 'found_elsewhere', label: 'Found Mess Elsewhere' },
+                                        { id: 'cancelled', label: 'Cancelled / Not Needed' },
+                                        { id: 'callback', label: 'Schedule Follow-up Call' }
                                     ].map(opt => (
                                         <button
                                             key={opt.id}
@@ -1014,9 +1092,9 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                 </label>
                                 <div className="grid grid-cols-3 gap-2">
                                     {[
-                                        { id: 'home', label: '🏠 At Home' },
-                                        { id: 'mess', label: '🏢 Mess / Hostel' },
-                                        { id: 'other', label: '❓ Other / PG' }
+                                        { id: 'home', label: 'At Home' },
+                                        { id: 'mess', label: 'Mess / Hostel' },
+                                        { id: 'other', label: 'Other / PG' }
                                     ].map(opt => (
                                         <button
                                             key={opt.id}
@@ -1032,6 +1110,162 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+                        )}
+
+                        {/* User Purpose / Looking For (College, Exams, Job, Others) */}
+                        {callStatus === 'connected' && (
+                            <div className="space-y-1.5 bg-slate-950/40 p-3 rounded-xl border border-slate-800">
+                                <label className="block text-xs font-bold text-amber-400 uppercase tracking-wider">
+                                    Looking For / Purpose
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { id: 'college', label: 'Looking for College' },
+                                        { id: 'competitive_exams', label: 'Competitive Exams' },
+                                        { id: 'job_aspirant', label: 'Job Aspirant' },
+                                        { id: 'others', label: 'Others' }
+                                    ].map(opt => (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => {
+                                                if (userCategory === opt.id) {
+                                                    setUserCategory('');
+                                                    setUserCategoryDetail('');
+                                                } else {
+                                                    setUserCategory(opt.id);
+                                                    setUserCategoryDetail('');
+                                                }
+                                            }}
+                                            className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all text-left flex items-center justify-between ${
+                                                userCategory === opt.id
+                                                    ? 'bg-amber-600 text-white border-amber-500 shadow-md'
+                                                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                                            }`}
+                                        >
+                                            <span className="truncate">{opt.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {userCategory === 'college' && (
+                                    <div className="pt-1.5 space-y-1 animate-fadeIn">
+                                        <label className="block text-[11px] font-bold text-amber-300">
+                                            Which college are they looking for?
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter college name (e.g. FM University, VSSUT, OUTR)..."
+                                            value={userCategoryDetail}
+                                            onChange={(e) => setUserCategoryDetail(e.target.value)}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                                            autoFocus
+                                        />
+                                    </div>
+                                )}
+
+                                {userCategory === 'others' && (
+                                    <div className="pt-1.5 space-y-1 animate-fadeIn">
+                                        <label className="block text-[11px] font-bold text-amber-300">
+                                            Specify Reason / Details:
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Type custom reason here..."
+                                            value={userCategoryDetail}
+                                            onChange={(e) => setUserCategoryDetail(e.target.value)}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                                            autoFocus
+                                        />
+                                    </div>
+                                )}
+
+                                {userCategory === 'competitive_exams' && (
+                                    <div className="pt-1.5 space-y-1 animate-fadeIn">
+                                        <label className="block text-[11px] font-bold text-slate-300">
+                                            Target Exam (Optional):
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. UPSC, OPSC, Banking, GATE, NEET..."
+                                            value={userCategoryDetail}
+                                            onChange={(e) => setUserCategoryDetail(e.target.value)}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                                        />
+                                    </div>
+                                )}
+
+                                {userCategory === 'job_aspirant' && (
+                                    <div className="pt-1.5 space-y-1 animate-fadeIn">
+                                        <label className="block text-[11px] font-bold text-slate-300">
+                                            Job / Field Details (Optional):
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. IT Sector, Private Job, Internship..."
+                                            value={userCategoryDetail}
+                                            onChange={(e) => setUserCategoryDetail(e.target.value)}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Where did you find out about MessKhojo? */}
+                        {callStatus === 'connected' && (
+                            <div className="space-y-1.5 bg-slate-950/40 p-3 rounded-xl border border-slate-800">
+                                <label className="block text-xs font-bold text-sky-400 uppercase tracking-wider">
+                                    Where did they find about MessKhojo?
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { id: 'search_engine', label: 'Google / Search Engine' },
+                                        { id: 'mess_owner', label: 'Mess Owner / Hostel' },
+                                        { id: 'instagram', label: 'Instagram / Social Media' },
+                                        { id: 'friends', label: 'Friends / Word of Mouth' },
+                                        { id: 'posters_banners', label: 'Poster / Banner' },
+                                        { id: 'others', label: 'Others' }
+                                    ].map(opt => (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => {
+                                                if (discoverySource === opt.id) {
+                                                    setDiscoverySource('');
+                                                    setDiscoverySourceDetail('');
+                                                } else {
+                                                    setDiscoverySource(opt.id);
+                                                    setDiscoverySourceDetail('');
+                                                }
+                                            }}
+                                            className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all text-left flex items-center justify-between ${
+                                                discoverySource === opt.id
+                                                    ? 'bg-sky-600 text-white border-sky-500 shadow-md'
+                                                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                                            }`}
+                                        >
+                                            <span className="truncate">{opt.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {discoverySource === 'others' && (
+                                    <div className="pt-1.5 space-y-1 animate-fadeIn">
+                                        <label className="block text-[11px] font-bold text-sky-300">
+                                            Specify Source / Details:
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter how they found us..."
+                                            value={discoverySourceDetail}
+                                            onChange={(e) => setDiscoverySourceDetail(e.target.value)}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                                            autoFocus
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -1173,8 +1407,8 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                             {feedbackModalGroup.latest.called && (
                                 <button
                                     type="button"
-                                    onClick={() => handleDeleteFeedbackLog(feedbackModalGroup)}
-                                    className="py-2.5 px-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0"
+                                    onClick={() => setDeletingFeedbackGroup(feedbackModalGroup)}
+                                    className="py-2.5 px-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
                                     title="Delete this feedback log"
                                 >
                                     <Trash2 size={14} /> Clear Log
@@ -1197,7 +1431,8 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Pagination View More Button */}
@@ -1211,6 +1446,17 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                     </button>
                 </div>
             )}
+
+            {/* Confirmation Warning Modal for clearing feedback log */}
+            <ConfirmDeleteModal
+                isOpen={!!deletingFeedbackGroup}
+                onClose={() => setDeletingFeedbackGroup(null)}
+                onConfirm={confirmDeleteFeedbackLog}
+                title="Clear Call Feedback Log"
+                itemName={deletingFeedbackGroup ? `${deletingFeedbackGroup.latest?.userName || 'User'} (${deletingFeedbackGroup.latest?.userPhone})` : ''}
+                description="Are you sure you want to clear this call feedback log? This will reset the call outreach status for this user."
+                loading={isDeletingFeedback}
+            />
         </div>
     );
 };
