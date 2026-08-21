@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { db, auth, getSecondaryAuth, storage } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -9,6 +10,7 @@ import { collection, updateDoc, doc, serverTimestamp, addDoc, getDoc, setDoc, ge
 import { useNavigate } from 'react-router-dom';
 import { Server, Users, Calendar, LogOut, CheckCircle, XCircle, UserPlus, Shield, Briefcase, ClipboardCheck, Trash2, Phone, PhoneCall, Eye, EyeOff, Edit3, Search, Database, MapPin, MessageSquare, Reply, Building2, BedDouble, Image, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Monitor, Smartphone, TrendingUp, Menu, X, IdCard } from 'lucide-react';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { sendTelegramNotification } from '../utils/telegramNotifier';
 import imageCompression from 'browser-image-compression';
 import { usePageSEO } from '../hooks/usePageSEO';
@@ -76,7 +78,9 @@ const OperationalDashboard = () => {
     const [editImageFiles, setEditImageFiles] = useState([]);
     const [editGalleryFiles, setEditGalleryFiles] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [saveToast, setSaveToast] = useState(null); // { message, type }
+    const [saveToast, setSaveToast] = useState(null);
+    const [deletingImageInfo, setDeletingImageInfo] = useState(null);
+    const [isDeletingImage, setIsDeletingImage] = useState(false); // { message, type }
     const [revealedIds, setRevealedIds] = useState({}); // { bookingId: true/false } to toggle phone visibility
     const [bookingActionLoading, setBookingActionLoading] = useState({}); // { bookingId: true }
 
@@ -876,11 +880,9 @@ const OperationalDashboard = () => {
     };
 
     const handleLogout = async () => {
-        if (window.confirm("Are you sure you want to log out?")) {
-            trackLogout('operator');
-            await signOut(auth);
-            navigate('/');
-        }
+        trackLogout('operator');
+        await signOut(auth);
+        navigate('/', { replace: true });
     };
 
     // Stable helper — only recreates when allMesses or the district filter changes
@@ -1402,8 +1404,8 @@ const OperationalDashboard = () => {
             )}
 
             {/* EDIT MODAL */}
-            {editingItem && editForm && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+            {editingItem && editForm && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="bg-slate-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-700 animate-in zoom-in-95 duration-200">
                         <div className="sticky top-0 bg-slate-800 p-6 border-b border-slate-700 flex justify-between items-center z-10">
                             <h2 className="text-xl font-bold flex items-center gap-2">
@@ -1678,21 +1680,11 @@ const OperationalDashboard = () => {
                                                     <img src={editForm.posterUrl} alt="Current Poster" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                                     <button
                                                         type="button"
-                                                        onClick={async (e) => {
+                                                        onClick={(e) => {
                                                             e.preventDefault();
-                                                            if (window.confirm("Remove current poster image?")) {
-                                                                try {
-                                                                    await updateDoc(doc(db, "messes", editingItem.id), {
-                                                                        posterUrl: ""
-                                                                    });
-                                                                    setEditForm(prev => ({ ...prev, posterUrl: "" }));
-                                                                } catch (error) {
-                                                                    console.error("Error removing poster image:", error);
-                                                                    alert("Failed to remove poster image");
-                                                                }
-                                                            }
+                                                            setDeletingImageInfo({ type: 'poster' });
                                                         }}
-                                                        className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                                         title="Remove Poster Image"
                                                     >
                                                         <Trash2 size={12} />
@@ -1723,7 +1715,7 @@ const OperationalDashboard = () => {
                                                             <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                                             <button
                                                                 type="button"
-                                                                onClick={(e) => { e.preventDefault(); removeGalleryImage(url); }}
+                                                                onClick={(e) => { e.preventDefault(); setDeletingImageInfo({ type: 'gallery', url: url }); }}
                                                                 className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                                                 title="Remove Image"
                                                             >
@@ -1842,7 +1834,7 @@ const OperationalDashboard = () => {
                                                             <img src={url} alt={`Room Photo ${idx + 1}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                                             <button
                                                                 type="button"
-                                                                onClick={(e) => { e.preventDefault(); removeGalleryImage(url); }}
+                                                                onClick={(e) => { e.preventDefault(); setDeletingImageInfo({ type: 'gallery', url: url }); }}
                                                                 className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                                                 title="Remove Image"
                                                             >
@@ -1879,11 +1871,12 @@ const OperationalDashboard = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {approveModal.isOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            {approveModal.isOpen && createPortal(
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
                     <div className="bg-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-md border border-slate-700 shadow-2xl overflow-y-auto max-h-[90vh]">
                         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                             <CheckCircle className="text-emerald-500" /> Approve & Register
@@ -1932,7 +1925,8 @@ const OperationalDashboard = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Mobile Menu Overlay & Drawer */}
@@ -2168,6 +2162,33 @@ const OperationalDashboard = () => {
                 )}
             </AnimatePresence>
 
+            {/* Confirmation Warning Modal for photo removals */}
+            <ConfirmDeleteModal
+                isOpen={!!deletingImageInfo}
+                onClose={() => setDeletingImageInfo(null)}
+                onConfirm={async () => {
+                    if (!deletingImageInfo) return;
+                    try {
+                        setIsDeletingImage(true);
+                        if (deletingImageInfo.type === 'poster') {
+                            await updateDoc(doc(db, "messes", editingItem.id), { posterUrl: "" });
+                            setEditForm(prev => ({ ...prev, posterUrl: "" }));
+                        } else if (deletingImageInfo.type === 'gallery' && deletingImageInfo.url) {
+                            await removeGalleryImage(deletingImageInfo.url);
+                        }
+                    } catch (err) {
+                        console.error("Error removing image:", err);
+                        alert("Failed to remove image");
+                    } finally {
+                        setIsDeletingImage(false);
+                        setDeletingImageInfo(null);
+                    }
+                }}
+                title="Remove Image"
+                itemName={deletingImageInfo?.type === 'poster' ? 'Mess Poster Photo' : 'Gallery Photo'}
+                description="Are you sure you want to remove this photo? This will permanently delete the image from this listing."
+                loading={isDeletingImage}
+            />
         </div >
     );
 };

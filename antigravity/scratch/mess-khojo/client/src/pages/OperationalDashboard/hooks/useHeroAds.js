@@ -101,7 +101,6 @@ export function useHeroAds() {
     };
 
     const handleDeleteHeroAd = async (adId, section) => {
-        if (!window.confirm('Delete this banner ad?')) return;
         try {
             await deleteDoc(doc(db, `hero_ads_${section}`, adId));
         } catch (error) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Building2, Calendar, Trash2, Phone, MapPin, Monitor, CheckCircle, Navigation, User, ArrowUpDown, SlidersHorizontal, X, Plus } from 'lucide-react';
 import { db } from '../../../firebase';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
@@ -494,8 +495,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             )}
 
             {/* EDIT REGISTRATION MODAL */}
-            {editingRegistration && editForm && (
-                <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            {editingRegistration && editForm && createPortal(
+                <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
                     <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
                         {/* Modal Header */}
                         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/20 sticky top-0 backdrop-blur-md z-10">
@@ -1007,7 +1008,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
