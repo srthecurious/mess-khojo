@@ -103,7 +103,9 @@ const OperationalDashboard = () => {
         reg: null,
         email: '',
         password: '',
-        loading: false
+        loading: false,
+        allPhotos: [],        // { url, label } — all photos from the registration
+        selectedPhotoUrls: new Set() // Set of selected photo URLs
     });
 
     const navigate = useNavigate();
@@ -884,18 +886,67 @@ const OperationalDashboard = () => {
     const handleApproveRegistration = (reg) => {
         // Sanitize phone number to create a valid email
         const sanitizedPhone = (reg.phoneNumber || 'owner').replace(/[^a-zA-Z0-9]/g, '');
+
+        // Collect all photos from the registration for operator to pick from
+        const allPhotos = [];
+        (reg.buildingPhotoUrls || reg.buildingPhotos || []).forEach((p, i) => {
+            const url = typeof p === 'string' ? p : p?.url;
+            if (url) allPhotos.push({ url, label: `Building Photo ${i + 1}`, group: 'Building' });
+        });
+        if (reg.roomVariants) {
+            Object.entries(reg.roomVariants).forEach(([type, variants]) => {
+                (variants || []).forEach((v) => {
+                    (v.mediaUrls || []).forEach((m, mi) => {
+                        const url = typeof m === 'string' ? m : m?.url;
+                        const isVideo = typeof m === 'object' && m?.type === 'video';
+                        if (url) allPhotos.push({ url, label: `${type} ${v.label ? `(${v.label}) ` : ''}#${mi + 1}`, group: type, isVideo });
+                    });
+                });
+            });
+        }
+
         setApproveModal({
             isOpen: true,
             reg: reg,
             email: sanitizedPhone + "@messkhojo.com",
             password: "MK" + Math.floor(100000 + Math.random() * 900000),
-            loading: false
+            loading: false,
+            allPhotos,
+            selectedPhotoUrls: new Set(allPhotos.map(p => p.url)) // select all by default
         });
     };
 
     const confirmApproveRegistration = async (e) => {
         e.preventDefault();
-        const { reg, email, password } = approveModal;
+        const { reg, email, password, selectedPhotoUrls } = approveModal;
+
+        // Build selected photo URL set
+        const selectedUrls = selectedPhotoUrls instanceof Set ? selectedPhotoUrls : new Set(selectedPhotoUrls || []);
+
+        // Filter building photos to only selected ones
+        const allBuildingPhotos = (reg.buildingPhotoUrls || reg.buildingPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean);
+        const approvedBuildingPhotoUrls = allBuildingPhotos.filter(url => selectedUrls.has(url));
+
+        // Filter galleryUrls to only selected ones (fallback combined list)
+        const allGalleryUrls = (reg.galleryUrls || []).filter(Boolean);
+        const approvedGalleryUrls = [...new Set([
+            ...approvedBuildingPhotoUrls,
+            ...allGalleryUrls.filter(url => selectedUrls.has(url))
+        ])];
+
+        // Filter roomVariants media to only selected ones
+        const filteredRoomVariants = {};
+        if (reg.roomVariants) {
+            Object.entries(reg.roomVariants).forEach(([type, variants]) => {
+                filteredRoomVariants[type] = (variants || []).map(v => ({
+                    ...v,
+                    mediaUrls: (v.mediaUrls || []).filter(m => {
+                        const url = typeof m === 'string' ? m : m?.url;
+                        return url && selectedUrls.has(url);
+                    })
+                }));
+            });
+        }
         
         if (!email.trim() || password.length < 6) {
             alert("Valid email and password (min 6 chars) are required.");
@@ -920,7 +971,9 @@ const OperationalDashboard = () => {
                 createdAt: serverTimestamp()
             });
 
-            const roomTypes = reg.roomTypes || [];
+            const roomTypes = Object.keys(filteredRoomVariants).length > 0
+                ? Object.keys(filteredRoomVariants).filter(t => (filteredRoomVariants[t] || []).length > 0)
+                : (reg.roomTypes || []);
             const rentInfo = reg.rentInfo || {};
             const facilities = reg.facilities || [];
             const includedInRent = reg.includedInRent || [];
@@ -965,7 +1018,6 @@ const OperationalDashboard = () => {
                 managedBy: reg.managedBy || '',
                 totalBeds: reg.totalBeds || reg.totalRooms || '',
                 totalRooms: reg.totalRooms || reg.totalBeds || '',
-                roomVariants: reg.roomVariants || {},
                 facilities: facilities,
                 amenities: amenitiesObj,
                 includedInRent: includedInRent,
@@ -1013,10 +1065,11 @@ const OperationalDashboard = () => {
                 noticePeriodCustom: reg.noticePeriodCustom || '',
                 operatingSince: reg.operatingSince || '',
 
-                // Media
-                posterUrl: (reg.buildingPhotoUrls && reg.buildingPhotoUrls[0]) || (reg.galleryUrls && reg.galleryUrls[0]) || '',
-                buildingPhotoUrls: reg.buildingPhotoUrls || [],
-                galleryUrls: reg.galleryUrls || []
+                // Media — use operator-approved photos only
+                posterUrl: approvedBuildingPhotoUrls[0] || approvedGalleryUrls[0] || '',
+                buildingPhotoUrls: approvedBuildingPhotoUrls,
+                galleryUrls: approvedGalleryUrls,
+                roomVariants: Object.keys(filteredRoomVariants).length > 0 ? filteredRoomVariants : (reg.roomVariants || {})
             };
 
             const messDocRef = await addDoc(collection(db, "messes"), messDocData);
@@ -1036,9 +1089,10 @@ const OperationalDashboard = () => {
 
             const roomCreatePromises = roomTypes.flatMap(roomType => {
                 const occupancyNum = getOccupancyNum(roomType);
-                // New schema: roomVariants
-                if (reg.roomVariants && reg.roomVariants[roomType] && reg.roomVariants[roomType].length > 0) {
-                    return reg.roomVariants[roomType].map(variant => {
+                // New schema: use filteredRoomVariants (operator-approved media)
+                const variantsSource = filteredRoomVariants[roomType] || reg.roomVariants?.[roomType];
+                if (variantsSource && variantsSource.length > 0) {
+                    return variantsSource.map(variant => {
                         const label = variant.label ? variant.label.trim() : '';
                         const category = label ? `${roomType} (${label})` : roomType;
                         const variantMedia = (variant.mediaUrls || [])
@@ -2571,6 +2625,57 @@ const OperationalDashboard = () => {
                                 />
                                 <p className="text-xs text-slate-500 mt-2">Pass this securely to the mess owner.</p>
                             </div>
+
+                            {/* Photo Selection */}
+                            {approveModal.allPhotos && approveModal.allPhotos.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase">
+                                            Select Photos to Publish
+                                        </label>
+                                        <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                            {approveModal.selectedPhotoUrls?.size ?? 0} / {approveModal.allPhotos.length} selected
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mb-3">Deselect any photos you don't want published on the mess listing.</p>
+                                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+                                        {approveModal.allPhotos.map((photo, idx) => {
+                                            const isSelected = approveModal.selectedPhotoUrls?.has(photo.url);
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newSet = new Set(approveModal.selectedPhotoUrls || []);
+                                                        if (newSet.has(photo.url)) {
+                                                            newSet.delete(photo.url);
+                                                        } else {
+                                                            newSet.add(photo.url);
+                                                        }
+                                                        setApproveModal(prev => ({ ...prev, selectedPhotoUrls: newSet }));
+                                                    }}
+                                                    className={`relative rounded-lg overflow-hidden border-2 transition-all aspect-square group ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/30' : 'border-slate-700 opacity-50 grayscale'}`}
+                                                >
+                                                    {photo.isVideo ? (
+                                                        <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center text-slate-400 text-xs gap-1 p-1">
+                                                            <span className="text-xl">🎬</span>
+                                                            <span className="text-[9px] text-center leading-tight">{photo.label}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <img src={photo.url} alt={photo.label} className="w-full h-full object-cover" />
+                                                    )}
+                                                    <div className={`absolute top-1 right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center text-[8px] font-bold ${isSelected ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-slate-900 border-slate-600 text-slate-500'}`}>
+                                                        {isSelected ? '✓' : ''}
+                                                    </div>
+                                                    <div className="absolute bottom-0 left-0 right-0 bg-slate-950/80 text-[8px] text-slate-300 px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {photo.group}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="pt-6 flex flex-col md:flex-row gap-3">
                                 <button

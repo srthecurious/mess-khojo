@@ -5,6 +5,7 @@ import { db } from '../../../firebase';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { DISTRICTS_CONFIG, getLocalitiesForCity } from '../../../context/DistrictContext';
 import { useDistrict } from '../../../context/DistrictContext';
+import ImageModal from '../../../components/ImageModal';
 
 const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'approved'
@@ -13,6 +14,7 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
     const [editingRegistration, setEditingRegistration] = useState(null);
     const [editForm, setEditForm] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [previewImage, setPreviewImage] = useState(null);
     const { localitiesConfig } = useDistrict();
 
     // Reset pagination only when the user actively changes a filter or sort — NOT on data refresh
@@ -489,18 +491,37 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                                                             </span>
                                                                         </div>
                                                                         {v.mediaUrls && v.mediaUrls.length > 0 && (
-                                                                            <div className="flex flex-wrap gap-1 pt-1">
-                                                                                {v.mediaUrls.map((m, mIdx) => (
-                                                                                    <a
-                                                                                        key={mIdx}
-                                                                                        href={typeof m === 'string' ? m : m.url}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className="text-[10px] bg-slate-750 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-650 flex items-center gap-1 transition-colors"
-                                                                                    >
-                                                                                        {(typeof m === 'object' && m.type === 'video') ? '🎬 Video' : '📷 Photo'}
-                                                                                    </a>
-                                                                                ))}
+                                                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                                                                {v.mediaUrls.map((m, mIdx) => {
+                                                                                    const url = typeof m === 'string' ? m : m?.url;
+                                                                                    const isVideo = typeof m === 'object' && m?.type === 'video';
+                                                                                    if (!url) return null;
+                                                                                    if (isVideo) {
+                                                                                        return (
+                                                                                            <a
+                                                                                                key={mIdx}
+                                                                                                href={url}
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                className="h-11 px-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-750 hover:border-indigo-400 text-slate-300 rounded-lg flex items-center gap-1 text-[10px] font-medium transition-all"
+                                                                                                title="Open Video in new tab"
+                                                                                            >
+                                                                                                🎬 Video
+                                                                                            </a>
+                                                                                        );
+                                                                                    }
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={mIdx}
+                                                                                            type="button"
+                                                                                            onClick={() => setPreviewImage({ url, title: `${reg.messName} — ${type} (${v.label || 'Room'}) Photo ${mIdx + 1}` })}
+                                                                                            className="relative w-11 h-11 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-400 group transition-all shrink-0 bg-slate-900 shadow-sm"
+                                                                                            title="Click to preview photo"
+                                                                                        >
+                                                                                            <img src={url} alt={`${type} ${mIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -525,23 +546,32 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                     </div>
                                 </div>
 
-                                {/* Building Photos */}
-                                {((reg.buildingPhotos && reg.buildingPhotos.length > 0) || (reg.buildingPhotoUrls && reg.buildingPhotoUrls.length > 0)) && (
+                                {/* Building Photos & Uploaded Photos */}
+                                {(((reg.buildingPhotos && reg.buildingPhotos.length > 0) || (reg.buildingPhotoUrls && reg.buildingPhotoUrls.length > 0) || (reg.galleryUrls && reg.galleryUrls.length > 0))) && (
                                     <div>
-                                        <p className="text-slate-500 text-[10px] uppercase font-bold mb-1 tracking-wider">Building Photos</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {(reg.buildingPhotos || reg.buildingPhotoUrls || []).map((bPhoto, bpIdx) => {
+                                        <p className="text-slate-500 text-[10px] uppercase font-bold mb-1.5 tracking-wider">
+                                            Building & Gallery Photos
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {((reg.buildingPhotos || reg.buildingPhotoUrls || []).length > 0
+                                                ? (reg.buildingPhotos || reg.buildingPhotoUrls || [])
+                                                : (reg.galleryUrls || [])
+                                            ).map((bPhoto, bpIdx) => {
                                                 const url = typeof bPhoto === 'string' ? bPhoto : bPhoto?.url;
+                                                if (!url) return null;
                                                 return (
-                                                    <a
+                                                    <button
                                                         key={bpIdx}
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-[10px] bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 px-2 py-1 rounded border border-purple-500/20 flex items-center gap-1.5 transition-colors font-medium"
+                                                        type="button"
+                                                        onClick={() => setPreviewImage({ url, title: `${reg.messName} — Building Photo ${bpIdx + 1}` })}
+                                                        className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-700 hover:border-purple-400 group transition-all shrink-0 bg-slate-900 shadow-sm"
+                                                        title="Click to preview photo"
                                                     >
-                                                        🏢 Building Photo {bpIdx + 1}
-                                                    </a>
+                                                        <img src={url} alt={`Building ${bpIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                                                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[8px] text-white text-center py-0.5 font-bold">
+                                                            #{bpIdx + 1}
+                                                        </span>
+                                                    </button>
                                                 );
                                             })}
                                         </div>
@@ -818,6 +848,7 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                             <option value="Owner" />
                                             <option value="Students" />
                                             <option value="Warden" />
+                                            <option value="Nearby Canteen" />
                                         </datalist>
                                     </div>
                                     <div>
@@ -1663,6 +1694,13 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                 </div>,
                 document.body
             )}
+            {/* Lightbox / Full-screen Photo Preview */}
+            <ImageModal
+                isOpen={Boolean(previewImage)}
+                onClose={() => setPreviewImage(null)}
+                src={previewImage?.url}
+                title={previewImage?.title}
+            />
         </div>
     );
 };

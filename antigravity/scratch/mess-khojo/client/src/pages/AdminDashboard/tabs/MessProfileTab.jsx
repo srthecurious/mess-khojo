@@ -183,6 +183,7 @@ const MessProfileTab = ({
                             <option value="Owner">Owner</option>
                             <option value="Students">Students</option>
                             <option value="Warden">Warden</option>
+                            <option value="Nearby Canteen">Nearby Canteen</option>
                         </select>
                     </div>
 
@@ -879,6 +880,37 @@ const MessProfileTab = ({
                             <Pencil size={22} />
                         </button>
                     </div>
+
+                    {/* Photo Gallery Preview */}
+                    {((messProfile.galleryUrls && messProfile.galleryUrls.length > 0) || messProfile.posterUrl) && (
+                        <div className="mt-5 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between mb-2.5">
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                                    📸 Published Photos & Gallery ({[...(messProfile.posterUrl ? [messProfile.posterUrl] : []), ...(messProfile.galleryUrls || [])].length})
+                                </h4>
+                                <button
+                                    type="button"
+                                    onClick={handleEditMessClick}
+                                    className="text-xs text-brand-primary hover:underline font-semibold"
+                                >
+                                    Manage Photos
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                                {messProfile.posterUrl && (
+                                    <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-brand-primary/40 shadow-xs group">
+                                        <img src={messProfile.posterUrl} alt="Poster" className="w-full h-full object-cover" />
+                                        <span className="absolute bottom-0 inset-x-0 bg-brand-primary text-[8px] text-white font-bold text-center py-0.5">Poster</span>
+                                    </div>
+                                )}
+                                {(messProfile.galleryUrls || []).map((url, idx) => (
+                                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-xs group">
+                                        <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="bg-white p-8 rounded-2xl shadow-md mb-8 border border-dashed border-gray-300 text-center">

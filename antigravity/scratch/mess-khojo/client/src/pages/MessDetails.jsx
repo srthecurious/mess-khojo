@@ -34,7 +34,8 @@ const getFoodFacilityDisplay = (mess) => {
         const lff = ff.toLowerCase();
         if (lff.includes('student')) return 'Managed by Students';
         if (lff.includes('warden')) return 'Managed by Warden';
-        if (lff.includes('owner') || lff.includes('canteen') || lff.includes('fssai') || lff.includes('rent')) return 'Managed by Owner';
+        if (lff.includes('canteen')) return 'Nearby Canteen';
+        if (lff.includes('owner') || lff.includes('fssai') || lff.includes('rent')) return 'Managed by Owner';
         if (lff.includes('no food') || lff.includes('not available')) return 'Not Available';
         if (ff.length > 2) return ff;
     }
@@ -42,6 +43,7 @@ const getFoodFacilityDisplay = (mess) => {
     if (mess.foodAvailability === 'Self Cook') return 'Managed by Students';
     if (mess.managedBy) {
         const val = mess.managedBy.trim();
+        if (val.toLowerCase() === 'nearby canteen') return 'Nearby Canteen';
         if (val.toLowerCase().startsWith('managed by')) return val;
         if (val.toLowerCase() === 'none' || val.toLowerCase() === 'no') return 'Not Available';
         return `Managed by ${val}`;
@@ -894,19 +896,6 @@ const MessDetails = () => {
                                         <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm" title={`Food Facility: ${foodDisplay}`}>
                                             <Utensils size={14} className="text-emerald-600 shrink-0" />
                                             <span className="truncate">{foodDisplay}</span>
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            if (mess.managedBy && mess.managedBy.trim() !== '' && mess.managedBy !== '-') {
-                                const mgmt = mess.managedBy.toLowerCase().startsWith('managed by') ? mess.managedBy : `Managed by ${mess.managedBy}`;
-                                items.push(
-                                    <div key="mgmt" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Property Management</span>
-                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm">
-                                            <Shield size={14} className="text-blue-600 shrink-0" />
-                                            <span className="truncate">{mgmt}</span>
                                         </div>
                                     </div>
                                 );

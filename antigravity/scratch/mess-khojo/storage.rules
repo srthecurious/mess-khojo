@@ -55,5 +55,12 @@ service firebase.storage {
     match /team_avatars/{allPaths=**} {
       allow write: if (isOperator() || isAdmin() || isAuthenticated()) && isValidImage();
     }
+
+    // Mess registrations photo & video uploads during mess owner registration
+    match /mess_registrations/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 25 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
   }
 }

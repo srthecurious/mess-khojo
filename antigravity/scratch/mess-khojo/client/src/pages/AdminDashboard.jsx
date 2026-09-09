@@ -111,16 +111,18 @@ const AdminDashboard = () => {
     const [isEditingMess, setIsEditingMess] = useState(false);
 
     const removeGalleryImage = async (imageUrlToRemove) => {
-        if (!messProfile) return;
+        if (!messProfile || !imageUrlToRemove) return;
+        if (!window.confirm("Remove this image from your mess gallery?")) return;
         try {
             const updatedUrls = (messProfile.galleryUrls || []).filter(url => url !== imageUrlToRemove);
             await updateMess(messProfile.id, {
                 galleryUrls: updatedUrls
             });
             setMessProfile(prev => ({ ...prev, galleryUrls: updatedUrls }));
+            showToast('✅ Photo removed from gallery');
         } catch (error) {
             console.error("Error removing gallery image:", error);
-            alert("Failed to remove gallery image");
+            showToast("❌ Failed to remove gallery image", "error");
         }
     };
     const [geocoding, setGeocoding] = useState(false);

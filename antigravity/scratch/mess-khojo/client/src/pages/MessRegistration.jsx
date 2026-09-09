@@ -10,6 +10,7 @@ import { db, storage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 import { AnimatePresence, motion } from 'framer-motion';
 import { trackMessRegistration } from '../analytics';
 import usePageSEO from '../hooks/usePageSEO';
@@ -283,8 +284,16 @@ const MessRegistration = () => {
     };
 
     const handleSubmit = async () => {
-        if (!formData.phoneNumber) {
-            toastError('Phone number is mandatory!');
+        if (!formData.messName || !formData.messName.trim()) {
+            toastError('Mess name is required!');
+            return;
+        }
+        if (!formData.phoneNumber || formData.phoneNumber.length < 10) {
+            toastError('A valid 10-digit phone number is required!');
+            return;
+        }
+        if (!formData.district || !formData.city) {
+            toastError('Please select a District and City before submitting.');
             return;
         }
 
@@ -295,6 +304,21 @@ const MessRegistration = () => {
             const sanitizedMessName = (formData.messName || 'mess').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
             const processedVariants = {};
             const allGalleryUrls = [];
+
+            const compressImageSafe = async (file) => {
+                if (!file || !file.type || !file.type.startsWith('image/')) return file;
+                try {
+                    const options = {
+                        maxSizeMB: 0.8, // 800KB target
+                        maxWidthOrHeight: 1920,
+                        useWebWorker: true
+                    };
+                    return await imageCompression(file, options);
+                } catch (e) {
+                    console.warn('Image compression fallback:', e);
+                    return file;
+                }
+            };
 
             // Upload room photos and videos to Firebase Storage if any were provided
             const roomEntries = Object.entries(formData.roomVariants);
@@ -313,19 +337,24 @@ const MessRegistration = () => {
                             setUploadProgressText(`Uploading ${room} media (${mIdx + 1}/${mediaItems.length})...`);
                             try {
                                 const timestamp = Date.now();
-                                const ext = item.file.name.split('.').pop() || (item.type === 'video' ? 'mp4' : 'jpg');
+                                const isVideo = item.type === 'video' || item.file.type?.startsWith('video/');
+                                const ext = item.file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
                                 const storagePath = `mess_registrations/${sanitizedMessName}/${room.replace(/\s+/g, '_')}_v${vIdx}_${timestamp}_${mIdx}.${ext}`;
                                 const storageRef = ref(storage, storagePath);
-                                await uploadBytes(storageRef, item.file);
+
+                                const fileToUpload = isVideo ? item.file : await compressImageSafe(item.file);
+                                const mimeType = item.file.type || (isVideo ? 'video/mp4' : 'image/jpeg');
+
+                                await uploadBytes(storageRef, fileToUpload, { contentType: mimeType });
                                 const downloadUrl = await getDownloadURL(storageRef);
                                 uploadedMedia.push({
                                     url: downloadUrl,
-                                    type: item.type,
+                                    type: isVideo ? 'video' : 'image',
                                     name: item.name
                                 });
                                 allGalleryUrls.push(downloadUrl);
                             } catch (uploadErr) {
-                                console.warn('Storage upload notice:', uploadErr);
+                                console.error('Storage upload error for room media:', uploadErr);
                             }
                         } else if (item.url) {
                             uploadedMedia.push(item);
@@ -351,19 +380,24 @@ const MessRegistration = () => {
                     setUploadProgressText(`Uploading building photo (${bIdx + 1}/${buildingItems.length})...`);
                     try {
                         const timestamp = Date.now();
-                        const ext = item.file.name.split('.').pop() || (item.type === 'video' ? 'mp4' : 'jpg');
+                        const isVideo = item.type === 'video' || item.file.type?.startsWith('video/');
+                        const ext = item.file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
                         const storagePath = `mess_registrations/${sanitizedMessName}/building_${timestamp}_${bIdx}.${ext}`;
                         const storageRef = ref(storage, storagePath);
-                        await uploadBytes(storageRef, item.file);
+
+                        const fileToUpload = isVideo ? item.file : await compressImageSafe(item.file);
+                        const mimeType = item.file.type || (isVideo ? 'video/mp4' : 'image/jpeg');
+
+                        await uploadBytes(storageRef, fileToUpload, { contentType: mimeType });
                         const downloadUrl = await getDownloadURL(storageRef);
                         uploadedBuildingPhotos.push({
                             url: downloadUrl,
-                            type: item.type,
+                            type: isVideo ? 'video' : 'image',
                             name: item.name
                         });
                         allGalleryUrls.push(downloadUrl);
                     } catch (uploadErr) {
-                        console.warn('Storage upload notice for building photo:', uploadErr);
+                        console.error('Storage upload error for building photo:', uploadErr);
                     }
                 } else if (item.url) {
                     uploadedBuildingPhotos.push(item);
@@ -658,8 +692,9 @@ const MessRegistration = () => {
 
                         {/* 4. Full Address */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
+                            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block flex items-center gap-1.5">
                                 Address
+                                <span className="text-[10px] font-medium text-gray-400 normal-case tracking-normal">(optional)</span>
                             </label>
                             <div className="relative">
                                 <input
@@ -710,8 +745,9 @@ const MessRegistration = () => {
                         <div className="grid grid-cols-2 gap-2.5 items-start">
                             {/* Left: Total Beds */}
                             <div className="space-y-1.5">
-                                <label className="text-[11px] sm:text-xs font-bold text-gray-700 uppercase tracking-wider block truncate">
-                                    Total Number of Beds
+                                <label className="text-[11px] sm:text-xs font-bold text-gray-700 uppercase tracking-wider block truncate flex items-center gap-1">
+                                    Total Beds
+                                    <span className="text-[10px] font-medium text-gray-400 normal-case tracking-normal">(optional)</span>
                                 </label>
                                 <input
                                     type="number"
@@ -731,8 +767,9 @@ const MessRegistration = () => {
 
                             {/* Right: Mess Building Photo */}
                             <div className="space-y-1.5">
-                                <label className="text-[11px] sm:text-xs font-bold text-gray-700 uppercase tracking-wider block truncate">
+                                <label className="text-[11px] sm:text-xs font-bold text-gray-700 uppercase tracking-wider block truncate flex items-center gap-1">
                                     Mess Building Photo
+                                    <span className="text-[10px] font-medium text-gray-400 normal-case tracking-normal">(optional)</span>
                                 </label>
                                 <div>
                                     <label className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-3 border-2 border-dashed border-purple-200 hover:border-[#300868] bg-purple-50/50 hover:bg-purple-50 rounded-xl transition-all cursor-pointer text-[11px] sm:text-xs font-bold text-[#300868]">
@@ -1015,8 +1052,8 @@ const MessRegistration = () => {
                             {/* Food Facility Managed by */}
                             <div className="space-y-1.5 pt-1.5 border-t border-purple-100/70">
                                 <span className="text-[11px] font-bold text-gray-500 block">Food Facility Managed By</span>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {[{ v: 'Owner', s: 'Manager' }, { v: 'Students', s: 'Self-managed' }, { v: 'Warden', s: 'Supervised' }].map(({ v, s }) => (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[{ v: 'Owner', s: 'Manager' }, { v: 'Students', s: 'Self-managed' }, { v: 'Warden', s: 'Supervised' }, { v: 'Nearby Canteen', s: 'External' }].map(({ v, s }) => (
                                         <button
                                             key={v}
                                             type="button"
@@ -1579,8 +1616,9 @@ const MessRegistration = () => {
 
                         {/* 3. Operating Since */}
                         <div className="pt-3 border-t border-gray-100 space-y-2">
-                            <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wider block">
+                            <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wider block flex items-center gap-1.5">
                                 Operating Since (Year)
+                                <span className="text-[10px] font-medium text-gray-400 normal-case tracking-normal">(optional)</span>
                             </label>
                             <select
                                 value={formData.operatingSince || ''}
@@ -1642,41 +1680,27 @@ const MessRegistration = () => {
             case 1:
                 return (
                     formData.messName.trim().length > 0 &&
-                    formData.messType.length > 0 &&
                     formData.district !== '' &&
                     formData.city !== '' &&
-                    formData.locality.trim().length > 0 &&
-                    formData.address.trim().length > 0 &&
                     formData.phoneNumber.length === 10
                 );
             case 2: {
-                const beds = formData.totalBeds || formData.totalRooms;
-                return (
-                    beds !== '' &&
-                    Number(beds) > 0 &&
-                    formData.roomTypes.length > 0 &&
-                    formData.roomTypes.every(room => {
+                // Beds, Photos of rooms/building, Facilities are optional
+                if (formData.roomTypes && formData.roomTypes.length > 0) {
+                    return formData.roomTypes.every(room => {
                         const variants = formData.roomVariants[room] || [];
-                        return variants.length > 0 && variants.every(v => 
-                            Boolean(v.label && v.label.trim().length > 0) &&
-                            v.price && 
-                            String(v.price).trim().length > 0 && 
-                            Number(v.price) > 0
+                        return variants.every(v =>
+                            !v.price || (!isNaN(Number(v.price)) && Number(v.price) >= 0)
                         );
-                    })
-                );
+                    });
+                }
+                return true;
             }
             case 3:
-                return (
-                    Boolean(formData.foodAvailability) &&
-                    Boolean(formData.managedBy) &&
-                    Boolean(formData.foodType) &&
-                    Boolean(formData.waterFacility) &&
-                    Boolean(formData.laundryFacility) &&
-                    Boolean(formData.cleaningService)
-                );
+                // Facilities, mealsPerDay, foodType, water, laundry, cleaning, extra space are all optional
+                return true;
             case 4:
-                if (!formData.operatingSince || formData.operatingSince.trim().length === 0) return false;
+                // operatingSince is optional
                 if (formData.noticePeriod === 'Other' && (!formData.noticePeriodCustom || formData.noticePeriodCustom.trim().length === 0)) return false;
                 if (formData.securityDeposit === 'Custom' && (!formData.securityDepositCustom || formData.securityDepositCustom.trim().length === 0)) return false;
                 if (formData.advancePayment === 'Custom' && (!formData.advancePaymentCustom || formData.advancePaymentCustom.trim().length === 0)) return false;

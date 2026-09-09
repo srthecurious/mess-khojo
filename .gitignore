@@ -19,6 +19,7 @@ antigravity/memory/
 antigravity/mcp_config.json
 
 *.log
+*.lnk
 node_modules/
 .env
 .DS_Store
