@@ -172,9 +172,9 @@ const MessProfileTab = ({
                         )}
                     </div>
 
-                    {/* Managed By */}
+                    {/* Food Facility Managed By */}
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-1.5">Managed By</label>
+                        <label className="block text-sm font-bold text-gray-900 mb-1.5">Food Facility Managed By</label>
                         <select
                             className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-900 font-semibold bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
                             value={messForm.managedBy}
@@ -184,6 +184,147 @@ const MessProfileTab = ({
                             <option value="Students">Students</option>
                             <option value="Warden">Warden</option>
                         </select>
+                    </div>
+
+                    {/* Food & Living Services (Page 3) */}
+                    <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-4 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-purple-100 pb-2">
+                            <span className="text-sm font-bold text-brand-primary uppercase tracking-wider">Food & Living Services</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Food Availability</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    value={messForm.foodAvailability || 'Food Available'}
+                                    onChange={(e) => setMessForm({ ...messForm, foodAvailability: e.target.value })}
+                                >
+                                    <option value="Food Available">Food Available</option>
+                                    <option value="Self Cook">Self Cook Only</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Meals Per Day</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    value={messForm.mealsPerDay || '3 Meals'}
+                                    onChange={(e) => setMessForm({ ...messForm, mealsPerDay: e.target.value })}
+                                >
+                                    <option value="1 Meal">1 Meal</option>
+                                    <option value="2 Meals">2 Meals</option>
+                                    <option value="3 Meals">3 Meals</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Food Type</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    value={messForm.foodType || 'Veg + Non-Veg'}
+                                    onChange={(e) => setMessForm({ ...messForm, foodType: e.target.value })}
+                                >
+                                    <option value="Veg + Non-Veg">Veg + Non-Veg</option>
+                                    <option value="Veg Only">Veg Only</option>
+                                    <option value="Non-Veg Only">Non-Veg Only</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Water Facility</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    value={messForm.waterFacility || 'Both'}
+                                    onChange={(e) => setMessForm({ ...messForm, waterFacility: e.target.value })}
+                                >
+                                    <option value="Both">Both (Purifier + Tank)</option>
+                                    <option value="Water Filter">Water Filter</option>
+                                    <option value="Tubewell">Tubewell</option>
+                                    <option value="Water Purifier Only">Water Purifier Only</option>
+                                    <option value="Water Tank Only">Water Tank Only</option>
+                                    <option value="None">None</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Laundry Facility</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    value={messForm.laundryFacility || 'Washing Machine'}
+                                    onChange={(e) => setMessForm({ ...messForm, laundryFacility: e.target.value })}
+                                >
+                                    <option value="Washing Machine">Washing Machine</option>
+                                    <option value="By Hand">By Hand</option>
+                                    <option value="Both">Both</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Cleaning / Housekeeping</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    value={messForm.cleaningService || 'Both'}
+                                    onChange={(e) => setMessForm({ ...messForm, cleaningService: e.target.value })}
+                                >
+                                    <option value="Daily">Daily</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Both">Both</option>
+                                    <option value="None">None</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Essential Amenities (Y/N) */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-800 mb-1.5">Essential Amenities</label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {[
+                                    { key: 'wifi', label: 'WiFi', facilityName: 'Wifi' },
+                                    { key: 'powerBackup', label: 'Power Backup', facilityName: 'InverterPower' },
+                                    { key: 'cctv', label: 'CCTV', facilityName: 'CCTV' },
+                                    { key: 'wardenWatchman', label: 'Warden / Guard', facilityName: null }
+                                ].map(({ key, label, facilityName }) => (
+                                    <label key={key} className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 cursor-pointer hover:border-brand-primary transition-all">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 accent-brand-primary"
+                                            checked={!!messForm[key]}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                let updatedFacilities = [...(messForm.facilities || [])];
+                                                if (facilityName) {
+                                                    updatedFacilities = checked
+                                                        ? [...new Set([...updatedFacilities, facilityName])]
+                                                        : updatedFacilities.filter(x => x !== facilityName);
+                                                }
+                                                setMessForm({ ...messForm, [key]: checked, facilities: updatedFacilities });
+                                            }}
+                                        />
+                                        {label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Extra Spaces */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-800 mb-1.5">Extra Spaces Available</label>
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                {['Parking', 'Balcony', 'Study Room', 'Terrace', 'Common Room'].map(space => {
+                                    const isChecked = (messForm.extraSpace || []).includes(space);
+                                    return (
+                                        <label key={space} className="flex items-center gap-1.5 p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 cursor-pointer hover:border-brand-primary transition-all">
+                                            <input
+                                                type="checkbox"
+                                                className="w-3.5 h-3.5 accent-brand-primary"
+                                                checked={isChecked}
+                                                onChange={(e) => {
+                                                    const current = messForm.extraSpace || [];
+                                                    const updated = e.target.checked ? [...current, space] : current.filter(x => x !== space);
+                                                    setMessForm({ ...messForm, extraSpace: updated });
+                                                }}
+                                            />
+                                            {space}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Facilities */}
@@ -294,6 +435,203 @@ const MessProfileTab = ({
                                 </select>
                             </div>
                         )}
+                    </div>
+
+                    {/* Charges & Policies Breakdown (Page 4) */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                            <span className="text-sm font-bold text-gray-900 uppercase tracking-wider">Charges & Policies Breakdown</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            {/* Security Deposit */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Security Deposit</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.securityDeposit || 'No Deposit'}
+                                    onChange={(e) => setMessForm({ ...messForm, securityDeposit: e.target.value })}
+                                >
+                                    <option value="No Deposit">No Deposit</option>
+                                    <option value="1 Month">1 Month</option>
+                                    <option value="2 Months">2 Months</option>
+                                    <option value="3 Months">3 Months</option>
+                                    <option value="Custom">Custom Amount</option>
+                                </select>
+                                {messForm.securityDeposit === 'Custom' && (
+                                    <input
+                                        type="text"
+                                        placeholder="Amount (₹)"
+                                        className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-xs font-semibold"
+                                        value={messForm.securityDepositCustom || ''}
+                                        onChange={(e) => setMessForm({ ...messForm, securityDepositCustom: e.target.value })}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Electricity Bill */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Electricity Bill</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.electricityBill || 'Included in Rent'}
+                                    onChange={(e) => setMessForm({ ...messForm, electricityBill: e.target.value })}
+                                >
+                                    <option value="Included in Rent">Included in Rent</option>
+                                    <option value="As per Meter">As per Meter</option>
+                                    <option value="Extra Fixed">Extra Fixed Charge</option>
+                                </select>
+                                {messForm.electricityBill === 'Extra Fixed' && (
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="Fixed Bill per Month (₹)"
+                                        className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-xs font-semibold"
+                                        value={messForm.electricityBillAmount || ''}
+                                        onChange={(e) => setMessForm({ ...messForm, electricityBillAmount: e.target.value.replace(/[^0-9]/g, '') })}
+                                        onWheel={(e) => e.target.blur()}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Maintenance Fee */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Maintenance Fee</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.maintenanceFee || 'Included'}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setMessForm({
+                                            ...messForm,
+                                            maintenanceFee: val,
+                                            maintenanceCharge: {
+                                                ...messForm.maintenanceCharge,
+                                                taken: val === 'Extra Charge'
+                                            }
+                                        });
+                                    }}
+                                >
+                                    <option value="Included">Included</option>
+                                    <option value="Extra Charge">Extra Charge</option>
+                                </select>
+                                {messForm.maintenanceFee === 'Extra Charge' && (
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="Fee per Month (₹)"
+                                        className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-xs font-semibold"
+                                        value={messForm.maintenanceFeeAmount || ''}
+                                        onChange={(e) => {
+                                            const amt = e.target.value.replace(/[^0-9]/g, '');
+                                            setMessForm({
+                                                ...messForm,
+                                                maintenanceFeeAmount: amt,
+                                                maintenanceCharge: {
+                                                    ...messForm.maintenanceCharge,
+                                                    amount: amt
+                                                }
+                                            });
+                                        }}
+                                        onWheel={(e) => e.target.blur()}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Cleaning Charges */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Cleaning Charges</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.cleaningCharges || 'Included in Rent'}
+                                    onChange={(e) => setMessForm({ ...messForm, cleaningCharges: e.target.value })}
+                                >
+                                    <option value="Included in Rent">Included in Rent</option>
+                                    <option value="Extra Charge">Extra Charge</option>
+                                    <option value="None">None</option>
+                                </select>
+                                {messForm.cleaningCharges === 'Extra Charge' && (
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="Cleaning Fee per Month (₹)"
+                                        className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-xs font-semibold"
+                                        value={messForm.cleaningChargesAmount || ''}
+                                        onChange={(e) => setMessForm({ ...messForm, cleaningChargesAmount: e.target.value.replace(/[^0-9]/g, '') })}
+                                        onWheel={(e) => e.target.blur()}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Food Bill */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Food Bill</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.foodBill || 'Included in Rent'}
+                                    onChange={(e) => setMessForm({ ...messForm, foodBill: e.target.value })}
+                                >
+                                    <option value="Included in Rent">Included in Rent</option>
+                                    <option value="Separate">Separate</option>
+                                    <option value="Self Cook">Self Cook</option>
+                                </select>
+                            </div>
+
+                            {/* Utensils Charges */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Utensils Charges</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.utensilsCharges || 'Provided'}
+                                    onChange={(e) => setMessForm({ ...messForm, utensilsCharges: e.target.value })}
+                                >
+                                    <option value="Provided">Provided</option>
+                                    <option value="Chargeable">Chargeable</option>
+                                    <option value="Bring Own">Bring Own</option>
+                                </select>
+                            </div>
+
+                            {/* Notice Period */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Notice Period</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.noticePeriod || '1 Month'}
+                                    onChange={(e) => setMessForm({ ...messForm, noticePeriod: e.target.value })}
+                                >
+                                    <option value="No Notice">No Notice</option>
+                                    <option value="15 Days">15 Days</option>
+                                    <option value="1 Month">1 Month</option>
+                                    <option value="2 Months">2 Months</option>
+                                    <option value="3 Months">3 Months</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                {messForm.noticePeriod === 'Other' && (
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 45 Days"
+                                        className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-xs font-semibold"
+                                        value={messForm.noticePeriodCustom || ''}
+                                        onChange={(e) => setMessForm({ ...messForm, noticePeriodCustom: e.target.value })}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Operating Since */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Operating Since</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-brand-primary outline-none cursor-pointer"
+                                    value={messForm.operatingSince || ''}
+                                    onChange={(e) => setMessForm({ ...messForm, operatingSince: e.target.value })}
+                                >
+                                    <option value="">Select Year</option>
+                                    {Array.from({ length: 27 }, (_, i) => 2026 - i).map(year => (
+                                        <option key={year} value={String(year)}>{year}</option>
+                                    ))}
+                                    <option value="Before 2000">Before 2000</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Billing Cycle & Stay Commitment */}
@@ -510,6 +848,15 @@ const MessProfileTab = ({
                             </p>
 
                             <div className="flex items-center gap-3 pt-1 flex-wrap text-sm font-bold">
+                                {messProfile.operatingSince && (
+                                    <span className="text-purple-800 bg-purple-50 border border-purple-200 px-3 py-1 rounded-md">📅 Since {messProfile.operatingSince}</span>
+                                )}
+                                {messProfile.noticePeriod && (
+                                    <span className="text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md">⏳ {messProfile.noticePeriod} Notice</span>
+                                )}
+                                {messProfile.foodAvailability && (
+                                    <span className="text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-md">🍽️ {messProfile.foodAvailability}</span>
+                                )}
                                 {messProfile.latitude && messProfile.longitude && (
                                     <span className="flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-md">✓ GPS Set</span>
                                 )}

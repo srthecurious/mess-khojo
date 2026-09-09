@@ -219,6 +219,27 @@ const MessesTab = ({
                                                 <span className="text-[9px] bg-slate-900 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 font-bold uppercase tracking-wide">
                                                     {mess.district || 'balasore'}
                                                 </span>
+
+                                                {/* Operating Since Badge */}
+                                                {mess.operatingSince && (
+                                                    <span className="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/25 font-bold uppercase tracking-wider">
+                                                        Since {mess.operatingSince}
+                                                    </span>
+                                                )}
+
+                                                {/* Notice Period Badge */}
+                                                {mess.noticePeriod && (
+                                                    <span className="text-[9px] bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded border border-sky-500/25 font-bold uppercase tracking-wider">
+                                                        Notice: {mess.noticePeriod}
+                                                    </span>
+                                                )}
+
+                                                {/* Food Availability Badge */}
+                                                {mess.foodAvailability && (
+                                                    <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/25 font-bold uppercase tracking-wider">
+                                                        {mess.foodAvailability}
+                                                    </span>
+                                                )}
                                             </div>
 
                                             <p className="text-slate-400 text-sm line-clamp-1 flex items-center gap-1.5 font-medium">

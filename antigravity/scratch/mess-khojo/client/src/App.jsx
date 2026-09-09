@@ -16,6 +16,15 @@ if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual';
 }
 
+// Prevent mouse wheel from inadvertently changing values on number/numeric inputs globally
+if (typeof window !== 'undefined') {
+  window.addEventListener('wheel', () => {
+    if (document.activeElement && (document.activeElement.type === 'number' || document.activeElement.getAttribute('inputmode') === 'numeric')) {
+      document.activeElement.blur();
+    }
+  }, { passive: true });
+}
+
 const CityLandingPage = React.lazy(() => import('./pages/CityLandingPage'));
 
 // Route-level code splitting — only the visited page's code is downloaded
@@ -89,6 +98,8 @@ function AnalyticsTracker() {
 function AppContent() {
   const location = useLocation();
   const isRoomDetails = location.pathname.startsWith('/room/');
+  const isMessRegistration = location.pathname === '/register-mess';
+  const hideFooter = isRoomDetails || isMessRegistration;
 
   return (
     <div className="min-h-screen bg-brand-secondary text-brand-text-dark font-sans flex flex-col">
@@ -157,7 +168,7 @@ function AppContent() {
               {/* 404 Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            {!isRoomDetails && <Footer />}
+            {!hideFooter && <Footer />}
           </div>
         </Suspense>
       </ErrorBoundary>

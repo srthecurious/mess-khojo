@@ -181,7 +181,7 @@ service cloud.firestore {
 
     match /team_members/{memberId} {
       allow read: if true;
-      allow create, update, delete: if isAuthenticated();
+      allow create, update, delete: if isOperator() || isAdmin();
     }
   }
 }

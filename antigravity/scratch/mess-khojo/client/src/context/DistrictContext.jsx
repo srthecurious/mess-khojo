@@ -65,6 +65,77 @@ export const DISTRICTS_CONFIG = {
             { name: 'MKC High School', type: 'locality' },
             { name: 'Baripada', type: 'locality' }
         ]
+    },
+    jajpur: {
+        id: "jajpur",
+        name: "Jajpur",
+        active: true,
+        heroTitle: "Find Your Comfortable Stay in Jajpur",
+        heroSubtitle: "Mess Dhundo, Ghar Baithe",
+        gpsCenter: { lat: 20.8502, lng: 86.3361 },
+        cities: [
+            { id: "jajpur_road", name: "Jajpur Road (Vyasanagar)", busStand: { lat: 20.9525, lng: 86.1367, name: "Jajpur Road Bus Stand" } },
+            { id: "jajpur_town", name: "Jajpur Town", busStand: { lat: 20.8502, lng: 86.3361, name: "Jajpur Town Bus Stand" } }
+        ],
+        landmarks: [
+            { name: 'Jajpur Road', type: 'locality' },
+            { name: 'Vyasanagar', type: 'locality' },
+            { name: 'Chorda Bypass', type: 'locality' },
+            { name: 'NC College Road', type: 'locality' },
+            { name: 'Biraja Temple', type: 'locality' },
+            { name: 'Jajpur Town', type: 'locality' },
+            { name: 'Jajpur', type: 'locality' }
+        ]
+    },
+    khorda: {
+        id: "khorda",
+        name: "Khorda",
+        active: true,
+        heroTitle: "Find Your Comfortable Stay in Bhubaneswar & Khorda",
+        heroSubtitle: "Mess Dhundo, Ghar Baithe",
+        gpsCenter: { lat: 20.2961, lng: 85.8245 },
+        cities: [
+            { 
+                id: "bhubaneswar", 
+                name: "Bhubaneswar", 
+                busStand: { lat: 20.2785, lng: 85.7946, name: "Baramunda ISBT Bus Stand" },
+                landmarks: [
+                    'Patia', 'Khandagiri', 'Jayadev Vihar', 'Saheed Nagar', 'Nayapalli',
+                    'Chandrasekharpur', 'Master Canteen', 'Baramunda', 'Acharya Vihar',
+                    'Rasulgarh', 'Infocity', 'Kalinga Nagar', 'Vani Vihar', 'Old Town',
+                    'Bhubaneswar'
+                ]
+            },
+            { 
+                id: "khordha_town", 
+                name: "Khordha Town", 
+                busStand: { lat: 20.1813, lng: 85.6178, name: "Khorda New Bus Stand" },
+                landmarks: [
+                    'Khorda New Bus Stand', 'Khorda Old Bus Stand', 'Gurujang',
+                    'Collectorate Road', 'Khordha Road Junction', 'Khorda Town'
+                ]
+            }
+        ],
+        landmarks: [
+            { name: 'Patia', type: 'locality' },
+            { name: 'Khandagiri', type: 'locality' },
+            { name: 'Jayadev Vihar', type: 'locality' },
+            { name: 'Saheed Nagar', type: 'locality' },
+            { name: 'Nayapalli', type: 'locality' },
+            { name: 'Chandrasekharpur', type: 'locality' },
+            { name: 'Master Canteen', type: 'locality' },
+            { name: 'Baramunda', type: 'locality' },
+            { name: 'Acharya Vihar', type: 'locality' },
+            { name: 'Rasulgarh', type: 'locality' },
+            { name: 'Infocity', type: 'locality' },
+            { name: 'Kalinga Nagar', type: 'locality' },
+            { name: 'Vani Vihar', type: 'locality' },
+            { name: 'Old Town', type: 'locality' },
+            { name: 'Bhubaneswar', type: 'locality' },
+            { name: 'Khorda New Bus Stand', type: 'locality' },
+            { name: 'Gurujang', type: 'locality' },
+            { name: 'Khorda Town', type: 'locality' }
+        ]
     }
 };
 
@@ -72,20 +143,25 @@ export const DISTRICTS_CONFIG = {
  * Build a static fallback localitiesConfig from DISTRICTS_CONFIG.
  * Shape: { cityId: ['Locality A', 'Locality B', ...] }
  * For districts where multiple cities share the same landmark pool,
- * we assign all district landmarks to every city in that district.
+ * we assign all district landmarks to every city in that district unless
+ * city-specific landmarks are explicitly specified.
  */
 const buildFallbackLocalities = () => {
     const map = {};
     Object.values(DISTRICTS_CONFIG).forEach(district => {
-        const names = (district.landmarks || []).map(l => l.name);
+        const districtLandmarks = (district.landmarks || []).map(l => l.name);
         district.cities.forEach(city => {
-            map[city.id] = names;
+            if (city.landmarks && Array.isArray(city.landmarks)) {
+                map[city.id] = city.landmarks.map(l => typeof l === 'string' ? l : l.name);
+            } else {
+                map[city.id] = districtLandmarks;
+            }
         });
     });
     return map;
 };
 
-const FALLBACK_LOCALITIES = buildFallbackLocalities();
+export const FALLBACK_LOCALITIES = buildFallbackLocalities();
 
 export const getCitiesForDistrict = (districtId) => {
     return DISTRICTS_CONFIG[districtId]?.cities || [];

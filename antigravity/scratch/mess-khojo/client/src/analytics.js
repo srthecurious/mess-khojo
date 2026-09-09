@@ -50,7 +50,7 @@ export const initializeAnalytics = () => {
                 }
             }).catch(err => {
                 if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
-                    try { window.clarity("set", "app_version", APP_VERSION); } catch (_) {}
+                    try { window.clarity("set", "app_version", APP_VERSION); } catch (e) { void e; }
                 } else {
                     console.warn('⚠️ Microsoft Clarity SDK load note:', err?.message || err);
                 }
@@ -231,7 +231,7 @@ export const identifyUser = (userId, properties) => {
                 }
             }).catch(() => {
                 if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
-                    try { window.clarity("identify", userId, properties); } catch (_) {}
+                    try { window.clarity("identify", userId, properties); } catch (e) { void e; }
                 }
             });
         } else {

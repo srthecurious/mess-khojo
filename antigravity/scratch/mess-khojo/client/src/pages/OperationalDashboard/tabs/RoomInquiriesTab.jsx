@@ -8,9 +8,19 @@ import ConfirmDeleteModal from '../../../components/ConfirmDeleteModal';
 import { getSuggestions } from '../../../utils/suggestionEngine';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 
+const formatCityDisplay = (city) => {
+    if (!city) return '';
+    if (city === 'baleshwar') return 'Balasore';
+    if (city === 'jajpur_road') return 'Jajpur Road';
+    if (city === 'jajpur_town') return 'Jajpur Town';
+    if (city === 'bhubaneswar') return 'Bhubaneswar';
+    if (city === 'khordha_town') return 'Khordha Town';
+    return city.charAt(0).toUpperCase() + city.slice(1);
+};
+
 const getSuggestionsText = (inquiry, suggestions) => {
     let msg = `Hello ${inquiry.name || 'there'},\n\n`;
-    msg += `Based on your request on MessKhojo, here are the best rooms matching your preferences in ${inquiry.city ? (inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)) : ''}:\n\n`;
+    msg += `Based on your request on MessKhojo, here are the best rooms matching your preferences in ${formatCityDisplay(inquiry.city)}:\n\n`;
 
     suggestions.forEach((mess, idx) => {
         msg += `${idx + 1}. ${mess.name}\n`;
@@ -314,6 +324,10 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
         }
     };
 
+    const handleDeleteFeedbackLog = (group) => {
+        setDeletingFeedbackGroup(group);
+    };
+
     // Clear/Delete Call Feedback Log for a group
     const confirmDeleteFeedbackLog = async () => {
         if (!deletingFeedbackGroup) return;
@@ -346,7 +360,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
             setFeedbackModalGroup(null);
         } catch (err) {
             console.error("Failed to delete feedback log:", err);
-            alert("Failed to delete feedback log");
+            alert("Failed to delete feedback log: " + err.message);
         } finally {
             setIsDeletingFeedback(false);
         }
@@ -367,7 +381,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
 
             // 1. If looking for Balasore / Baleshwar: include all messes except those explicitly belonging to other districts
             if (rawCity === 'baleshwar' || rawCity.includes('balasore') || rawCity.includes('remuna')) {
-                if (mDist === 'bhadrak' || mDist === 'mayurbhanj' || mDist === 'cuttack' || mDist === 'bhubaneswar' || mDist === 'puril') {
+                if (mDist === 'bhadrak' || mDist === 'mayurbhanj' || mDist === 'jajpur' || mDist === 'cuttack' || mDist === 'bhubaneswar' || mDist === 'khorda' || mDist === 'khordha' || mDist === 'puril') {
                     return false;
                 }
                 return true;
@@ -381,6 +395,16 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
             // 3. If looking for Bhadrak / Basudevpur:
             if (rawCity.includes('bhadrak') || rawCity.includes('basudevpur')) {
                 return mDist === 'bhadrak' || mDist === 'basudevpur' || mAddr.includes('bhadrak') || mAddr.includes('basudevpur') || mLand.includes('bhadrak');
+            }
+
+            // 4. If looking for Jajpur / Jajpur Road / Jajpur Town / Vyasanagar:
+            if (rawCity.includes('jajpur') || rawCity.includes('vyasanagar')) {
+                return mDist === 'jajpur' || mDist.includes('jajpur') || mAddr.includes('jajpur') || mAddr.includes('vyasanagar') || mLand.includes('jajpur') || mLand.includes('vyasanagar');
+            }
+
+            // 5. If looking for Bhubaneswar / Khorda:
+            if (rawCity.includes('bhubaneswar') || rawCity.includes('khorda') || rawCity.includes('khordha')) {
+                return mDist === 'khorda' || mDist === 'khordha' || mDist === 'bhubaneswar' || mAddr.includes('bhubaneswar') || mAddr.includes('khorda') || mAddr.includes('khordha') || mLand.includes('bhubaneswar');
             }
 
             // Fallback fuzzy match
@@ -690,7 +714,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                         <option value="all" style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>All Cities</option>
                         {uniqueCities.map(cityName => (
                             <option key={cityName} value={cityName} style={{ backgroundColor: '#1e293b', color: '#f1f5f9' }}>
-                                {cityName === 'baleshwar' ? 'Balasore' : cityName.charAt(0).toUpperCase() + cityName.slice(1)}
+                                {formatCityDisplay(cityName)}
                             </option>
                         ))}
                     </select>
@@ -708,7 +732,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                         const inquiry = group.latest;
                         const isExpanded = expandedInquiryId === group.id;
                         const suggestions = isExpanded ? getSuggestions(inquiry, messes, rooms) : [];
-                        const cityNameDisplay = inquiry.city ? (inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)) : '';
+                        const cityNameDisplay = formatCityDisplay(inquiry.city);
                         return (
                             <div key={group.id} className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-sm relative group hover:border-slate-600 transition-colors flex flex-col justify-between">
                                 <div>
@@ -873,7 +897,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                             {expandedHistoryId === group.id && (
                                                 <div className="mt-2 space-y-2 max-h-40 overflow-y-auto pr-1 border-t border-slate-700/50 pt-2 animate-fadeIn">
                                                     {group.all.slice(1).map(oldInq => {
-                                                        const oldCityDisplay = oldInq.city ? (oldInq.city === 'baleshwar' ? 'Balasore' : oldInq.city.charAt(0).toUpperCase() + oldInq.city.slice(1)) : '';
+                                                        const oldCityDisplay = formatCityDisplay(oldInq.city);
                                                         return (
                                                             <div key={oldInq.id} className="text-xs p-2.5 bg-slate-900/60 border border-slate-700/60 rounded-lg space-y-1 relative group/history">
                                                                 <button
@@ -1313,7 +1337,7 @@ const RoomInquiriesTab = ({ roomInquiries, messes, rooms }) => {
                                     <div className="space-y-1.5">
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] text-slate-400">
-                                                Messes in <strong className="text-white">{feedbackModalGroup?.latest?.city ? (feedbackModalGroup.latest.city === 'baleshwar' ? 'Balasore' : feedbackModalGroup.latest.city) : 'City'}</strong> ({filteredCityMesses.length} found):
+                                                Messes in <strong className="text-white">{feedbackModalGroup?.latest?.city ? formatCityDisplay(feedbackModalGroup.latest.city) : 'City'}</strong> ({filteredCityMesses.length} found):
                                             </span>
                                             <button
                                                 type="button"

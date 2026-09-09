@@ -32,12 +32,13 @@ import HeroAdsTab from './OperationalDashboard/tabs/HeroAdsTab';
 import OwnerCallsTab from './OperationalDashboard/tabs/OwnerCallsTab';
 import LocalitiesTab from './OperationalDashboard/tabs/LocalitiesTab';
 import TeamManagementTab from './AdminDashboard/tabs/TeamManagementTab';
+import { ROOM_SPECIFICITY_OPTIONS } from './MessRegistration';
 
 // Hooks
 import { useOperationalData } from './OperationalDashboard/hooks/useOperationalData';
 import { useHeroAds } from './OperationalDashboard/hooks/useHeroAds';
 import { useTeamData } from '../hooks/useTeamData';
-import { backfillRoomDistricts } from '../utils/migrations';
+import { backfillRoomDistricts, mergeMessChargesAndFacilities, mergeAllMessData, syncBhubaneswarLocalities } from '../utils/migrations';
 
 const compressImage = async (file) => {
     const options = {
@@ -203,6 +204,40 @@ const OperationalDashboard = () => {
                     }
                 }
 
+                // Resolve legacy maintenance
+                let initialMf = item.maintenanceFee || 'Included';
+                let initialMfAmt = item.maintenanceFeeAmount || '';
+                const legacyMaintTaken = item.maintenanceCharge && typeof item.maintenanceCharge === 'object' &&
+                    (item.maintenanceCharge.taken === true || item.maintenanceCharge.taken === 'true' || Number(item.maintenanceCharge.amount) > 0);
+                if (legacyMaintTaken) {
+                    initialMf = 'Extra Charge';
+                    if (!initialMfAmt && item.maintenanceCharge.amount) initialMfAmt = String(item.maintenanceCharge.amount);
+                } else if (!item.maintenanceFee && item.maintenanceCharge && item.maintenanceCharge.taken === false) {
+                    initialMf = 'Included';
+                }
+
+                // Resolve advance payment
+                let initialAdv = 'No Advance';
+                let initialAdvCustom = '';
+                if (typeof item.advancePayment === 'string' && item.advancePayment) {
+                    initialAdv = item.advancePayment;
+                    initialAdvCustom = item.advancePaymentCustom || '';
+                } else if (item.advancePayment && typeof item.advancePayment === 'object') {
+                    const apType = item.advancePayment.type;
+                    if (apType === '1 Month' || apType === '1 Month Rent') initialAdv = '1 Month';
+                    else if (apType === '2 Months') initialAdv = '2 Months';
+                    else if (apType === 'None') initialAdv = 'No Advance';
+                    else if (apType === 'Custom Amount' || apType === 'Custom') {
+                        initialAdv = 'Custom';
+                        initialAdvCustom = String(item.advancePayment.customAmount || item.advancePaymentCustom || '');
+                    } else if (apType) initialAdv = apType;
+                }
+
+                // Resolve living services booleans
+                const initialWifi = item.wifi !== undefined ? Boolean(item.wifi) : (item.amenities?.wifi || (Array.isArray(item.facilities) && item.facilities.includes('Wifi')) || false);
+                const initialPower = item.powerBackup !== undefined ? (typeof item.powerBackup === 'boolean' ? item.powerBackup : Boolean(item.powerBackup)) : (item.amenities?.inverter || (Array.isArray(item.facilities) && item.facilities.includes('InverterPower')) || false);
+                const initialCctv = item.cctv !== undefined ? Boolean(item.cctv) : (item.amenities?.cctv || (Array.isArray(item.facilities) && item.facilities.includes('CCTV')) || (typeof item.security === 'string' && item.security.toLowerCase().includes('cctv')) || false);
+
                 setEditForm({
                     name: item.name || '',
                     district: item.district || 'balasore', // Operator CAN change district
@@ -232,17 +267,77 @@ const OperationalDashboard = () => {
                     description: item.description || '',
                     sponsorRank: item.sponsorRank || '',
                     rentCycle: item.rentCycle || 'monthly',
-                    minStayDuration: item.minStayDuration || 1
+                    minStayDuration: item.minStayDuration || 1,
+
+                    // Page 3: Food & Facilities
+                    foodAvailability: item.foodAvailability || 'Food Available',
+                    mealsPerDay: item.mealsPerDay || '3 Meals',
+                    foodType: item.foodType || 'Veg + Non-Veg',
+                    waterFacility: item.waterFacility || 'Both',
+                    laundryFacility: item.laundryFacility || 'Washing Machine',
+                    cleaningService: item.cleaningService || 'Both',
+                    wifi: initialWifi,
+                    powerBackup: initialPower,
+                    cctv: initialCctv,
+                    wardenWatchman: item.wardenWatchman ?? false,
+                    extraSpace: item.extraSpace || [],
+
+                    // Page 4: Charges & Policies
+                    securityDeposit: item.securityDeposit || 'No Deposit',
+                    securityDepositCustom: item.securityDepositCustom || '',
+                    advancePayment: initialAdv,
+                    advancePaymentCustom: initialAdvCustom,
+                    electricityBill: item.electricityBill || 'Included in Rent',
+                    electricityBillAmount: item.electricityBillAmount || '',
+                    maintenanceFee: initialMf,
+                    maintenanceFeeAmount: initialMfAmt,
+                    cleaningCharges: item.cleaningCharges || 'Included in Rent',
+                    cleaningChargesAmount: item.cleaningChargesAmount || '',
+                    foodBill: item.foodBill || 'Included in Rent',
+                    utensilsCharges: item.utensilsCharges || 'Provided',
+                    noticePeriod: item.noticePeriod || '1 Month',
+                    noticePeriodCustom: item.noticePeriodCustom || '',
+                    operatingSince: item.operatingSince || ''
                 });
             } else {
+                let initialSpecificity = item.specificity || '';
+                let initialCustom = item.specificityCustom || '';
+                const rawCat = (item.category || '').trim();
+
+                if (!initialSpecificity && rawCat) {
+                    if (rawCat.includes('(')) {
+                        const extracted = rawCat.split('(')[1].replace(')', '').trim();
+                        if (ROOM_SPECIFICITY_OPTIONS.includes(extracted)) {
+                            initialSpecificity = extracted;
+                        } else {
+                            initialSpecificity = 'Other';
+                            initialCustom = extracted;
+                        }
+                    } else if (ROOM_SPECIFICITY_OPTIONS.includes(rawCat)) {
+                        initialSpecificity = rawCat;
+                    } else {
+                        const occStr = `${item.occupancy || ''} seater`.toLowerCase();
+                        if (rawCat.toLowerCase() !== occStr && rawCat.toLowerCase() !== `${item.occupancy || ''}`.toLowerCase()) {
+                            initialSpecificity = 'Other';
+                            initialCustom = rawCat;
+                        } else {
+                            initialSpecificity = 'Standard Non-AC';
+                        }
+                    }
+                } else if (!initialSpecificity) {
+                    initialSpecificity = 'Standard Non-AC';
+                }
+
                 setEditForm({
-                    occupancy: item.occupancy || '1',
-                    category: item.category || '',
+                    occupancy: item.occupancy ? String(item.occupancy) : '1',
+                    specificity: initialSpecificity,
+                    specificityCustom: initialCustom,
+                    category: rawCat,
                     price: item.price || '',
-                    availableCount: item.availableCount || 0,
-                    totalInventory: item.totalInventory || 1,
+                    availableCount: item.availableCount !== undefined ? item.availableCount : (item.available ? 1 : 0),
+                    totalInventory: item.totalInventory !== undefined ? item.totalInventory : 1,
                     otherInfo: item.otherInfo || '',
-                    amenities: item.amenities || { ac: false, attachedBathroom: false },
+                    amenities: item.amenities || { ac: item.ac || false, attachedBathroom: item.attachedBathroom || false },
                     imageUrls: item.imageUrls || (item.imageUrl ? [item.imageUrl] : [])
                 });
             }
@@ -311,14 +406,39 @@ const OperationalDashboard = () => {
                 const { sponsorRank, ...restEditForm } = editForm;
                 const finalSponsorRank = sponsorRank ? Number(sponsorRank) : null;
 
+                const resolvedNoticePeriod = editForm.noticePeriod === 'Other'
+                    ? (editForm.noticePeriodCustom || '').trim() || 'Other'
+                    : editForm.noticePeriod;
+
+                const isMaintExtra = editForm.maintenanceFee === 'Extra Charge';
+                const maintAmount = isMaintExtra ? (editForm.maintenanceFeeAmount || '').trim() : '';
+                const legacyMaintenanceCharge = {
+                    taken: isMaintExtra,
+                    amount: maintAmount,
+                    frequency: 'monthly'
+                };
+
+                const legacyAdvancePayment = {
+                    type: editForm.advancePayment === 'Custom' ? 'Custom Amount' : (editForm.advancePayment === 'No Advance' ? 'None' : (editForm.advancePayment || 'None')),
+                    customAmount: editForm.advancePayment === 'Custom' ? (editForm.advancePaymentCustom || '') : ''
+                };
+
                 await updateDoc(doc(db, "messes", editingItem.id), {
                     ...restEditForm,
+                    noticePeriod: resolvedNoticePeriod || '',
                     sponsorRank: finalSponsorRank,
                     posterUrl,
                     galleryUrls: downloadURLs,
                     lastUpdatedDate: editForm.isUserSourced ? editForm.lastUpdatedDate : null,
-                    advancePayment: null,
-                    maintenanceCharge: null
+                    maintenanceFee: editForm.maintenanceFee || 'Included',
+                    maintenanceFeeAmount: maintAmount,
+                    maintenanceCharge: legacyMaintenanceCharge,
+                    advancePayment: editForm.advancePayment || 'No Advance',
+                    advancePaymentCustom: editForm.advancePayment === 'Custom' ? (editForm.advancePaymentCustom || '') : '',
+                    advancePaymentObj: legacyAdvancePayment,
+                    wifi: Boolean(editForm.wifi),
+                    powerBackup: Boolean(editForm.powerBackup),
+                    cctv: Boolean(editForm.cctv)
                 });
             } else {
                 let downloadURLs = editForm.imageUrls ? [...editForm.imageUrls] : [];
@@ -339,8 +459,35 @@ const OperationalDashboard = () => {
                     return;
                 }
 
+                const occLabel = `${editForm.occupancy} Seater`;
+                const resolvedSpecificity = editForm.specificity === 'Other'
+                    ? (editForm.specificityCustom || '').trim() || 'Other'
+                    : (editForm.specificity || 'Standard Non-AC');
+
+                let finalCategory = (editForm.category || '').trim();
+                if (!finalCategory || finalCategory.toLowerCase() === occLabel.toLowerCase() || finalCategory.toLowerCase() === 'standard') {
+                    finalCategory = resolvedSpecificity && resolvedSpecificity !== 'Standard Non-AC'
+                        ? `${occLabel} (${resolvedSpecificity})`
+                        : `${occLabel} (Standard Non-AC)`;
+                }
+
+                const isAttached = resolvedSpecificity?.toLowerCase().includes('attached');
+                const isAC = resolvedSpecificity?.toLowerCase().includes('ac') && !resolvedSpecificity?.toLowerCase().includes('non-ac');
+
+                const finalAmenities = {
+                    ...(editForm.amenities || {}),
+                    attachedBathroom: isAttached ? true : (editForm.amenities?.attachedBathroom || false),
+                    ac: isAC ? true : (editForm.amenities?.ac || false)
+                };
+
                 const finalRoomData = {
                     ...editForm,
+                    occupancy: String(editForm.occupancy),
+                    specificity: resolvedSpecificity,
+                    specificityCustom: editForm.specificity === 'Other' ? (editForm.specificityCustom || '') : '',
+                    category: finalCategory,
+                    amenities: finalAmenities,
+                    otherInfo: editForm.otherInfo || '',
                     price: Number(editForm.price) || 0,
                     availableCount: Number(editForm.availableCount) || 0,
                     totalInventory: Number(editForm.totalInventory) || 1,
@@ -566,6 +713,84 @@ const OperationalDashboard = () => {
         }
     };
 
+    const handleMergeMessCharges = async () => {
+        setMigrationStatus({ loading: true, msg: 'Comparing and merging mess charges in Firebase...', type: 'info' });
+        try {
+            const result = await mergeMessChargesAndFacilities();
+            if (result.success) {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Charges & facilities merge successful: ${result.count} messes updated, ${result.skipped} already up to date. (Electricity: ${result.stats.electricityBill}, Maintenance: ${result.stats.maintenanceFee}, Cleaning: ${result.stats.cleaningCharges}, Deposits: ${result.stats.securityDeposit})`,
+                    type: 'success'
+                });
+            } else {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Merge failed: ${result.error?.message || 'Unknown error'}`,
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error("Merge failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
+    const handleForceRemergeAllFields = async () => {
+        if (!window.confirm("Are you sure you want to perform a Deep Sync & Merge of all mess fields across all messes in Firestore? This will resolve conflicts (e.g. maintenance charges, advance rent, living services) and update both new and legacy formats.")) return;
+
+        setMigrationStatus({ loading: true, msg: 'Starting deep merge across all messes in Firestore...', type: 'info' });
+        try {
+            const result = await mergeAllMessData((progress) => {
+                setMigrationStatus({
+                    loading: true,
+                    msg: `Deep merging mess data: ${progress.current}/${progress.total} processed (${progress.updated} updated)...`,
+                    type: 'info'
+                });
+            });
+
+            if (result.success) {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Deep merge completed! ${result.updatedMesses} of ${result.totalMesses} messes updated (${result.skippedMesses} unchanged). Details -> Maintenance: ${result.stats.maintenanceFee}, Electricity: ${result.stats.electricityBill}, Cleaning: ${result.stats.cleaningCharges}, Food: ${result.stats.foodBill}, Utensils: ${result.stats.utensilsCharges}, Deposits: ${result.stats.securityDeposit}, Advance: ${result.stats.advancePayment}, Services (WiFi/Power/CCTV): ${result.stats.services}`,
+                    type: 'success'
+                });
+            } else {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Deep merge failed: ${result.error?.message || 'Unknown error'}`,
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error("Deep merge failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
+    const handleSyncBhubaneswarLocalities = async () => {
+        setMigrationStatus({ loading: true, msg: 'Syncing Bhubaneswar & Khorda localities to database...', type: 'info' });
+        try {
+            const result = await syncBhubaneswarLocalities();
+            if (result.success) {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Successfully synced ${result.bhubaneswarCount} Bhubaneswar and ${result.khordhaCount} Khordha Town landmarks to Firebase Firestore.`,
+                    type: 'success'
+                });
+            } else {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Sync failed: ${result.error?.message || 'Unknown error'}`,
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error("Bhubaneswar localities sync failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
     const handleSyncAllToSheets = async () => {
         if (!window.confirm("Are you sure you want to sync all 130 active messes to Google Sheets?")) return;
         
@@ -732,12 +957,15 @@ const OperationalDashboard = () => {
                 name: reg.messName,
                 district: reg.district || 'balasore',
                 city: reg.city || '',
-                address: reg.landmark || '',
+                address: reg.address || reg.landmark || '',
                 contact: reg.phoneNumber || '',
                 email: email,
                 messType: reg.messType || [],
                 gender: reg.gender || 'Any',
                 managedBy: reg.managedBy || '',
+                totalBeds: reg.totalBeds || reg.totalRooms || '',
+                totalRooms: reg.totalRooms || reg.totalBeds || '',
+                roomVariants: reg.roomVariants || {},
                 facilities: facilities,
                 amenities: amenitiesObj,
                 includedInRent: includedInRent,
@@ -749,12 +977,46 @@ const OperationalDashboard = () => {
                 latitude: reg.gpsLatitude ? Number(reg.gpsLatitude) : null,
                 longitude: reg.gpsLongitude ? Number(reg.gpsLongitude) : null,
                 gpsAccuracy: reg.gpsAccuracy || null,
-                landmark: reg.landmark || '',
+                locality: reg.locality || reg.landmark || '',
+                landmark: reg.locality || reg.landmark || '',
                 isVerified: true,
                 isUserSourced: false,
                 createdAt: serverTimestamp(),
                 rentCycle: reg.rentCycle || 'monthly',
-                minStayDuration: reg.minStayDuration || 1
+                minStayDuration: reg.minStayDuration || 1,
+
+                // Page 3: Food & Facilities
+                foodAvailability: reg.foodAvailability || '',
+                mealsPerDay: reg.mealsPerDay || '',
+                foodType: reg.foodType || '',
+                waterFacility: reg.waterFacility || '',
+                laundryFacility: reg.laundryFacility || '',
+                cleaningService: reg.cleaningService || '',
+                wifi: reg.wifi ?? false,
+                powerBackup: reg.powerBackup ?? false,
+                cctv: reg.cctv ?? false,
+                wardenWatchman: reg.wardenWatchman ?? false,
+                extraSpace: reg.extraSpace || [],
+
+                // Page 4: Charges & Details
+                securityDeposit: reg.securityDeposit || '',
+                securityDepositCustom: reg.securityDepositCustom || '',
+                electricityBill: reg.electricityBill || '',
+                electricityBillAmount: reg.electricityBillAmount || '',
+                maintenanceFee: reg.maintenanceFee || '',
+                maintenanceFeeAmount: reg.maintenanceFeeAmount || '',
+                cleaningCharges: reg.cleaningCharges || '',
+                cleaningChargesAmount: reg.cleaningChargesAmount || '',
+                foodBill: reg.foodBill || '',
+                utensilsCharges: reg.utensilsCharges || '',
+                noticePeriod: reg.noticePeriod || '',
+                noticePeriodCustom: reg.noticePeriodCustom || '',
+                operatingSince: reg.operatingSince || '',
+
+                // Media
+                posterUrl: (reg.buildingPhotoUrls && reg.buildingPhotoUrls[0]) || (reg.galleryUrls && reg.galleryUrls[0]) || '',
+                buildingPhotoUrls: reg.buildingPhotoUrls || [],
+                galleryUrls: reg.galleryUrls || []
             };
 
             const messDocRef = await addDoc(collection(db, "messes"), messDocData);
@@ -779,6 +1041,9 @@ const OperationalDashboard = () => {
                     return reg.roomVariants[roomType].map(variant => {
                         const label = variant.label ? variant.label.trim() : '';
                         const category = label ? `${roomType} (${label})` : roomType;
+                        const variantMedia = (variant.mediaUrls || [])
+                            .map(m => typeof m === 'string' ? m : m.url)
+                            .filter(Boolean);
                         return addDoc(collection(db, "rooms"), {
                             messId: messDocRef.id,
                             messName: reg.messName,
@@ -790,8 +1055,8 @@ const OperationalDashboard = () => {
                             totalInventory: 1,
                             availableCount: variant.isVacant ? 1 : 0,
                             amenities: { ac: facilities.includes('AC') || label.toLowerCase().includes('ac'), attachedBathroom: false },
-                            imageUrls: [],
-                            imageUrl: '',
+                            imageUrls: variantMedia,
+                            imageUrl: variantMedia[0] || '',
                             createdAt: serverTimestamp(),
                             rentCycle: reg.rentCycle || 'monthly',
                             minStayDuration: reg.minStayDuration || 1
@@ -842,12 +1107,40 @@ const OperationalDashboard = () => {
                         messName: reg.messName || 'N/A',
                         phoneNumber: reg.phoneNumber || 'N/A',
                         district: reg.district || 'balasore',
+                        city: reg.city || '',
+                        locality: reg.locality || reg.landmark || '',
+                        address: reg.address || '',
                         messType: reg.messType || [],
+                        gender: reg.gender || (Array.isArray(reg.messType) ? reg.messType[0] : 'Boys'),
+                        managedBy: reg.managedBy || '',
+                        totalBeds: reg.totalBeds || reg.totalRooms || '',
+                        foodAvailability: reg.foodAvailability || '',
+                        mealsPerDay: reg.mealsPerDay || '',
+                        foodType: reg.foodType || '',
+                        waterFacility: reg.waterFacility || '',
+                        laundryFacility: reg.laundryFacility || '',
+                        cleaningService: reg.cleaningService || '',
+                        wifi: !!reg.wifi,
+                        powerBackup: !!reg.powerBackup,
+                        cctv: !!reg.cctv,
+                        wardenWatchman: !!reg.wardenWatchman,
+                        extraSpace: reg.extraSpace || [],
+                        rentCycle: reg.rentCycle || 'monthly',
+                        securityDeposit: reg.securityDeposit || '',
+                        advancePayment: reg.advancePayment?.type || (typeof reg.advancePayment === 'string' ? reg.advancePayment : ''),
+                        electricityBill: reg.electricityBill || '',
+                        electricityBillAmount: reg.electricityBillAmount || '',
+                        maintenanceFee: reg.maintenanceFee || '',
+                        cleaningCharges: reg.cleaningCharges || '',
+                        cleaningChargesAmount: reg.cleaningChargesAmount || '',
+                        foodBill: reg.foodBill || '',
+                        utensilsCharges: reg.utensilsCharges || '',
+                        noticePeriod: reg.noticePeriod || '',
+                        operatingSince: reg.operatingSince || '',
                         roomTypes: roomTypes,
                         roomVariants: reg.roomVariants || {},
-                        landmark: reg.landmark || '',
+                        landmark: reg.locality || reg.landmark || '',
                         facilities: facilities,
-                        rentCycle: reg.rentCycle || 'monthly',
                         gpsLatitude: reg.gpsLatitude || null,
                         gpsLongitude: reg.gpsLongitude || null,
                         createdAt: new Date().toISOString()
@@ -949,6 +1242,8 @@ const OperationalDashboard = () => {
             if ((inqCity === 'baripada' || inqLoc.includes('baripada')) && target === 'mayurbhanj') return true;
             if ((inqCity === 'baleshwar' || inqCity === 'remuna' || inqCity === 'balasore' || inqLoc.includes('balasore')) && target === 'balasore') return true;
             if ((inqCity === 'bhadrak' || inqCity === 'basudevpur' || inqLoc.includes('bhadrak')) && target === 'bhadrak') return true;
+            if ((inqCity === 'jajpur' || inqCity === 'jajpur_road' || inqCity === 'jajpur_town' || inqCity === 'vyasanagar' || inqLoc.includes('jajpur')) && target === 'jajpur') return true;
+            if ((inqCity === 'bhubaneswar' || inqCity === 'khordha_town' || inqCity === 'khorda' || inqLoc.includes('bhubaneswar') || inqLoc.includes('khorda') || inqLoc.includes('khordha')) && (target === 'khorda' || target === 'khordha')) return true;
 
             return false;
         }),
@@ -1348,6 +1643,9 @@ const OperationalDashboard = () => {
                             updatePasswordStatus={updatePasswordStatus} updatePartnerEmail={updatePartnerEmail} setUpdatePartnerEmail={setUpdatePartnerEmail} 
                             updatePartnerPassword={updatePartnerPassword} setUpdatePartnerPassword={setUpdatePartnerPassword} handleUpdatePassword={handleUpdatePassword} 
                             migrationStatus={migrationStatus} handleMigratePartners={handleMigratePartners} handleBackfillDistricts={handleBackfillDistricts} handleSyncACAmenities={handleSyncACAmenities}
+                            handleMergeMessCharges={handleMergeMessCharges}
+                            handleForceRemergeAllFields={handleForceRemergeAllFields}
+                            handleSyncBhubaneswarLocalities={handleSyncBhubaneswarLocalities}
                             sheetsSyncStatus={sheetsSyncStatus} handleSyncAllToSheets={handleSyncAllToSheets}
                         />
                     )}
@@ -1610,7 +1908,357 @@ const OperationalDashboard = () => {
                                                 amenities: { ...editForm.amenities, [key]: checked }
                                             })}
                                             color="indigo"
+                                            theme="dark"
                                         />
+                                    </div>
+
+                                    {/* Food & Living Services (Page 3) */}
+                                    <div className="space-y-4 pt-4 border-t border-slate-700 text-left">
+                                        <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-wider border-b border-slate-700 pb-1">
+                                            Food & Living Services
+                                        </h4>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Food Availability</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.foodAvailability || 'Food Available'}
+                                                    onChange={e => setEditForm({ ...editForm, foodAvailability: e.target.value })}
+                                                >
+                                                    <option value="Food Available">Food Available</option>
+                                                    <option value="Self Cook">Self Cook Only</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Meals Per Day</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.mealsPerDay || '3 Meals'}
+                                                    onChange={e => setEditForm({ ...editForm, mealsPerDay: e.target.value })}
+                                                >
+                                                    <option value="1 Meal">1 Meal</option>
+                                                    <option value="2 Meals">2 Meals</option>
+                                                    <option value="3 Meals">3 Meals</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Food Type</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.foodType || 'Veg + Non-Veg'}
+                                                    onChange={e => setEditForm({ ...editForm, foodType: e.target.value })}
+                                                >
+                                                    <option value="Veg Only">Veg Only</option>
+                                                    <option value="Non-Veg">Non-Veg</option>
+                                                    <option value="Veg + Non-Veg">Veg + Non-Veg</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Water Facility</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.waterFacility || 'Both'}
+                                                    onChange={e => setEditForm({ ...editForm, waterFacility: e.target.value })}
+                                                >
+                                                    <option value="Water Filter">Water Filter</option>
+                                                    <option value="Tubewell">Tubewell</option>
+                                                    <option value="Borewell">Borewell</option>
+                                                    <option value="Municipal">Municipal Water</option>
+                                                    <option value="Both">Both</option>
+                                                    <option value="None">None</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Laundry Facility</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.laundryFacility || 'Washing Machine'}
+                                                    onChange={e => setEditForm({ ...editForm, laundryFacility: e.target.value })}
+                                                >
+                                                    <option value="Washing Machine">Washing Machine</option>
+                                                    <option value="Manual">Manual Wash Only</option>
+                                                    <option value="Both">Both Available</option>
+                                                    <option value="None">None</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Cleaning Service</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.cleaningService || 'Both'}
+                                                    onChange={e => setEditForm({ ...editForm, cleaningService: e.target.value })}
+                                                >
+                                                    <option value="Provided">Provided</option>
+                                                    <option value="None">None</option>
+                                                    <option value="Both">Both</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Essential Amenities */}
+                                        <div className="space-y-2">
+                                            <label className="block text-xs font-bold text-slate-400 uppercase">Essential Amenities</label>
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                {[
+                                                    { key: 'wifi', label: 'Wi-Fi' },
+                                                    { key: 'powerBackup', label: 'Power Backup' },
+                                                    { key: 'cctv', label: 'CCTV' },
+                                                    { key: 'wardenWatchman', label: 'Warden/Watchman' },
+                                                ].map(({ key, label }) => (
+                                                    <label key={key} className="flex items-center gap-2 bg-slate-900 p-2.5 rounded-xl border border-slate-700 cursor-pointer text-xs font-bold text-slate-300 hover:border-slate-600 transition-colors">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!editForm[key]}
+                                                            onChange={e => setEditForm({ ...editForm, [key]: e.target.checked })}
+                                                            className="w-4 h-4 accent-indigo-500 rounded border-slate-700 cursor-pointer"
+                                                        />
+                                                        {label}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Extra Space Options */}
+                                        <div className="space-y-2">
+                                            <label className="block text-xs font-bold text-slate-400 uppercase">Extra Spaces Available</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Parking', 'Terrace', 'Garden', 'Study Room', 'Recreation Area'].map(space => {
+                                                    const current = editForm.extraSpace || [];
+                                                    const isSelected = current.includes(space);
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={space}
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setEditForm({ ...editForm, extraSpace: current.filter(s => s !== space) });
+                                                                } else {
+                                                                    setEditForm({ ...editForm, extraSpace: [...current, space] });
+                                                                }
+                                                            }}
+                                                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                                                                isSelected
+                                                                    ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                                                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:border-slate-600'
+                                                            }`}
+                                                        >
+                                                            {space}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Charges & Policies Breakdown (Page 4) */}
+                                    <div className="space-y-4 pt-4 border-t border-slate-700 text-left">
+                                        <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-wider border-b border-slate-700 pb-1">
+                                            Charges & Policies Breakdown
+                                        </h4>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                            {/* Advance Payment */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Advance Rent Payment</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.advancePayment || 'No Advance'}
+                                                    onChange={e => setEditForm({ ...editForm, advancePayment: e.target.value })}
+                                                >
+                                                    <option value="No Advance">No Advance</option>
+                                                    <option value="1 Month">1 Month</option>
+                                                    <option value="2 Months">2 Months</option>
+                                                    <option value="Custom">Custom Amount</option>
+                                                </select>
+                                                {editForm.advancePayment === 'Custom' && (
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        placeholder="Advance Amount (₹)"
+                                                        value={editForm.advancePaymentCustom || ''}
+                                                        onChange={e => setEditForm({ ...editForm, advancePaymentCustom: e.target.value.replace(/[^0-9]/g, '') })}
+                                                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Security Deposit */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Security Deposit</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.securityDeposit || 'No Deposit'}
+                                                    onChange={e => setEditForm({ ...editForm, securityDeposit: e.target.value })}
+                                                >
+                                                    <option value="No Deposit">No Deposit</option>
+                                                    <option value="1 Month">1 Month</option>
+                                                    <option value="2 Months">2 Months</option>
+                                                    <option value="3 Months">3 Months</option>
+                                                    <option value="Custom">Custom Amount</option>
+                                                </select>
+                                                {editForm.securityDeposit === 'Custom' && (
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Deposit Amount (₹)"
+                                                        value={editForm.securityDepositCustom || ''}
+                                                        onChange={e => setEditForm({ ...editForm, securityDepositCustom: e.target.value })}
+                                                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Electricity Bill */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Electricity Bill</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.electricityBill || 'Included in Rent'}
+                                                    onChange={e => setEditForm({ ...editForm, electricityBill: e.target.value })}
+                                                >
+                                                    <option value="Included in Rent">Included in Rent</option>
+                                                    <option value="As per Meter">As per Meter</option>
+                                                    <option value="Extra Fixed">Extra Fixed Charge</option>
+                                                </select>
+                                                {editForm.electricityBill === 'Extra Fixed' && (
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        placeholder="Fixed Electricity per Month (₹)"
+                                                        value={editForm.electricityBillAmount || ''}
+                                                        onChange={e => setEditForm({ ...editForm, electricityBillAmount: e.target.value.replace(/[^0-9]/g, '') })}
+                                                        onWheel={e => e.target.blur()}
+                                                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Maintenance Fee */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Maintenance Fee</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.maintenanceFee || 'Included'}
+                                                    onChange={e => setEditForm({ ...editForm, maintenanceFee: e.target.value })}
+                                                >
+                                                    <option value="Included">Included</option>
+                                                    <option value="Extra Charge">Extra Charge</option>
+                                                </select>
+                                                {editForm.maintenanceFee === 'Extra Charge' && (
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        placeholder="Fee per Month (₹)"
+                                                        value={editForm.maintenanceFeeAmount || ''}
+                                                        onChange={e => setEditForm({ ...editForm, maintenanceFeeAmount: e.target.value.replace(/[^0-9]/g, '') })}
+                                                        onWheel={e => e.target.blur()}
+                                                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Cleaning Charges */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Cleaning Charges</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.cleaningCharges || 'Included in Rent'}
+                                                    onChange={e => setEditForm({ ...editForm, cleaningCharges: e.target.value })}
+                                                >
+                                                    <option value="Included in Rent">Included in Rent</option>
+                                                    <option value="Extra Charge">Extra Charge</option>
+                                                    <option value="None">None</option>
+                                                </select>
+                                                {editForm.cleaningCharges === 'Extra Charge' && (
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        placeholder="Cleaning Fee per Month (₹)"
+                                                        value={editForm.cleaningChargesAmount || ''}
+                                                        onChange={e => setEditForm({ ...editForm, cleaningChargesAmount: e.target.value.replace(/[^0-9]/g, '') })}
+                                                        onWheel={e => e.target.blur()}
+                                                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Food Bill */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Food Bill</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.foodBill || 'Included in Rent'}
+                                                    onChange={e => setEditForm({ ...editForm, foodBill: e.target.value })}
+                                                >
+                                                    <option value="Included in Rent">Included in Rent</option>
+                                                    <option value="Separate">Separate</option>
+                                                    <option value="Self Cook">Self Cook</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Utensils Charges */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Utensils Charges</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.utensilsCharges || 'Provided'}
+                                                    onChange={e => setEditForm({ ...editForm, utensilsCharges: e.target.value })}
+                                                >
+                                                    <option value="Provided">Provided</option>
+                                                    <option value="Chargeable">Chargeable</option>
+                                                    <option value="Bring Own">Bring Own</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Notice Period */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Notice Period</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.noticePeriod || '1 Month'}
+                                                    onChange={e => setEditForm({ ...editForm, noticePeriod: e.target.value })}
+                                                >
+                                                    <option value="No Notice">No Notice</option>
+                                                    <option value="15 Days">15 Days</option>
+                                                    <option value="1 Month">1 Month</option>
+                                                    <option value="2 Months">2 Months</option>
+                                                    <option value="3 Months">3 Months</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                                {editForm.noticePeriod === 'Other' && (
+                                                    <input
+                                                        type="text"
+                                                        placeholder="e.g. 45 Days"
+                                                        value={editForm.noticePeriodCustom || ''}
+                                                        onChange={e => setEditForm({ ...editForm, noticePeriodCustom: e.target.value })}
+                                                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Operating Since */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Operating Since</label>
+                                                <select
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
+                                                    value={editForm.operatingSince || ''}
+                                                    onChange={e => setEditForm({ ...editForm, operatingSince: e.target.value })}
+                                                >
+                                                    <option value="">Select Year</option>
+                                                    {Array.from({ length: 27 }, (_, i) => 2026 - i).map(year => (
+                                                        <option key={year} value={String(year)}>{year}</option>
+                                                    ))}
+                                                    <option value="Before 2000">Before 2000</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-700 flex flex-col gap-4">
@@ -1693,40 +2341,6 @@ const OperationalDashboard = () => {
                                             </div>
                                         )}
                                     </div>
-
-                                    <div className="pt-2 border-t border-slate-700">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                                            Mess Photo Gallery (Max 15)
-                                        </label>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept="image/*"
-                                            onChange={(e) => setEditGalleryFiles(e.target.files)}
-                                            className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20"
-                                        />
-
-                                        {editForm.galleryUrls?.length > 0 && (
-                                            <div className="mt-4">
-                                                <p className="text-xs text-slate-500 mb-2 font-medium">Current Gallery ({editForm.galleryUrls.length}/15):</p>
-                                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                                                    {editForm.galleryUrls.map((url, idx) => (
-                                                        <div key={idx} className="relative group rounded-md overflow-hidden border border-slate-700 shadow-sm aspect-square bg-slate-900">
-                                                            <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => { e.preventDefault(); setDeletingImageInfo({ type: 'gallery', url: url }); }}
-                                                                className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                title="Remove Image"
-                                                            >
-                                                                <Trash2 size={12} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
                                 </>
                             ) : (
                                 <>
@@ -1755,10 +2369,12 @@ const OperationalDashboard = () => {
                                                 </span>
                                             </label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500"
                                                 value={editForm.price}
-                                                onChange={e => setEditForm({ ...editForm, price: e.target.value })}
+                                                onChange={e => setEditForm({ ...editForm, price: e.target.value.replace(/[^0-9]/g, '') })}
+                                                onWheel={e => e.target.blur()}
                                                 required
                                             />
                                         </div>
@@ -1768,50 +2384,99 @@ const OperationalDashboard = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Total Inventory</label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500"
                                                 value={editForm.totalInventory}
-                                                onChange={e => setEditForm({ ...editForm, totalInventory: e.target.value })}
+                                                onChange={e => setEditForm({ ...editForm, totalInventory: e.target.value.replace(/[^0-9]/g, '') })}
+                                                onWheel={e => e.target.blur()}
                                                 required
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Available Seats/Beds</label>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="numeric"
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500"
                                                 value={editForm.availableCount}
-                                                onChange={e => setEditForm({ ...editForm, availableCount: e.target.value })}
+                                                onChange={e => setEditForm({ ...editForm, availableCount: e.target.value.replace(/[^0-9]/g, '') })}
+                                                onWheel={e => e.target.blur()}
                                                 required
                                             />
                                         </div>
                                     </div>
 
+                                    {/* Specific Room Details / Facilities (As changed in Mess Registration) */}
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Category / Other Info</label>
-                                        <textarea
-                                            placeholder="e.g. Deluxe AC, includes study table"
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500 h-20 resize-none"
+                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">
+                                            <span>Specific Room Details (Facilities)</span>
+                                            <span className="text-[10px] text-cyan-400 font-medium">Matches Mess Registration</span>
+                                        </label>
+                                        <select
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer text-sm"
+                                            value={editForm.specificity || 'Standard Non-AC'}
+                                            onChange={e => {
+                                                const sel = e.target.value;
+                                                const isAttached = sel.toLowerCase().includes('attached');
+                                                const isAC = sel.toLowerCase().includes('ac') && !sel.toLowerCase().includes('non-ac');
+                                                const updatedAmenities = {
+                                                    ...(editForm.amenities || {}),
+                                                    attachedBathroom: isAttached ? true : (editForm.amenities?.attachedBathroom || false),
+                                                    ac: isAC ? true : (editForm.amenities?.ac || false)
+                                                };
+                                                setEditForm({
+                                                    ...editForm,
+                                                    specificity: sel,
+                                                    amenities: updatedAmenities
+                                                });
+                                            }}
+                                        >
+                                            {ROOM_SPECIFICITY_OPTIONS.map(opt => (
+                                                <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
+                                            ))}
+                                        </select>
+
+                                        {/* If 'Other' is selected, custom text input */}
+                                        {editForm.specificity === 'Other' && (
+                                            <input
+                                                type="text"
+                                                placeholder="Enter custom room details (e.g. Attached Washroom, Balcony)"
+                                                className="w-full mt-2 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:ring-2 focus:ring-cyan-500 text-xs"
+                                                value={editForm.specificityCustom || ''}
+                                                onChange={e => setEditForm({ ...editForm, specificityCustom: e.target.value })}
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Display Title / Category */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                            Room Category / Display Title
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder={`e.g. ${editForm.occupancy} Seater (${editForm.specificity === 'Other' ? (editForm.specificityCustom || 'Custom') : (editForm.specificity || 'Standard Non-AC')})`}
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500 text-sm"
                                             value={editForm.category}
                                             onChange={e => setEditForm({ ...editForm, category: e.target.value })}
                                         />
+                                        <p className="text-[10px] text-slate-500 mt-1">
+                                            Will display as title/badge across student listings and details.
+                                        </p>
                                     </div>
 
+                                    {/* Additional Room Info / Notes */}
                                     <div>
-                                        <MultiSelectDropdown
-                                            label="Room Amenities"
-                                            options={[
-                                                { key: 'ac', label: 'AC' },
-                                                { key: 'attachedBathroom', label: 'Attached Bathroom' }
-                                            ]}
-                                            selected={editForm.amenities}
-                                            onChange={(key, checked) => setEditForm({
-                                                ...editForm,
-                                                amenities: { ...editForm.amenities, [key]: checked }
-                                            })}
-                                            color="cyan"
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Additional Info / Notes (Optional)</label>
+                                        <textarea
+                                            placeholder="e.g. Includes study table, wardrobe, natural sunlight, near terrace"
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-cyan-500 h-16 resize-none text-xs"
+                                            value={editForm.otherInfo || ''}
+                                            onChange={e => setEditForm({ ...editForm, otherInfo: e.target.value })}
                                         />
                                     </div>
+
 
                                     <div className="pt-2 border-t border-slate-700">
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">

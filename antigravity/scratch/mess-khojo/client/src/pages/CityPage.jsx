@@ -685,7 +685,6 @@ const CityPage = () => {
             window.removeEventListener('scroll', handleScroll);
             clearTimeout(checkInitial);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasMore, displayCount]);
 
     return (

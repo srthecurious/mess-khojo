@@ -7,7 +7,7 @@ import { useWishlist } from '../hooks/useWishlist';
 import { MapPin, Wifi, Zap, CheckCircle, ArrowLeft, BedDouble, Wind, Droplets, Utensils, Star, Shield, Lock, Bell, Heart, Phone, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
-import { trackRoomView, trackBookingInitiated, trackContactOwner, trackAvailabilityInquiry } from '../analytics';
+import { trackRoomView, trackBookingInitiated, trackContactOwner } from '../analytics';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { toMessSlug, toRoomSlug, isSlug, idSuffixFromSlug } from '../utils/slugify';
@@ -50,16 +50,6 @@ const RoomDetails = () => {
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [bookingProcessing, setBookingProcessing] = useState(false);
     const { isRoomWishlisted, toggleRoomWishlist } = useWishlist();
-
-    // Notification / Inquiry State
-    const [showNotifyModal, setShowNotifyModal] = useState(false);
-    const [notifyLoading, setNotifyLoading] = useState(false);
-    const [notifyMessage, setNotifyMessage] = useState(""); // User's custom message
-    const [notifyPhone, setNotifyPhone] = useState(""); // Phone number for availability inquiry
-    const [notifyConsent, setNotifyConsent] = useState(false);
-    const [notifyStep, setNotifyStep] = useState('form'); // 'form' | 'success'
-    const [similarRooms, setSimilarRooms] = useState([]);
-    const [loadingSimilar, setLoadingSimilar] = useState(false);
 
     // Generate Room Structured Schema
     const getRoomSchema = () => {
@@ -218,139 +208,9 @@ const RoomDetails = () => {
         }
     }, [mess, room, messId, roomId]);
 
-    useBodyScrollLock(showNotifyModal || showConfirmModal || showPhoneModal);
+    useBodyScrollLock(showConfirmModal || showPhoneModal);
 
     const [searchParams, setSearchParams] = useSearchParams();
-
-    const handleNotifyClick = () => {
-        if (!currentUser) {
-            const returnUrl = `/room/${messSlug}/${roomSlug}?action=notify`;
-            console.log('🔗 Redirecting to login with return URL:', returnUrl);
-            navigate(`/user-login?redirect=${encodeURIComponent(returnUrl)}`);
-            return;
-        }
-        setNotifyStep('form');
-        setSimilarRooms([]);
-        setShowNotifyModal(true);
-    };
-
-    const handleCloseNotifyModal = () => {
-        setShowNotifyModal(false);
-        setNotifyStep('form');
-        setNotifyMessage("");
-        setNotifyPhone("");
-        setSimilarRooms([]);
-    };
-
-    const fetchSimilarRooms = async () => {
-        setLoadingSimilar(true);
-        try {
-            let results = [];
-            const existingIds = new Set();
-            
-            // 1 & 2. Same Mess, All Available Rooms
-            const q1 = query(
-                collection(db, "rooms"),
-                where("messId", "==", mess.id)
-            );
-            const snap1 = await getDocs(q1);
-            snap1.docs.forEach(d => {
-                if (d.id !== room.id) {
-                    const data = d.data();
-                    if (data.availableCount > 0) {
-                        results.push({ 
-                            id: d.id, 
-                            ...data, 
-                            _sortPriority: data.occupancy === room.occupancy ? 1 : 2 
-                        });
-                        existingIds.add(d.id);
-                    }
-                }
-            });
-
-            // 3. Same Locality (or fallback to Landmark), Same Type (Boys/Girls)
-            // Query locality first; fall back to landmark for messes not yet migrated
-            const localityValue = mess.locality || mess.landmark;
-            if (results.length < 6 && localityValue) {
-                const localityField = mess.locality ? 'locality' : 'landmark';
-                const messesQuery = query(
-                    collection(db, "messes"),
-                    where(localityField, "==", localityValue)
-                );
-                const messesSnap = await getDocs(messesQuery);
-                const currentTypes = Array.isArray(mess.messType) ? mess.messType : (mess.messType ? [mess.messType] : []);
-                const landmarkMessIds = messesSnap.docs
-                    .filter(d => {
-                        if (d.id === mess.id) return false;
-                        const data = d.data();
-                        if (data.isUserSourced === true || data.hidden === true) return false;
-                        const otherTypes = Array.isArray(data.messType) ? data.messType : (data.messType ? [data.messType] : []);
-                        return currentTypes.some(t => otherTypes.includes(t));
-                    })
-                    .map(d => d.id);
-                
-                if (landmarkMessIds.length > 0) {
-                    for (let i = 0; i < landmarkMessIds.length; i += 10) {
-                        const chunk = landmarkMessIds.slice(i, i + 10);
-                        const q3 = query(
-                            collection(db, "rooms"),
-                            where("messId", "in", chunk)
-                        );
-                        const snap3 = await getDocs(q3);
-                        snap3.docs.forEach(d => {
-                            if (!existingIds.has(d.id)) {
-                                const data = d.data();
-                                if (data.occupancy === room.occupancy && data.availableCount > 0) {
-                                    results.push({ id: d.id, ...data, _sortPriority: 3 });
-                                    existingIds.add(d.id);
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-
-            // 4. Other Messes, Same Occupancy, Not User Sourced
-            if (results.length < 6) {
-                const q4 = query(
-                    collection(db, "rooms"),
-                    where("occupancy", "==", room.occupancy)
-                );
-                const snap4 = await getDocs(q4);
-                
-                for (const d of snap4.docs) {
-                    if (results.length >= 6) break;
-                    if (!existingIds.has(d.id)) {
-                        const rData = d.data();
-                        if (rData.messId === mess.id) continue;
-                        
-                        if (rData.availableCount > 0) {
-                            const messDoc = await getDoc(doc(db, "messes", rData.messId));
-                            if (messDoc.exists()) {
-                                const data = messDoc.data();
-                                const currentTypes = Array.isArray(mess.messType) ? mess.messType : (mess.messType ? [mess.messType] : []);
-                                const otherTypes = Array.isArray(data.messType) ? data.messType : (data.messType ? [data.messType] : []);
-                                const hasMatchingType = currentTypes.some(t => otherTypes.includes(t));
-                                
-                                if (data.isUserSourced !== true && data.hidden !== true && hasMatchingType) {
-                                    results.push({ id: d.id, ...rData, _sortPriority: 4 });
-                                    existingIds.add(d.id);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            results.sort((a, b) => a._sortPriority - b._sortPriority);
-            setSimilarRooms(results.slice(0, 6));
-        } catch (err) {
-            console.error("Failed to fetch similar rooms:", err);
-            setSimilarRooms([]);
-        } finally {
-            setLoadingSimilar(false);
-        }
-    };
 
     useEffect(() => {
         if (!loading && currentUser) {
@@ -360,7 +220,7 @@ const RoomDetails = () => {
                 newParams.delete('action');
                 setSearchParams(newParams, { replace: true });
             } else if (searchParams.get('action') === 'notify') {
-                handleNotifyClick();
+                // Seat availability feature deactivated
                 const newParams = new URLSearchParams(searchParams);
                 newParams.delete('action');
                 setSearchParams(newParams, { replace: true });
@@ -475,52 +335,6 @@ const RoomDetails = () => {
         }
     };
 
-    const handleNotifySubmit = async (e) => {
-        e.preventDefault();
-
-        // Validate phone number
-        if (!notifyPhone.trim() || notifyPhone.length < 10) {
-            alert("Please enter a valid phone number.");
-            return;
-        }
-
-        setNotifyLoading(true);
-
-        try {
-            let userData = {};
-            if (currentUser?.uid) {
-                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-                userData = userDoc.exists() ? userDoc.data() : {};
-            }
-
-            const inquiryData = {
-                messId: mess.id,
-                messName: mess.name,
-                roomId: room.id,
-                roomType: room.occupancy,
-                name: userData.name || currentUser?.displayName || "Interested User",
-                email: currentUser?.email || null,
-                phone: notifyPhone,
-                message: `I am interested in knowing the seat availability for the sold-out ${room.occupancy} Seater room. ${notifyMessage}`,
-                createdAt: serverTimestamp(),
-                status: 'pending',
-                type: 'availability_request'
-            };
-
-            await addDoc(collection(db, "inquiries"), inquiryData);
-
-            // Track the availability inquiry
-            trackAvailabilityInquiry(mess.id, room.id);
-
-            await fetchSimilarRooms();
-            setNotifyStep('success');
-        } catch (error) {
-            console.error("Error sending inquiry:", error);
-            alert("Failed to send request. Please try again.");
-        } finally {
-            setNotifyLoading(false);
-        }
-    };
 
     const handleRoomWishlistClick = (e) => {
         e.preventDefault();
@@ -675,37 +489,105 @@ const RoomDetails = () => {
                         {room.otherInfo || "No additional description provided for this room."}
                     </p>
 
-                    <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <h4 className="font-bold text-gray-900 mb-2">Mess Rules</h4>
-                            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                                <li>Deposit: {(() => {
-                                     if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
-                                         const adv = mess.advancePayment;
-                                         return adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
-                                     }
-                                     if (mess.advanceDeposit) {
-                                         let advDep = mess.advanceDeposit;
-                                         if (advDep.includes('maintenance')) {
-                                             const parts = advDep.split(/\s*\+\s*/);
-                                             return parts.length > 1 ? parts[0].trim() : advDep;
-                                         }
-                                         return advDep;
-                                     }
-                                     return 'Contact Owner';
-                                 })()}</li>
-                                <li>Type: {mess.messType}</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-gray-900 mb-2">Facilities</h4>
-                            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                                <li>{mess.foodFacility || 'Standard Menu'}</li>
-                                <li>{mess.extraAppliances || 'No heavy appliances'}</li>
-                                <li>{mess.security || 'Standard Security'}</li>
-                            </ul>
-                        </div>
-                    </div>
+                    {(() => {
+                        // Policies & Billing Items
+                        const propType = Array.isArray(mess.messType)
+                            ? (mess.messType.length > 0 ? mess.messType.join(' & ') : null)
+                            : (mess.messType && mess.messType !== '-' ? mess.messType : null);
+
+                        const secDeposit = (() => {
+                            if (mess.securityDeposit === 'Custom') {
+                                return mess.securityDepositCustom ? `₹${mess.securityDepositCustom}` : null;
+                            }
+                            if (mess.securityDeposit && mess.securityDeposit !== '-') return mess.securityDeposit;
+                            if (typeof mess.advancePayment === 'string' && mess.advancePayment && mess.advancePayment !== '-' && mess.advancePayment !== 'No Advance') {
+                                return mess.advancePayment === 'Custom' ? (mess.advancePaymentCustom ? `₹${mess.advancePaymentCustom}` : null) : mess.advancePayment;
+                            }
+                            if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                                const adv = mess.advancePayment;
+                                return (adv.type === 'Custom Amount' || adv.type === 'Custom') ? (adv.customAmount ? `₹${adv.customAmount}` : null) : adv.type;
+                            }
+                            if (mess.advanceDeposit && mess.advanceDeposit !== '-') return mess.advanceDeposit;
+                            return null;
+                        })();
+
+                        const notice = mess.noticePeriod === 'Other' ? mess.noticePeriodCustom : mess.noticePeriod;
+                        const validNotice = notice && notice !== '-' && notice.trim() !== '' ? notice : null;
+
+                        const electricity = mess.electricityBill === 'Extra Fixed' && mess.electricityBillAmount
+                            ? `Extra Fixed (₹${mess.electricityBillAmount}/mo)`
+                            : (mess.electricityBill && mess.electricityBill !== '-' ? mess.electricityBill : null);
+
+                        const rawMaintAmt = mess.maintenanceFeeAmount || (mess.maintenanceCharge?.amount ? String(mess.maintenanceCharge.amount) : '');
+                        const hasMaintTaken = mess.maintenanceCharge && (mess.maintenanceCharge.taken === true || mess.maintenanceCharge.taken === 'true' || Number(mess.maintenanceCharge.amount) > 0);
+                        const maintenance = (mess.maintenanceFee === 'Extra Charge' || hasMaintTaken)
+                            ? `Extra Charge${rawMaintAmt ? ` (₹${rawMaintAmt}/mo)` : ''}`
+                            : ((mess.maintenanceFee && mess.maintenanceFee !== '-')
+                                ? mess.maintenanceFee
+                                : (mess.maintenanceCharge?.taken !== undefined
+                                    ? (mess.maintenanceCharge.taken ? `Extra Charge${rawMaintAmt ? ` (₹${rawMaintAmt})` : ''}` : 'No Extra Charge')
+                                    : null));
+
+                        const cleaning = mess.cleaningCharges === 'Extra Charge' && mess.cleaningChargesAmount
+                            ? `Extra Charge (₹${mess.cleaningChargesAmount}/mo)`
+                            : (mess.cleaningCharges && mess.cleaningCharges !== '-' ? mess.cleaningCharges : null);
+
+                        const policyItems = [];
+                        if (propType) policyItems.push(<li key="propType"><strong>Property Type:</strong> {propType}</li>);
+                        if (secDeposit) policyItems.push(<li key="secDeposit"><strong>Security Deposit:</strong> {secDeposit}</li>);
+                        if (validNotice) policyItems.push(<li key="notice"><strong>Notice Period:</strong> {validNotice}</li>);
+                        if (electricity) policyItems.push(<li key="electricity"><strong>Electricity:</strong> {electricity}</li>);
+                        if (maintenance) policyItems.push(<li key="maintenance"><strong>Maintenance:</strong> {maintenance}</li>);
+                        if (cleaning) policyItems.push(<li key="cleaning"><strong>Cleaning:</strong> {cleaning}</li>);
+
+                        // Living Services & Facilities Items
+                        const food = (mess.foodFacility && mess.foodFacility !== '-')
+                            ? `${mess.foodFacility}${mess.foodType ? ` (${mess.foodType})` : ''}`
+                            : (mess.amenities?.food ? 'Food Available' : (mess.foodType && mess.foodType !== '-' ? `Food (${mess.foodType})` : null));
+
+                        const water = mess.waterFacility && mess.waterFacility !== '-' ? mess.waterFacility : null;
+                        const laundry = mess.laundryFacility && mess.laundryFacility !== '-' ? mess.laundryFacility : null;
+                        const housekeeping = (mess.cleaningFrequency && mess.cleaningFrequency !== '-')
+                            ? `${mess.cleaningFrequency} Cleaning`
+                            : (mess.cleaningService && mess.cleaningService !== '-' && mess.cleaningService !== 'None' ? mess.cleaningService : null);
+                        const security = (mess.cctvInstalled && mess.cctvInstalled !== '-')
+                            ? mess.cctvInstalled
+                            : ((mess.security && mess.security !== '-')
+                                ? mess.security
+                                : (mess.cctv ? 'CCTV Installed' : null));
+
+                        const serviceItems = [];
+                        if (food) serviceItems.push(<li key="food"><strong>Food:</strong> {food}</li>);
+                        if (water) serviceItems.push(<li key="water"><strong>Water Supply:</strong> {water}</li>);
+                        if (laundry) serviceItems.push(<li key="laundry"><strong>Laundry:</strong> {laundry}</li>);
+                        if (housekeeping) serviceItems.push(<li key="housekeeping"><strong>Housekeeping:</strong> {housekeeping}</li>);
+                        if (security) serviceItems.push(<li key="security"><strong>Security:</strong> {security}</li>);
+
+                        if (policyItems.length === 0 && serviceItems.length === 0) return null;
+
+                        const hasBoth = policyItems.length > 0 && serviceItems.length > 0;
+
+                        return (
+                            <div className={`mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 ${hasBoth ? 'md:grid-cols-2' : ''} gap-6`}>
+                                {policyItems.length > 0 && (
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 mb-2">Mess Policies &amp; Billing</h4>
+                                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1.5">
+                                            {policyItems}
+                                        </ul>
+                                    </div>
+                                )}
+                                {serviceItems.length > 0 && (
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 mb-2">Living Services &amp; Facilities</h4>
+                                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1.5">
+                                            {serviceItems}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -794,7 +676,8 @@ const RoomDetails = () => {
                 )}
             </AnimatePresence>
 
-            {/* Availability Inquiry Modal */}
+            {/* Availability Inquiry Modal - Seat availability feature hidden/deactivated */}
+            {/*
             <AnimatePresence>
                 {showNotifyModal && (
                     <div className={`fixed inset-0 z-50 flex items-center justify-center ${notifyStep === 'success' ? 'p-0' : 'p-4'}`}>
@@ -951,6 +834,7 @@ const RoomDetails = () => {
                 )
                 }
             </AnimatePresence >
+            */}
 
             {/* Phone Collection Modal */}
             {

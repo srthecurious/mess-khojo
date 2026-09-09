@@ -202,9 +202,9 @@ const CityLandingPage = () => {
     }, [searchQuery, allMesses, allUniqueLocalities]);
 
     usePageSEO({
-        title: "Find Boys & Girls Mess in Balasore & Bhadrak | MessKhojo",
-        description: "Find affordable mess and hostel accommodations in Balasore, Remuna, Bhadrak, and Basudevpur. Budget PGs and rooms for students and working professionals.",
-        keywords: "mess in balasore, mess in bhadrak, mess in remuna, mess in basudevpur, hostels in balasore, pgs in balasore, boys mess, girls mess",
+        title: "Find Boys & Girls Mess in Bhubaneswar, Balasore & Bhadrak | MessKhojo",
+        description: "Find affordable mess and hostel accommodations in Bhubaneswar, Balasore, Remuna, Bhadrak, Basudevpur, Baripada, and Jajpur. Budget PGs and rooms for students and working professionals.",
+        keywords: "mess in bhubaneswar, mess in khorda, mess in balasore, mess in bhadrak, mess in remuna, mess in basudevpur, mess in baripada, mess in jajpur, hostels in bhubaneswar, pgs in bhubaneswar, boys mess, girls mess",
         canonicalUrl: 'https://messkhojo.com/',
     });
 
@@ -273,10 +273,10 @@ const CityLandingPage = () => {
                 <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {[1, 2].map((section) => (
                         <div key={section} className="mb-12">
-                            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-6" />
-                            <div className="flex overflow-x-auto sm:overflow-visible sm:flex-wrap hide-scrollbar gap-4 sm:gap-6 w-auto sm:w-full py-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-                                {[1, 2, 3, 4, 5, 6].map(i => (
-                                    <div key={i} className="w-[44%] sm:w-[calc(33.33%-16px)] md:w-[calc(25%-18px)] lg:w-[calc(16.66%-20px)] shrink-0">
+                            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse mb-6" />
+                            <div className="flex gap-4 sm:gap-6 overflow-hidden">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="min-w-[260px] sm:min-w-[280px]">
                                         <SkeletonCard />
                                     </div>
                                 ))}
@@ -288,8 +288,8 @@ const CityLandingPage = () => {
         );
     }
 
-    // Priority: Baleshwar, Remuna, Bhadrak, Basudevpur, Baripada, then Other
-    const cityOrder = ['baleshwar', 'remuna', 'bhadrak', 'basudevpur', 'baripada', 'other'];
+    // Priority: Baleshwar, Bhubaneswar, Remuna, Bhadrak, Basudevpur, Baripada, Jajpur Road, Jajpur Town, then Other
+    const cityOrder = ['baleshwar', 'bhubaneswar', 'remuna', 'bhadrak', 'basudevpur', 'baripada', 'jajpur_road', 'jajpur_town', 'khordha_town', 'other'];
     const activeCities = cityOrder.filter(cityId => filteredMessesByCity[cityId] && filteredMessesByCity[cityId].length > 0);
 
     // Add any other dynamic city keys not present in the hardcoded priority list
