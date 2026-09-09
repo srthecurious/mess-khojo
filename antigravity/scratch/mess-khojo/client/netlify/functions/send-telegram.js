@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+// Node 18+ (Netlify runs Node 22) provides global fetch natively
 
 exports.handler = async function (event, context) {
     // Only allow POST requests
