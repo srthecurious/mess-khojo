@@ -76,39 +76,88 @@ export const telegramTemplates = {
             timeStyle: 'short'
         });
 
+        const messTypeStr = Array.isArray(registration.messType) ? registration.messType.join(', ') : (registration.messType || 'Not specified');
+
+        let locDetails = '';
+        const locParts = [registration.address, registration.locality || registration.landmark, registration.city, registration.district].filter(Boolean);
+        if (locParts.length > 0) {
+            locDetails = `\n📍 <b>Location:</b> ${esc(locParts.join(', '))}`;
+        }
+
+        let bedInfo = '';
+        if (registration.totalBeds || registration.totalRooms) {
+            bedInfo = `\n🛏️ <b>Total Beds:</b> ${registration.totalBeds || registration.totalRooms}`;
+        }
+
+        let foodInfo = '';
+        if (registration.foodAvailability || registration.managedBy) {
+            foodInfo = `\n🍲 <b>Food:</b> ${esc(registration.foodAvailability || 'Available')} (Managed by: ${esc(registration.managedBy || 'Owner')})`;
+            if (registration.mealsPerDay || registration.foodType) {
+                foodInfo += ` [${[registration.mealsPerDay, registration.foodType].filter(Boolean).join(', ')}]`;
+            }
+        }
+
+        let livingServices = '';
+        const services = [];
+        if (registration.waterFacility) services.push(`Water: ${registration.waterFacility}`);
+        if (registration.laundryFacility) services.push(`Laundry: ${registration.laundryFacility}`);
+        if (registration.cleaningService) services.push(`Cleaning: ${registration.cleaningService}`);
+        if (services.length > 0) {
+            livingServices = `\n🧼 <b>Services:</b> ${esc(services.join(' | '))}`;
+        }
+
         let rentDetails = '';
-        if (registration.rentInfo && Object.keys(registration.rentInfo).length > 0) {
-            rentDetails = '\\n💰 <b>Rent Info:</b>\\n' + Object.entries(registration.rentInfo).map(([room, rent]) => `  - ${room}: ₹${rent}`).join('\\n');
+        if (registration.roomVariants && Object.keys(registration.roomVariants).length > 0) {
+            rentDetails = '\n💰 <b>Room Variants:</b>\n' + Object.entries(registration.roomVariants).map(([room, vars]) => {
+                if (Array.isArray(vars)) {
+                    return `  - ${room}: ` + vars.map(v => `${v.label || 'Standard'} (₹${v.price})`).join(', ');
+                }
+                return `  - ${room}`;
+            }).join('\n');
+        } else if (registration.rentInfo && Object.keys(registration.rentInfo).length > 0) {
+            rentDetails = '\n💰 <b>Rent Info:</b>\n' + Object.entries(registration.rentInfo).map(([room, rent]) => `  - ${room}: ₹${rent}`).join('\n');
         }
 
         let inclusions = '';
         if (registration.includedInRent && registration.includedInRent.length > 0) {
-            inclusions = `\\n✅ <b>Included:</b> ${registration.includedInRent.join(', ')}`;
+            inclusions = `\n✅ <b>Included:</b> ${registration.includedInRent.join(', ')}`;
         }
 
         let advanceInfo = '';
-        if (registration.advancePayment && registration.advancePayment.type) {
-            advanceInfo = `\\n💳 <b>Advance:</b> ${registration.advancePayment.type === 'Custom Amount' ? `₹${registration.advancePayment.customAmount}` : registration.advancePayment.type}`;
+        const advType = registration.advancePayment?.type || (typeof registration.advancePayment === 'string' ? registration.advancePayment : '');
+        if (advType && advType !== 'None' && advType !== 'No Advance') {
+            advanceInfo = `\n💳 <b>Advance:</b> ${advType === 'Custom' || advType === 'Custom Amount' ? `₹${registration.advancePayment?.customAmount || registration.advancePaymentCustom || ''}` : advType}`;
+        }
+
+        let securityInfo = '';
+        if (registration.securityDeposit && registration.securityDeposit !== 'No Deposit') {
+            securityInfo = `\n🔒 <b>Security:</b> ${registration.securityDeposit === 'Custom' ? `₹${registration.securityDepositCustom || ''}` : registration.securityDeposit}`;
         }
 
         let maintenanceInfo = '';
-        if (registration.maintenanceCharge?.taken) {
-            maintenanceInfo = `\\n🔧 <b>Maintenance:</b> ₹${registration.maintenanceCharge.amount} (${registration.maintenanceCharge.frequency})`;
+        if (registration.maintenanceCharge?.taken || registration.maintenanceFee === 'Extra Charge') {
+            maintenanceInfo = `\n🔧 <b>Maintenance:</b> ₹${registration.maintenanceCharge?.amount || registration.maintenanceFeeAmount || ''}`;
+        }
+
+        let extraDetails = '';
+        if (registration.noticePeriod) {
+            extraDetails += `\n⏳ <b>Notice:</b> ${registration.noticePeriod === 'Other' && registration.noticePeriodCustom ? registration.noticePeriodCustom : registration.noticePeriod}`;
+        }
+        if (registration.operatingSince) {
+            extraDetails += `\n📅 <b>Operating Since:</b> ${registration.operatingSince}`;
         }
 
         let vacantInfo = '';
         if (registration.vacantRooms && registration.vacantRooms.length > 0) {
-            vacantInfo = `\\n🛏️ <b>Vacant:</b> ${registration.vacantRooms.join(', ')}`;
+            vacantInfo = `\n🛏️ <b>Vacant:</b> ${registration.vacantRooms.join(', ')}`;
         }
 
-        const messTypeStr = Array.isArray(registration.messType) ? registration.messType.join(', ') : (registration.messType || 'Not specified');
-
-        return `🏢 <b>NEW MESS REGISTRATION!</b>\\n\\n` +
-            `📍 <b>Mess:</b> ${registration.messName || 'Not provided'}\\n` +
-            `📞 <b>Contact:</b> ${registration.phoneNumber || registration.contactNumber || 'Not provided'}\\n` +
-            `🏷️ <b>Type:</b> ${messTypeStr}` +
-            rentDetails + inclusions + advanceInfo + maintenanceInfo + vacantInfo + `\\n\\n` +
-            `⏰ <i>${time}</i>\\n\\n` +
+        return `🏢 <b>NEW MESS REGISTRATION!</b>\n\n` +
+            `🏠 <b>Mess:</b> ${esc(registration.messName || 'Not provided')}\n` +
+            `📞 <b>Contact:</b> ${esc(registration.phoneNumber || registration.contactNumber || 'Not provided')}\n` +
+            `🏷️ <b>Type:</b> ${esc(messTypeStr)}` +
+            locDetails + bedInfo + foodInfo + livingServices + rentDetails + inclusions + advanceInfo + securityInfo + maintenanceInfo + extraDetails + vacantInfo + `\n\n` +
+            `⏰ <i>${time}</i>\n\n` +
             `<a href="${window.location.origin}/operational">📊 View Dashboard</a>`;
     },
 
@@ -174,7 +223,7 @@ export const telegramTemplates = {
             `👤 <b>Name:</b> ${esc(inquiry.name)}\n` +
             `📱 <b>Phone:</b> ${esc(inquiry.phone)}\n` +
             `🚻 <b>Gender:</b> ${esc(inquiry.gender)}\n` +
-            `${inquiry.city ? `🏙️ <b>City:</b> ${esc(inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1))}\n` : ''}` +
+            `${inquiry.city ? `🏙️ <b>City:</b> ${esc(inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city === 'jajpur_road' ? 'Jajpur Road' : inquiry.city === 'jajpur_town' ? 'Jajpur Town' : inquiry.city === 'bhubaneswar' ? 'Bhubaneswar' : inquiry.city === 'khordha_town' ? 'Khordha Town' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1))}\n` : ''}` +
             `📍 <b>Location:</b> ${esc(inquiry.location)}\n` +
             `💰 <b>Budget:</b> ${esc(inquiry.budget)}\n` +
             `👥 <b>Occupancy:</b> ${esc(inquiry.occupancy)}\n` +

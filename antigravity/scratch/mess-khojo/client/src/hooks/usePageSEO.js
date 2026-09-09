@@ -95,7 +95,7 @@ export function usePageSEO({
 
         // Cleanup - restore defaults on unmount
         return () => {
-            document.title = 'MessKhojo - Find Best Mess, PG & Hostel in Balasore | Affordable Student Stays';
+            document.title = 'MessKhojo — Find Boys & Girls Mess in Balasore';
             // Remove structured data script
             const script = document.querySelector('script[data-schema="mess"]');
             if (script) {
@@ -149,7 +149,9 @@ export function generateMessSchema(mess) {
         "address": {
             "@type": "PostalAddress",
             "streetAddress": mess.address || "",
-            "addressLocality": "Balasore",
+            "addressLocality": mess.district
+                ? mess.district.charAt(0).toUpperCase() + mess.district.slice(1)
+                : (mess.city ? mess.city.charAt(0).toUpperCase() + mess.city.slice(1) : "Balasore"),
             "addressRegion": "Odisha",
             "addressCountry": "IN"
         },
@@ -185,9 +187,13 @@ export function generateMessSchema(mess) {
     }
 
     // Add keywords for better discovery
+    const localityKeyword = mess.district
+        ? mess.district.toLowerCase()
+        : (mess.city ? mess.city.toLowerCase() : 'balasore');
+
     const keywords = [
         mess.name,
-        `${mess.name} balasore`,
+        `${mess.name} ${localityKeyword}`,
         `${mess.name} contact`,
         mess.messType,
         mess.address

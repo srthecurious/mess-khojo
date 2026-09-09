@@ -19,7 +19,6 @@
     "browser-image-compression": "^2.0.2",
     "classnames": "^2.5.1",
     "firebase": "^12.6.0",
-    "firebase-admin": "^14.1.0",
     "framer-motion": "^12.23.24",
     "fuse.js": "^7.3.0",
     "lucide-react": "^0.554.0",
@@ -27,7 +26,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-ga4": "^2.1.0",
-    "react-router-dom": "^7.9.6",
+    "react-router-dom": "^7.18.3",
     "react-window": "^2.2.5",
     "use-debounce": "^10.1.0"
   },
@@ -50,18 +49,37 @@
     "globals": "^16.5.0",
     "jsdom": "^29.1.1",
     "localtunnel": "^2.0.2",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.28",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^3.4.17",
     "vite": "^7.2.4",
     "vitest": "^4.1.7"
   },
   "overrides": {
+    "axios": "^1.7.9",
+    "websocket-driver": "^0.7.5",
     "fast-xml-builder": "^1.1.7",
-    "fast-xml-parser": "^5.7.0",
-    "protobufjs": "^7.5.6",
+    "fast-xml-parser": "^5.11.1",
+    "protobufjs": "^7.6.6",
     "@protobufjs/utf8": "^1.1.1",
     "@tootallnate/once": "^3.0.1",
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "js-yaml": "^4.3.2",
+    "undici": "^7.29.1",
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.28",
+    "postcss-selector-parser": "^6.1.4",
+    "browserslist": "^4.28.9",
+    "esbuild": "^0.28.2",
+    "react-router": "^7.18.3",
+    "react-router-dom": "^7.18.3",
+    "glob": {
+      "minimatch": {
+        "brace-expansion": "^5.0.9"
+      }
+    },
+    "eslint": {
+      "brace-expansion": "^1.1.18"
+    }
   }
 }

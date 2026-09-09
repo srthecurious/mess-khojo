@@ -1,0 +1,68 @@
+import React from 'react';
+
+export const BoysIcon = ({ className = "w-6 h-8", ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150" fill="currentColor" className={className} {...props}>
+        {/* Head */}
+        <circle cx="50" cy="20" r="14" />
+        {/* Left Arm */}
+        <rect x="14" y="44" width="14" height="56" rx="7" />
+        {/* Right Arm */}
+        <rect x="72" y="44" width="14" height="56" rx="7" />
+        {/* Torso */}
+        <rect x="33" y="42" width="34" height="46" rx="7" />
+        <rect x="33" y="65" width="34" height="23" />
+        {/* Left Leg */}
+        <rect x="33" y="80" width="14" height="62" rx="7" />
+        {/* Right Leg */}
+        <rect x="53" y="80" width="14" height="62" rx="7" />
+    </svg>
+);
+
+export const GirlsIcon = ({ className = "w-6 h-8", ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150" fill="currentColor" className={className} {...props}>
+        {/* Head */}
+        <circle cx="50" cy="20" r="14" />
+        {/* Left Arm */}
+        <rect x="14" y="44" width="12" height="52" rx="6" transform="rotate(7 20 70)" />
+        {/* Right Arm */}
+        <rect x="74" y="44" width="12" height="52" rx="6" transform="rotate(-7 80 70)" />
+        {/* Proper Trapezium Dress */}
+        <path d="M 39 44 L 61 44 Q 63.5 44 64 46.5 L 70.5 94.5 Q 71.5 97 68.5 97 L 31.5 97 Q 28.5 97 29.5 94.5 L 36 46.5 Q 36.5 44 39 44 Z" />
+        {/* Left Leg */}
+        <rect x="36" y="94" width="11" height="48" rx="5.5" />
+        {/* Right Leg */}
+        <rect x="53" y="94" width="11" height="48" rx="5.5" />
+    </svg>
+);
+
+export const CoedIcon = ({ className = "w-10 h-8", ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 150" fill="currentColor" className={className} {...props}>
+        {/* Male Figure (Left) */}
+        <g transform="translate(-5, 0)">
+            <circle cx="50" cy="20" r="14" />
+            <rect x="14" y="44" width="14" height="56" rx="7" />
+            <rect x="72" y="44" width="14" height="56" rx="7" />
+            <rect x="33" y="42" width="34" height="46" rx="7" />
+            <rect x="33" y="65" width="34" height="23" />
+            <rect x="33" y="80" width="14" height="62" rx="7" />
+            <rect x="53" y="80" width="14" height="62" rx="7" />
+        </g>
+        {/* Female Figure (Right) */}
+        <g transform="translate(95, 0)">
+            <circle cx="50" cy="20" r="14" />
+            <rect x="14" y="44" width="12" height="52" rx="6" transform="rotate(7 20 70)" />
+            <rect x="74" y="44" width="12" height="52" rx="6" transform="rotate(-7 80 70)" />
+            {/* Proper Trapezium Dress */}
+            <path d="M 39 44 L 61 44 Q 63.5 44 64 46.5 L 70.5 94.5 Q 71.5 97 68.5 97 L 31.5 97 Q 28.5 97 29.5 94.5 L 36 46.5 Q 36.5 44 39 44 Z" />
+            {/* Left Leg */}
+            <rect x="36" y="94" width="11" height="48" rx="5.5" />
+            <rect x="53" y="94" width="11" height="48" rx="5.5" />
+        </g>
+    </svg>
+);
+
+export default {
+    BoysIcon,
+    GirlsIcon,
+    CoedIcon
+};

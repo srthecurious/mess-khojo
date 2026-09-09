@@ -1,4 +1,91 @@
+# Netlify Configuration for Mess Khojo
+
+# Build settings
 [build]
   base = "antigravity/scratch/mess-khojo/client"
-  command = "npm install && npm run build"
+  command = "npm run build"
   publish = "dist"
+
+# Functions directory (relative to base)
+[functions]
+  directory = "netlify/functions"
+
+# Dynamic Sitemap (served by Netlify Function)
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap?type=index"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-static.xml"
+  to = "/.netlify/functions/sitemap?type=static"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-cities.xml"
+  to = "/.netlify/functions/sitemap?type=cities"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-messes.xml"
+  to = "/.netlify/functions/sitemap?type=messes"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-rooms.xml"
+  to = "/.netlify/functions/sitemap?type=rooms"
+  status = 200
+
+# Redirects for Single Page Application
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # frame-ancestors replaces X-Frame-Options; allows Facebook Event Setup Tool to embed the site
+    Content-Security-Policy = "frame-ancestors 'self' https://www.facebook.com https://*.facebook.com;"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+
+# Hashed JS/CSS/font assets — safe to cache 1 year (Vite appends content hash to filenames)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Static images — 7 days with stale-while-revalidate
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/*.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# App manifest and robots — 1 day
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# index.html — never cache so new deploys take effect immediately
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

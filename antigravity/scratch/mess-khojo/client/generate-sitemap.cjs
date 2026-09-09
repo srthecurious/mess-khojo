@@ -129,6 +129,10 @@ async function generateSitemap() {
         { path: '/district/bhadrak/city/bhadrak', priority: '0.9', changefreq: 'daily' },
         { path: '/district/bhadrak/city/basudevpur', priority: '0.9', changefreq: 'daily' },
         { path: '/district/mayurbhanj/city/baripada', priority: '0.9', changefreq: 'daily' },
+        { path: '/district/jajpur/city/jajpur_road', priority: '0.9', changefreq: 'daily' },
+        { path: '/district/jajpur/city/jajpur_town', priority: '0.9', changefreq: 'daily' },
+        { path: '/district/khorda/city/bhubaneswar', priority: '0.9', changefreq: 'daily' },
+        { path: '/district/khorda/city/khordha_town', priority: '0.9', changefreq: 'daily' },
     ];
 
     cities.forEach(city => {

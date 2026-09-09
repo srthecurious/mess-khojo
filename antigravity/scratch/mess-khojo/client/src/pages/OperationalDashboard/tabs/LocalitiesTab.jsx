@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { DISTRICTS_CONFIG } from '../../../context/DistrictContext';
+import { DISTRICTS_CONFIG, FALLBACK_LOCALITIES } from '../../../context/DistrictContext';
 import { MapPin, Plus, X, Save, Loader2, Check, AlertCircle } from 'lucide-react';
 
 const LocalitiesTab = () => {
@@ -11,7 +11,7 @@ const LocalitiesTab = () => {
     );
 
     const [selectedCityId, setSelectedCityId] = useState(allCities[0]?.id || '');
-    const [localitiesConfig, setLocalitiesConfig] = useState({});
+    const [localitiesConfig, setLocalitiesConfig] = useState(FALLBACK_LOCALITIES);
     const [localitiesLoading, setLocalitiesLoading] = useState(true);
     const [newLocality, setNewLocality] = useState('');
     const [saving, setSaving] = useState(false);
@@ -24,9 +24,9 @@ const LocalitiesTab = () => {
             doc(db, 'app_config', 'localities'),
             (snap) => {
                 if (snap.exists()) {
-                    setLocalitiesConfig(snap.data());
+                    setLocalitiesConfig({ ...FALLBACK_LOCALITIES, ...snap.data() });
                 } else {
-                    setLocalitiesConfig({});
+                    setLocalitiesConfig(FALLBACK_LOCALITIES);
                 }
                 setLocalitiesLoading(false);
             },
@@ -69,7 +69,7 @@ const LocalitiesTab = () => {
         setSaving(true);
         setSaveStatus(null);
         try {
-            await setDoc(doc(db, 'app_config', 'localities'), localitiesConfig);
+            await setDoc(doc(db, 'app_config', 'localities'), localitiesConfig, { merge: true });
             setSaveStatus({ type: 'success', msg: 'Localities saved successfully!' });
             setPendingChanges(false);
             setTimeout(() => setSaveStatus(null), 3000);

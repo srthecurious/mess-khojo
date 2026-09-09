@@ -39,21 +39,21 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, color = 'indi
         const base = {
             button: isLight
                 ? 'bg-white border border-gray-300 text-gray-800 shadow-sm hover:border-brand-primary'
-                : 'bg-slate-900 border border-slate-700 text-white',
+                : 'bg-slate-900 border border-slate-700 text-white hover:border-slate-600',
             dropdown: isLight
                 ? 'bg-white border border-gray-200 shadow-xl'
-                : 'bg-slate-800 border-slate-700',
+                : 'bg-slate-900 border-slate-700 shadow-2xl',
             itemHover: isLight 
                 ? 'hover:bg-purple-50' 
-                : 'hover:bg-slate-700/50',
+                : 'hover:bg-slate-800/80',
             checkboxEmpty: isLight
                 ? 'bg-white border-gray-300 group-hover:border-purple-400'
-                : 'bg-slate-900 border-slate-600 group-hover:border-slate-500',
+                : 'bg-slate-950 border-slate-700 group-hover:border-slate-500',
             textSelected: isLight 
                 ? 'text-gray-900 font-bold' 
-                : 'text-white font-medium',
-            textNormal: isLight ? 'text-gray-700 group-hover:text-gray-900' : 'text-slate-400 group-hover:text-slate-200',
-            label: isLight ? 'text-gray-800 font-semibold' : 'text-slate-500'
+                : 'text-white font-bold',
+            textNormal: isLight ? 'text-gray-700 group-hover:text-gray-900' : 'text-slate-300 group-hover:text-white',
+            label: isLight ? 'text-gray-800 font-semibold' : 'text-slate-400 font-bold uppercase text-xs'
         };
 
         // Color specific styles (Focused ring & Checked background)

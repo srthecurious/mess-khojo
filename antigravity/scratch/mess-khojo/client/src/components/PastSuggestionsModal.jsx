@@ -16,6 +16,10 @@ const formatDate = (isoString) => {
 const formatCityName = (cityId) => {
     if (!cityId) return '';
     if (cityId === 'baleshwar') return 'Balasore';
+    if (cityId === 'jajpur_road') return 'Jajpur Road';
+    if (cityId === 'jajpur_town') return 'Jajpur Town';
+    if (cityId === 'bhubaneswar') return 'Bhubaneswar';
+    if (cityId === 'khordha_town') return 'Khordha Town';
     return cityId.charAt(0).toUpperCase() + cityId.slice(1);
 };
 

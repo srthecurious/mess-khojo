@@ -1,4 +1,4 @@
-import { UserPlus, Shield, FileSpreadsheet } from 'lucide-react';
+import { UserPlus, Shield, FileSpreadsheet, RefreshCw } from 'lucide-react';
 
 const PartnersTab = ({
     partnerStatus,
@@ -17,6 +17,9 @@ const PartnersTab = ({
     handleMigratePartners,
     handleBackfillDistricts,
     handleSyncACAmenities,
+    handleMergeMessCharges,
+    handleForceRemergeAllFields,
+    handleSyncBhubaneswarLocalities,
     sheetsSyncStatus,
     handleSyncAllToSheets
 }) => {
@@ -170,6 +173,55 @@ const PartnersTab = ({
                         className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-indigo-600/20 disabled:opacity-50"
                     >
                         {migrationStatus.loading ? 'Syncing...' : 'Sync AC Amenities'}
+                    </button>
+                </div>
+
+                {/* Mess Charges & Services Merge Section */}
+                <div className="mt-8 pt-8 border-t border-slate-700">
+                    <h3 className="text-lg font-bold text-white mb-2">Merge Mess Charges &amp; Living Services</h3>
+                    <p className="text-sm text-slate-400 mb-4">
+                        Compare existing unstructured and legacy data in Firestore and merge electricity, maintenance, cleaning charges, security deposits, and living amenities into the new format.
+                    </p>
+                    
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={handleMergeMessCharges}
+                            disabled={migrationStatus.loading}
+                            type="button"
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {migrationStatus.loading ? 'Merging Data...' : '⚡ Safe Merge (Fill Missing Fields)'}
+                        </button>
+
+                        <button
+                            onClick={handleForceRemergeAllFields}
+                            disabled={migrationStatus.loading}
+                            type="button"
+                            className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw size={18} className={migrationStatus.loading ? 'animate-spin' : ''} />
+                            {migrationStatus.loading ? 'Processing Deep Sync...' : '🔄 Force Re-Merge All Fields (Deep Sync)'}
+                        </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-2">
+                        * Deep Sync resolves maintenance conflict states, normalizes advance payments, backfills living services (WiFi/Power/CCTV), and keeps legacy objects 100% synchronized.
+                    </p>
+                </div>
+
+                {/* Bhubaneswar & Khorda Localities Sync Section */}
+                <div className="mt-8 pt-8 border-t border-slate-700">
+                    <h3 className="text-lg font-bold text-white mb-2">Sync Bhubaneswar &amp; Khorda to Database</h3>
+                    <p className="text-sm text-slate-400 mb-4">
+                        Save official Bhubaneswar landmarks (Patia, Khandagiri, Jayadev Vihar, Saheed Nagar, Nayapalli, Chandrasekharpur, Master Canteen, Baramunda, Infocity, etc.) and Khordha Town landmarks directly into Firestore <code>app_config/localities</code>.
+                    </p>
+                    
+                    <button
+                        onClick={handleSyncBhubaneswarLocalities}
+                        disabled={migrationStatus.loading}
+                        type="button"
+                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-cyan-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {migrationStatus.loading ? 'Syncing Localities...' : '📍 Sync Bhubaneswar Localities to Firebase'}
                     </button>
                 </div>
 

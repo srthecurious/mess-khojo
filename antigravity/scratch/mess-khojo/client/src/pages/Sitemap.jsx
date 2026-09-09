@@ -3,9 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Header from '../components/Header';
 import { BRAND } from '../constants';
+import { usePageSEO } from '../hooks/usePageSEO';
 
 const Sitemap = () => {
     const navigate = useNavigate();
+
+    usePageSEO({
+        title: 'Sitemap | MessKhojo',
+        description: 'Browse all pages on MessKhojo including city listings, mess details, and more.',
+        noindex: true,
+    });
 
     return (
         <div className="min-h-screen bg-brand-secondary flex flex-col">
@@ -79,6 +86,26 @@ const Sitemap = () => {
                             <li>
                                 <Link to="/district/mayurbhanj/city/baripada" className="text-sm font-semibold text-brand-text-dark hover:text-brand-primary transition-colors">
                                     Baripada
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/district/jajpur/city/jajpur_road" className="text-sm font-semibold text-brand-text-dark hover:text-brand-primary transition-colors">
+                                    Jajpur Road
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/district/jajpur/city/jajpur_town" className="text-sm font-semibold text-brand-text-dark hover:text-brand-primary transition-colors">
+                                    Jajpur Town
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/district/khorda/city/bhubaneswar" className="text-sm font-semibold text-brand-text-dark hover:text-brand-primary transition-colors">
+                                    Bhubaneswar
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/district/khorda/city/khordha_town" className="text-sm font-semibold text-brand-text-dark hover:text-brand-primary transition-colors">
+                                    Khordha Town
                                 </Link>
                             </li>
                         </ul>

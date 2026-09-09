@@ -76,7 +76,35 @@ const AdminDashboard = () => {
         },
         description: '',
         rentCycle: 'monthly',
-        minStayDuration: 1
+        minStayDuration: 1,
+
+        // Page 3: Food & Facilities
+        foodAvailability: 'Food Available',
+        mealsPerDay: '3 Meals',
+        foodType: 'Veg + Non-Veg',
+        waterFacility: 'Both',
+        laundryFacility: 'Washing Machine',
+        cleaningService: 'Both',
+        wifi: false,
+        powerBackup: false,
+        cctv: false,
+        wardenWatchman: false,
+        extraSpace: [],
+
+        // Page 4: Charges & Policies
+        securityDeposit: 'No Deposit',
+        securityDepositCustom: '',
+        electricityBill: 'Included in Rent',
+        electricityBillAmount: '',
+        maintenanceFee: 'Included',
+        maintenanceFeeAmount: '',
+        cleaningCharges: 'Included in Rent',
+        cleaningChargesAmount: '',
+        foodBill: 'Included in Rent',
+        utensilsCharges: 'Provided',
+        noticePeriod: '1 Month',
+        noticePeriodCustom: '',
+        operatingSince: ''
     });
     const [posterFile, setPosterFile] = useState(null);
     const [galleryFiles, setGalleryFiles] = useState([]);
@@ -284,8 +312,13 @@ const AdminDashboard = () => {
                 derivedDeposit = derivedDeposit ? `${derivedDeposit}${maintStr}` : `₹${maint.amount} maintenance (${maint.frequency || 'Per Year'})`;
             }
 
+            const resolvedNotice = messForm.noticePeriod === 'Other'
+                ? (messForm.noticePeriodCustom || '').trim()
+                : messForm.noticePeriod;
+
             const saveData = {
                 ...messForm,
+                noticePeriod: resolvedNotice,
                 advanceDeposit: derivedDeposit,
                 amenities: derivedAmenities,
                 latitude: messForm.latitude ? Number(messForm.latitude) : null,
@@ -352,7 +385,35 @@ const AdminDashboard = () => {
             },
             description: messProfile.description || '',
             rentCycle: messProfile.rentCycle || 'monthly',
-            minStayDuration: messProfile.minStayDuration || 1
+            minStayDuration: messProfile.minStayDuration || 1,
+
+            // Page 3: Food & Facilities
+            foodAvailability: messProfile.foodAvailability || 'Food Available',
+            mealsPerDay: messProfile.mealsPerDay || '3 Meals',
+            foodType: messProfile.foodType || 'Veg + Non-Veg',
+            waterFacility: messProfile.waterFacility || 'Both',
+            laundryFacility: messProfile.laundryFacility || 'Washing Machine',
+            cleaningService: messProfile.cleaningService || 'Both',
+            wifi: messProfile.wifi ?? (messProfile.facilities?.includes('Wifi') || false),
+            powerBackup: messProfile.powerBackup ?? (messProfile.facilities?.includes('InverterPower') || false),
+            cctv: messProfile.cctv ?? (messProfile.facilities?.includes('CCTV') || false),
+            wardenWatchman: messProfile.wardenWatchman ?? false,
+            extraSpace: messProfile.extraSpace || [],
+
+            // Page 4: Charges & Policies
+            securityDeposit: messProfile.securityDeposit || 'No Deposit',
+            securityDepositCustom: messProfile.securityDepositCustom || '',
+            electricityBill: messProfile.electricityBill || (messProfile.includedInRent?.includes('electricity') ? 'Included in Rent' : 'As per Meter'),
+            electricityBillAmount: messProfile.electricityBillAmount || '',
+            maintenanceFee: messProfile.maintenanceFee || (messProfile.maintenanceCharge?.taken ? 'Extra Charge' : 'Included'),
+            maintenanceFeeAmount: messProfile.maintenanceFeeAmount || messProfile.maintenanceCharge?.amount || '',
+            cleaningCharges: messProfile.cleaningCharges || 'Included in Rent',
+            cleaningChargesAmount: messProfile.cleaningChargesAmount || '',
+            foodBill: messProfile.foodBill || (messProfile.includedInRent?.includes('food') ? 'Included in Rent' : 'Separate'),
+            utensilsCharges: messProfile.utensilsCharges || 'Provided',
+            noticePeriod: messProfile.noticePeriod || '1 Month',
+            noticePeriodCustom: messProfile.noticePeriodCustom || '',
+            operatingSince: messProfile.operatingSince || ''
         });
         setIsEditingMess(true);
     };
@@ -371,7 +432,31 @@ const AdminDashboard = () => {
             amenities: { food: false, wifi: false, inverter: false },
             description: '',
             rentCycle: 'monthly',
-            minStayDuration: 1
+            minStayDuration: 1,
+            foodAvailability: 'Food Available',
+            mealsPerDay: '3 Meals',
+            foodType: 'Veg + Non-Veg',
+            waterFacility: 'Both',
+            laundryFacility: 'Washing Machine',
+            cleaningService: 'Both',
+            wifi: false,
+            powerBackup: false,
+            cctv: false,
+            wardenWatchman: false,
+            extraSpace: [],
+            securityDeposit: 'No Deposit',
+            securityDepositCustom: '',
+            electricityBill: 'Included in Rent',
+            electricityBillAmount: '',
+            maintenanceFee: 'Included',
+            maintenanceFeeAmount: '',
+            cleaningCharges: 'Included in Rent',
+            cleaningChargesAmount: '',
+            foodBill: 'Included in Rent',
+            utensilsCharges: 'Provided',
+            noticePeriod: '1 Month',
+            noticePeriodCustom: '',
+            operatingSince: ''
         });
         setPosterFile(null);
         setGalleryFiles([]);

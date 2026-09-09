@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, Camera, ChevronDown, ChevronUp, Briefcase, Info, ShieldCheck, AlertCircle, BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, Heart, Building2, Bell } from 'lucide-react';
+import { 
+    MapPin, Phone, ArrowLeft, ExternalLink, Utensils, Droplets, Wifi, Zap, Wind, 
+    Camera, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Briefcase, Info, ShieldCheck, AlertCircle, 
+    BedDouble, EyeOff, MessageCircle, Send, Check, User, X, Image as ImageIcon, 
+    Heart, Building2, Bell, Calendar, Clock, Sparkles, Layers, Shield, CheckCircle2, 
+    XCircle, FileText, CheckCircle, Flame, Car, Coffee, HelpCircle, CheckSquare, 
+    DoorOpen, Users, Home, AlertTriangle
+} from 'lucide-react';
 import { auth } from '../firebase';
 import { serverTimestamp, collection, getDocs, query, orderBy, startAt, endAt, doc, getDoc, addDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getMess, watchRoomsByMess } from '../services/messService';
-import { addClaim, addInquiry } from '../services/bookingService';
+import { addClaim } from '../services/bookingService';
 import { getUserDoc } from '../services/userService';
 import RoomCard from '../components/RoomCard';
 import ClaimModal from '../components/ClaimModal';
 import PhoneCollectionModal from '../components/PhoneCollectionModal';
-import { trackMessView, trackContactClick, trackAvailabilityCheck, trackEvent, trackGalleryView, trackContactOwner, trackBookingInitiated } from '../analytics';
+import { trackMessView, trackContactClick, trackEvent, trackGalleryView, trackContactOwner, trackBookingInitiated } from '../analytics';
 import { usePageSEO, generateMessSchema } from '../hooks/usePageSEO';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +26,28 @@ import { BRAND } from '../constants';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toMessSlug, isSlug, idSuffixFromSlug } from '../utils/slugify';
+
+const getFoodFacilityDisplay = (mess) => {
+    if (!mess) return '-';
+    if (mess.foodFacility) {
+        const ff = mess.foodFacility.trim();
+        const lff = ff.toLowerCase();
+        if (lff.includes('student')) return 'Managed by Students';
+        if (lff.includes('warden')) return 'Managed by Warden';
+        if (lff.includes('owner') || lff.includes('canteen') || lff.includes('fssai') || lff.includes('rent')) return 'Managed by Owner';
+        if (lff.includes('no food') || lff.includes('not available')) return 'Not Available';
+        if (ff.length > 2) return ff;
+    }
+    if (mess.foodAvailability === 'No Food') return 'Not Available';
+    if (mess.foodAvailability === 'Self Cook') return 'Managed by Students';
+    if (mess.managedBy) {
+        const val = mess.managedBy.trim();
+        if (val.toLowerCase().startsWith('managed by')) return val;
+        if (val.toLowerCase() === 'none' || val.toLowerCase() === 'no') return 'Not Available';
+        return `Managed by ${val}`;
+    }
+    return 'Managed by Owner';
+};
 
 const MessDetails = () => {
     // Support both new slug-based URLs (/mess/aryan-boys-mess-a3f9)
@@ -67,9 +96,6 @@ const MessDetails = () => {
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [claiming, setClaiming] = useState(false);
-    const [showInquiryModal, setShowInquiryModal] = useState(false);
-    const [inquiryData, setInquiryData] = useState({ name: '', phone: '', seating: 'Any', consent: false });
-    const [submittingInquiry, setSubmittingInquiry] = useState(false);
     const [showUserSourcedListing, setShowUserSourcedListing] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     const [selectedOccupancy, setSelectedOccupancy] = useState('');
@@ -283,38 +309,6 @@ const MessDetails = () => {
         }
     };
 
-    const handleInquirySubmit = async (e) => {
-        e.preventDefault();
-        setSubmittingInquiry(true);
-
-        try {
-            // 1. Save to inquiries collection
-            const inquiryDocData = {
-                ...inquiryData,
-                messId,
-                messName: mess.name,
-                status: 'pending',
-                createdAt: serverTimestamp()
-            };
-
-            await addInquiry(inquiryDocData);
-
-            // 2. Prepare WhatsApp message
-            const message = `* Inquiry for ${mess.name} * \n\nHello Mess Khojo, I am ${inquiryData.name}. I am looking for a ${inquiryData.seating === 'Any' ? 'room' : inquiryData.seating + ' room'} in * ${mess.name}*.\n\nMy contact: ${inquiryData.phone} \n\nPlease help me with seat availability and details.`;
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://wa.me/${BRAND.whatsappNumber}?text=${encodedMessage}`;
-
-            setShowInquiryModal(false);
-            window.open(whatsappUrl, '_blank');
-
-        } catch (error) {
-            console.error("Inquiry failed:", error);
-            toastError('Could not process inquiry. Please try again.');
-        } finally {
-            setSubmittingInquiry(false);
-        }
-    };
-
     const handleMessWishlistClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -371,7 +365,10 @@ const MessDetails = () => {
                 // 1. Fetch Mess Details
                 const messDoc = await getMess(resolvedMessId);
                 if (messDoc.exists()) {
-                    setMess({ id: messDoc.id, ...messDoc.data() });
+                    const loadedData = { id: messDoc.id, ...messDoc.data() };
+                    window.__currentMess = loadedData;
+                    console.log('CURRENT_MESS_DATA:', JSON.stringify(loadedData));
+                    setMess(loadedData);
                 }
 
                 // 2. Fetch Rooms for this Mess (real-time)
@@ -426,7 +423,7 @@ const MessDetails = () => {
         structuredData: mess ? generateMessSchema({ ...mess, _slug: toMessSlug(mess.name, mess.id) }) : null
     });
 
-    useBodyScrollLock(showInquiryModal || showConfirmModal || showPhoneModal || showClaimModal);
+    useBodyScrollLock(showConfirmModal || showPhoneModal || showClaimModal);
 
     // Inject structured data for this mess
     useEffect(() => {
@@ -681,16 +678,31 @@ const MessDetails = () => {
                                         <span className="text-sm line-clamp-1">{mess.address || 'Address not available'}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        {hasFood && (
+                                        {/* Property Type Badge */}
+                                        {mess.messType && (
                                             <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
-                                                <Utensils size={11} className="mr-1" /> Food
+                                                <Briefcase size={11} className="mr-1" /> {Array.isArray(mess.messType) ? mess.messType.join(' & ') : mess.messType}
                                             </span>
                                         )}
+                                        {/* Operating Since Badge */}
+                                        {mess.operatingSince && (
+                                            <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                                <Calendar size={11} className="mr-1" /> Est. {mess.operatingSince}
+                                            </span>
+                                        )}
+                                        {/* Food Pill */}
+                                        {hasFood && (
+                                            <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                                <Utensils size={11} className="mr-1" /> {mess.foodType ? `Food (${mess.foodType})` : 'Food Available'}
+                                            </span>
+                                        )}
+                                        {/* WiFi Pill */}
                                         {hasWifi && (
                                             <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
                                                 <Wifi size={11} className="mr-1" /> WiFi
                                             </span>
                                         )}
+                                        {/* Inverter/Power Pill */}
                                         {hasInverter && (
                                             <span className="flex items-center text-xs font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
                                                 <Zap size={11} className="mr-1" /> Power Backup
@@ -769,25 +781,39 @@ const MessDetails = () => {
             )}
 
             {/* Rooms Grid */}
-            <div className="max-w-[1440px] mx-auto px-4 py-12">
-                <div className="flex items-center mb-8">
-                    <h2 className="text-2xl font-bold text-brand-text-dark">Available Room Types</h2>
-                    <div className="ml-4 h-px flex-grow bg-brand-light-gray"></div>
+            <div className="max-w-[1440px] mx-auto px-4 py-8 md:py-12">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-bold text-brand-text-dark">Available Room Types</h2>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-primary/10 text-brand-primary">
+                            {sortedGroups.length} Types
+                        </span>
+                    </div>
+                    {sortedGroups.length > 1 && (
+                        <div className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                            <span>Scroll horizontally</span>
+                            <span>→</span>
+                        </div>
+                    )}
                 </div>
 
                 {
                     rooms.length > 0 ? (
-                        <div className="space-y-8">
+                        <div className="flex flex-col md:flex-row md:overflow-x-auto gap-6 pb-6 pt-1 md:snap-x md:hide-scrollbar md:-mx-4 md:px-4 lg:mx-0 lg:px-0">
                             {sortedGroups.map(([occupancy, groupRooms]) => (
-                                <RoomTypeGroup
+                                <div
                                     key={occupancy}
-                                    occupancy={occupancy}
-                                    rooms={groupRooms}
-                                    isRoomWishlisted={isRoomWishlisted}
-                                    onToggleRoomWishlist={handleRoomWishlistToggle}
-                                    isUserSourced={mess.isUserSourced}
-                                    messName={mess.name}
-                                />
+                                    className="w-full md:min-w-[320px] md:max-w-[360px] md:flex-shrink-0 md:snap-start flex flex-col"
+                                >
+                                    <RoomTypeGroup
+                                        occupancy={occupancy}
+                                        rooms={groupRooms}
+                                        isRoomWishlisted={isRoomWishlisted}
+                                        onToggleRoomWishlist={handleRoomWishlistToggle}
+                                        isUserSourced={mess.isUserSourced}
+                                        messName={mess.name}
+                                    />
+                                </div>
                             ))}
                         </div>
                     ) : (
@@ -803,174 +829,580 @@ const MessDetails = () => {
                     )
                 }
 
-                {/* About & Facilities Section */}
-                <div className="mt-12">
+                {/* About, Policies, Services & Fee Structure Section */}
+                <div className="mt-12 space-y-8">
+                    {/* Top Overview & Policies Banner */}
                     <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="bg-purple-100 p-2.5 rounded-xl text-brand-primary">
                                 <Info size={24} />
                             </div>
-                            <h2 className="text-2xl font-bold text-brand-text-dark">About & Facilities</h2>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Left Column: Description, Type, Managed By, Financials, Inclusions */}
-                            <div className="space-y-5">
-                                {mess.description && (
-                                    <div className="prose prose-sm max-w-none text-gray-600 whitespace-pre-wrap">
-                                        {mess.description}
-                                    </div>
-                                )}
-
-                                {/* Property Type */}
-                                {mess.messType && (
-                                    <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Property Type</h4>
-                                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${
-                                            Array.isArray(mess.messType)
-                                                ? mess.messType.includes('Boys') && mess.messType.includes('Girls') ? 'bg-purple-100 text-purple-700'
-                                                    : mess.messType.includes('Girls') ? 'bg-pink-100 text-pink-700'
-                                                    : 'bg-blue-100 text-blue-700'
-                                                : mess.messType === 'Boys' ? 'bg-blue-100 text-blue-700'
-                                                    : mess.messType === 'Girls' ? 'bg-pink-100 text-pink-700'
-                                                    : 'bg-purple-100 text-purple-700'
-                                        }`}>
-                                            <Briefcase size={16} />
-                                            {Array.isArray(mess.messType) ? mess.messType.join(' & ') : mess.messType} Mess
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Managed By */}
-                                {mess.managedBy && (
-                                    <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Food Facility Managed By</h4>
-                                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${
-                                            mess.managedBy === 'Students' ? 'bg-emerald-100 text-emerald-700'
-                                                : mess.managedBy === 'Warden' ? 'bg-purple-100 text-purple-700'
-                                                : 'bg-blue-100 text-blue-700'
-                                        }`}>
-                                            {mess.managedBy === 'Students' ? '👥' : mess.managedBy === 'Warden' ? '🛡️' : '🏢'} {mess.managedBy} Managed
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Financials — new schema (advancePayment + maintenanceCharge) or old (advanceDeposit string) */}
-                                {(() => {
-                                    let advanceLabel = null;
-                                    if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
-                                        const adv = mess.advancePayment;
-                                        advanceLabel = adv.type === 'Custom Amount' ? `₹${adv.customAmount}` : adv.type;
-                                    } else if (mess.advanceDeposit) {
-                                        let advDep = mess.advanceDeposit;
-                                        if (advDep.includes('maintenance')) {
-                                            const parts = advDep.split(/\s*\+\s*/);
-                                            advanceLabel = parts.length > 1 ? parts[0].trim() : advDep;
-                                        } else {
-                                            advanceLabel = advDep;
-                                        }
-                                    }
-                                    return advanceLabel ? (
-                                        <div>
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Advance &amp; Deposit</h4>
-                                            <div className="flex items-start gap-3 bg-green-50 p-4 rounded-2xl border border-green-100">
-                                                <div className="bg-green-100 text-green-700 p-2 rounded-lg shrink-0">
-                                                    <span className="font-bold text-base">₹</span>
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-800 text-sm">Security Deposit Required</p>
-                                                    <p className="text-sm text-green-700 font-semibold mt-0.5">{advanceLabel}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : null;
-                                })()}
-
-                                {/* Included in Rent */}
-                                {mess.includedInRent !== undefined && (
-                                    <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Included in Rent</h4>
-                                        <div className="flex flex-col gap-2">
-                                            {[
-                                                { key: 'Food Charges', label: 'Food Charges' },
-                                                { key: 'Electricity Bills', label: 'Electricity Bill' },
-                                                { key: 'Cleaning Charges', label: 'Cleaning' }
-                                            ].map(({ key, label }) => {
-                                                const included = Array.isArray(mess.includedInRent) && mess.includedInRent.includes(key);
-                                                return (
-                                                    <div key={key} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold border ${
-                                                        included
-                                                            ? 'bg-green-50 text-green-700 border-green-200'
-                                                            : 'bg-red-50 text-red-600 border-red-100'
-                                                    }`}>
-                                                        <span className="flex-1">{label}</span>
-                                                        <span className="text-xs font-bold">{included ? '✓ Included' : '✗ Extra'}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Right Column: Facilities */}
-                            <div className="space-y-6">
-                                {/* New: facilities array from registration */}
-                                {mess.facilities && mess.facilities.length > 0 && (() => {
-                                    const facilityMap = {
-                                        'Wifi': { Icon: Wifi, bg: 'bg-blue-50 border-blue-100', ic: 'text-blue-600', label: 'WiFi' },
-                                        'AC': { Icon: Wind, bg: 'bg-cyan-50 border-cyan-100', ic: 'text-cyan-600', label: 'Air Conditioning' },
-                                        'Food Facility': { Icon: Utensils, bg: 'bg-orange-50 border-orange-100', ic: 'text-orange-500', label: 'Food Available' },
-                                        'InverterPower': { Icon: Zap, bg: 'bg-yellow-50 border-yellow-100', ic: 'text-yellow-600', label: 'Power Backup' },
-                                        'CCTV': { Icon: Camera, bg: 'bg-purple-50 border-purple-100', ic: 'text-purple-600', label: 'CCTV Security' },
-                                    };
-                                    return (
-                                        <div>
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Available Facilities</h4>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                {mess.facilities.map(f => {
-                                                    const cfg = facilityMap[f] || { Icon: null, bg: 'bg-gray-50 border-gray-100', ic: 'text-gray-500', label: f };
-                                                    return (
-                                                        <div key={f} className={`${cfg.bg} p-3 rounded-xl border flex items-center gap-2.5`}>
-                                                            {cfg.Icon && <cfg.Icon size={16} className={`${cfg.ic} shrink-0`} />}
-                                                            <span className="text-sm font-semibold text-gray-700">{cfg.label}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* Legacy: old text-based fields for backward compatibility */}
-                                {(mess.foodFacility || mess.security || mess.extraAppliances) && (
-                                    <div>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Amenities &amp; Features</h4>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            {mess.foodFacility && (
-                                                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100/50 flex items-center gap-3">
-                                                    <Utensils size={18} className="text-orange-500 shrink-0" />
-                                                    <p className="text-sm text-gray-700 font-medium">{mess.foodFacility}</p>
-                                                </div>
-                                            )}
-                                            {mess.security && (
-                                                <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100/50 flex items-center gap-3">
-                                                    <ShieldCheck size={18} className="text-indigo-500 shrink-0" />
-                                                    <p className="text-sm text-gray-700 font-medium">{mess.security}</p>
-                                                </div>
-                                            )}
-                                            {mess.extraAppliances && (
-                                                <div className="bg-teal-50 p-3 rounded-xl border border-teal-100/50 flex items-center gap-3 sm:col-span-2">
-                                                    <Zap size={18} className="text-teal-500 shrink-0" />
-                                                    <p className="text-sm text-gray-700 font-medium">{mess.extraAppliances}</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+                            <div>
+                                <h2 className="text-2xl font-bold text-brand-text-dark">About &amp; Overview</h2>
+                                <p className="text-xs text-brand-text-gray mt-0.5">Property specifications, management, and occupancy rules</p>
                             </div>
                         </div>
+
+                        {mess.description && (
+                            <div className="prose prose-sm max-w-none text-gray-600 whitespace-pre-wrap mb-6 bg-gray-50/70 p-4 rounded-2xl border border-gray-100">
+                                {mess.description}
+                            </div>
+                        )}
+
+                        {/* Metadata Grid */}
+                        {(() => {
+                            const propType = Array.isArray(mess.messType) 
+                                ? (mess.messType.length > 0 ? mess.messType.join(' & ') : null)
+                                : (mess.messType && mess.messType !== '-' ? mess.messType : null);
+
+                            const hasFoodInfo = Boolean(
+                                mess.managedBy || 
+                                mess.foodFacility || 
+                                mess.foodAvailability || 
+                                mess.amenities?.food || 
+                                mess.foodType || 
+                                hasFood
+                            );
+                            const foodDisplay = hasFoodInfo ? getFoodFacilityDisplay(mess) : null;
+
+                            const resolvedNotice = mess.noticePeriod === 'Other' ? mess.noticePeriodCustom : mess.noticePeriod;
+                            const hasNotice = resolvedNotice && resolvedNotice.trim() !== '' && resolvedNotice !== '-';
+
+                            const hasOperatingSince = mess.operatingSince && mess.operatingSince.toString().trim() !== '' && mess.operatingSince !== '-';
+
+                            const capacity = (mess.totalBeds || mess.totalRooms);
+                            const hasCapacity = capacity && capacity.toString().trim() !== '' && capacity !== '-';
+
+                            const items = [];
+
+                            if (propType) {
+                                items.push(
+                                    <div key="type" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Property Type</span>
+                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm">
+                                            <Briefcase size={14} className="text-brand-primary shrink-0" />
+                                            <span className="truncate">{propType}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (foodDisplay && foodDisplay !== '-') {
+                                items.push(
+                                    <div key="food" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Food Facility</span>
+                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm" title={`Food Facility: ${foodDisplay}`}>
+                                            <Utensils size={14} className="text-emerald-600 shrink-0" />
+                                            <span className="truncate">{foodDisplay}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (mess.managedBy && mess.managedBy.trim() !== '' && mess.managedBy !== '-') {
+                                const mgmt = mess.managedBy.toLowerCase().startsWith('managed by') ? mess.managedBy : `Managed by ${mess.managedBy}`;
+                                items.push(
+                                    <div key="mgmt" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Property Management</span>
+                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm">
+                                            <Shield size={14} className="text-blue-600 shrink-0" />
+                                            <span className="truncate">{mgmt}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (hasNotice) {
+                                items.push(
+                                    <div key="notice" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notice Period</span>
+                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm">
+                                            <Clock size={14} className="text-indigo-600 shrink-0" />
+                                            <span className="truncate">{resolvedNotice}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (hasOperatingSince) {
+                                items.push(
+                                    <div key="operating" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Established</span>
+                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm">
+                                            <Calendar size={14} className="text-amber-600 shrink-0" />
+                                            <span className="truncate">{mess.operatingSince.toString().startsWith('Est.') ? mess.operatingSince : `Est. ${mess.operatingSince}`}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (hasCapacity) {
+                                items.push(
+                                    <div key="capacity" className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between flex-1 min-w-[140px]">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Capacity</span>
+                                        <div className="flex items-center gap-1.5 mt-1 font-bold text-gray-800 text-sm">
+                                            <BedDouble size={14} className="text-cyan-600 shrink-0" />
+                                            <span className="truncate">{capacity} Beds</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            if (items.length === 0) return null;
+
+                            return (
+                                <div className="flex flex-wrap gap-3">
+                                    {items}
+                                </div>
+                            );
+                        })()}
                     </div>
+
+                    {/* Services & Facilities Grid Card */}
+                    {(() => {
+                        const hasFoodData = Boolean(
+                            mess.foodFacility || 
+                            mess.foodAvailability || 
+                            mess.foodType || 
+                            mess.managedBy || 
+                            hasFood
+                        );
+                        const hasWater = Boolean(mess.waterFacility && mess.waterFacility.trim() !== '' && mess.waterFacility !== '-');
+                        const hasLaundry = Boolean(mess.laundryFacility && mess.laundryFacility.trim() !== '' && mess.laundryFacility !== '-');
+                        const hasCleaning = Boolean(
+                            (mess.cleaningFrequency && mess.cleaningFrequency.trim() !== '' && mess.cleaningFrequency !== '-') ||
+                            (mess.cleaningService && mess.cleaningService.trim() !== '' && mess.cleaningService !== '-' && mess.cleaningService !== 'None')
+                        );
+                        const hasWifiService = Boolean(mess.wifiAvailable || mess.wifi === true || hasWifi);
+                        const hasPower = Boolean(mess.powerBackup === true || (typeof mess.powerBackup === 'string' && mess.powerBackup.trim() !== '' && mess.powerBackup !== '-') || hasInverter);
+                        const hasCctv = Boolean(mess.cctvInstalled || mess.security || mess.cctv === true);
+                        const hasWarden = Boolean(mess.wardenAvailable || mess.wardenWatchman === true || mess.managedBy === 'Warden');
+                        
+                        const hasExtraSpaces = Array.isArray(mess.extraSpace) && mess.extraSpace.length > 0;
+                        const hasOtherFacilities = Array.isArray(mess.facilities) && mess.facilities.filter(f => !['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].includes(f)).length > 0;
+
+                        const anyService = hasFoodData || hasWater || hasLaundry || hasCleaning || hasWifiService || hasPower || hasCctv || hasWarden;
+
+                        if (!anyService && !hasExtraSpaces && !hasOtherFacilities) {
+                            return null;
+                        }
+
+                        return (
+                            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="bg-emerald-100 p-2.5 rounded-xl text-emerald-600">
+                                        <Sparkles size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-brand-text-dark">Living &amp; Utility Services</h2>
+                                        <p className="text-xs text-brand-text-gray mt-0.5">Key daily essentials and facilities provided on premises</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                                    {/* Food Facility */}
+                                    {hasFoodData && (
+                                        <div className="p-3.5 rounded-2xl border bg-orange-50/60 border-orange-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-orange-100 text-orange-600 shrink-0 mt-0.5">
+                                                <Utensils size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">Food Service</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {getFoodFacilityDisplay(mess) === 'Not Available'
+                                                        ? 'No Food Facility'
+                                                        : (mess.foodFacility && !mess.foodFacility.toLowerCase().includes('managed by')
+                                                            ? mess.foodFacility
+                                                            : 'Food Available')}
+                                                </p>
+                                                <p className="text-xs text-orange-800/80 font-medium mt-0.5">
+                                                    {getFoodFacilityDisplay(mess) === 'Not Available'
+                                                        ? 'Self cooking or outside arrangements'
+                                                        : (mess.foodType ? `${mess.foodType} • ` : '') + getFoodFacilityDisplay(mess)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Water Supply */}
+                                    {hasWater && (
+                                        <div className="p-3.5 rounded-2xl border bg-blue-50/60 border-blue-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-blue-100 text-blue-600 shrink-0 mt-0.5">
+                                                <Droplets size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Drinking Water</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {mess.waterFacility}
+                                                </p>
+                                                <p className="text-xs text-blue-800/80 font-medium mt-0.5">{mess.waterFacility === 'None' ? 'Not Provided' : 'Clean & Accessible'}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Laundry Facility */}
+                                    {hasLaundry && (
+                                        <div className="p-3.5 rounded-2xl border bg-cyan-50/60 border-cyan-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-cyan-100 text-cyan-600 shrink-0 mt-0.5">
+                                                <Layers size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider block">Laundry</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {mess.laundryFacility}
+                                                </p>
+                                                <p className="text-xs text-cyan-800/80 font-medium mt-0.5">{mess.laundryFacility === 'None' ? 'Not Provided' : 'Dedicated Washing Space'}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Cleaning / Housekeeping */}
+                                    {hasCleaning && (
+                                        <div className="p-3.5 rounded-2xl border bg-emerald-50/60 border-emerald-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                                                <CheckCircle2 size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Housekeeping</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {mess.cleaningFrequency ? `${mess.cleaningFrequency} Cleaning` : mess.cleaningService}
+                                                </p>
+                                                <p className="text-xs text-emerald-800/80 font-medium mt-0.5">Premises Cleanliness</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* WiFi */}
+                                    {hasWifiService && (
+                                        <div className="p-3.5 rounded-2xl border bg-indigo-50/60 border-indigo-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-indigo-100 text-indigo-600 shrink-0 mt-0.5">
+                                                <Wifi size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Internet / WiFi</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {mess.wifiAvailable || (mess.wifi ? 'WiFi Available' : 'WiFi Available')}
+                                                </p>
+                                                <p className="text-xs text-indigo-800/80 font-medium mt-0.5">Seamless Connectivity</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Power Backup */}
+                                    {hasPower && (
+                                        <div className="p-3.5 rounded-2xl border bg-amber-50/60 border-amber-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-amber-100 text-amber-600 shrink-0 mt-0.5">
+                                                <Zap size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Power Backup</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {typeof mess.powerBackup === 'string' && mess.powerBackup !== 'true' ? mess.powerBackup : 'Inverter Backup'}
+                                                </p>
+                                                <p className="text-xs text-amber-800/80 font-medium mt-0.5">Lighting &amp; Fans</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Security / CCTV */}
+                                    {hasCctv && (
+                                        <div className="p-3.5 rounded-2xl border bg-purple-50/60 border-purple-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-purple-100 text-purple-600 shrink-0 mt-0.5">
+                                                <Camera size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Security</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {mess.cctvInstalled || mess.security || (mess.cctv ? 'CCTV Installed' : 'Resident Safety')}
+                                                </p>
+                                                <p className="text-xs text-purple-800/80 font-medium mt-0.5">Resident Safety</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Warden / Supervision */}
+                                    {hasWarden && (
+                                        <div className="p-3.5 rounded-2xl border bg-rose-50/60 border-rose-100 flex items-start gap-3">
+                                            <div className="p-2 rounded-xl bg-rose-100 text-rose-600 shrink-0 mt-0.5">
+                                                <Shield size={18} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Warden / Caretaker</span>
+                                                <p className="font-bold text-gray-900 text-sm mt-0.5 truncate">
+                                                    {mess.wardenAvailable || (mess.managedBy === 'Warden' ? 'Warden Available' : (mess.wardenWatchman ? 'Warden / Watchman' : 'Caretaker on Call'))}
+                                                </p>
+                                                <p className="text-xs text-rose-800/80 font-medium mt-0.5">
+                                                    {mess.wardenAvailable || mess.managedBy === 'Warden' ? 'Support & Discipline' : 'Assistance Available'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Extra Common Spaces & Facilities Chips */}
+                                {(hasExtraSpaces || hasOtherFacilities) && (
+                                    <div className="mt-6 pt-5 border-t border-gray-100">
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Common Areas &amp; Extra Spaces</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {hasExtraSpaces && mess.extraSpace.map(space => (
+                                                <span key={space} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                                                    <Sparkles size={12} className="text-brand-primary" />
+                                                    {space}
+                                                </span>
+                                            ))}
+                                            {hasOtherFacilities && mess.facilities.filter(f => !['Wifi', 'AC', 'Food Facility', 'InverterPower', 'CCTV'].includes(f)).map(f => (
+                                                <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                                                    <Building2 size={12} className="text-brand-primary" />
+                                                    {f}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* Fee Structure, Inclusions & Deposits Card */}
+                    {(() => {
+                        const utilityItems = [];
+                        const depositItems = [];
+
+                        // 1. Electricity
+                        const eb = mess.electricityBill;
+                        if (eb && eb.trim() !== '' && eb !== '-') {
+                            const isIncluded = eb.toLowerCase().includes('included');
+                            const amt = mess.electricityBillAmount ? `₹${mess.electricityBillAmount}/mo` : '';
+                            utilityItems.push(
+                                <div key="eb" className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${isIncluded ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : 'bg-amber-50/70 border-amber-200 text-amber-900'}`}>
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <Zap size={16} className={isIncluded ? 'text-emerald-600' : 'text-amber-600'} />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Electricity</p>
+                                            <p className="font-bold text-sm text-gray-800">{eb} {amt && `(${amt})`}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-lg ${isIncluded ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        {isIncluded ? '✓ Included' : '⚡ Extra / Units'}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        // 2. Food Charges
+                        const fb = mess.foodBill || (hasFood ? 'Included in Rent' : (mess.foodFacility ? mess.foodFacility : null));
+                        if (fb && fb.trim() !== '' && fb !== '-') {
+                            const isIncluded = fb.toLowerCase().includes('included');
+                            utilityItems.push(
+                                <div key="fb" className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${isIncluded ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : 'bg-gray-50 border-gray-200 text-gray-800'}`}>
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <Utensils size={16} className={isIncluded ? 'text-emerald-600' : 'text-gray-500'} />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Food Charges</p>
+                                            <p className="font-bold text-sm text-gray-800">{fb}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-lg ${isIncluded ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'}`}>
+                                        {isIncluded ? '✓ Included' : '🍽️ ' + fb}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        // 3. Cleaning Charges
+                        const cc = mess.cleaningCharges;
+                        if (cc && cc.trim() !== '' && cc !== '-') {
+                            const isIncluded = cc.toLowerCase().includes('included') || cc.toLowerCase().includes('no');
+                            const amt = mess.cleaningChargesAmount ? `₹${mess.cleaningChargesAmount}/mo` : '';
+                            utilityItems.push(
+                                <div key="cc" className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${isIncluded ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : 'bg-amber-50/70 border-amber-200 text-amber-900'}`}>
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <CheckCircle2 size={16} className={isIncluded ? 'text-emerald-600' : 'text-amber-600'} />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cleaning &amp; Housekeeping</p>
+                                            <p className="font-bold text-sm text-gray-800">{cc} {amt && `(${amt})`}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-lg ${isIncluded ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        {isIncluded ? '✓ No Extra' : `🧹 ${amt || 'Extra'}`}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        // 4. Maintenance Fee
+                        let mf = mess.maintenanceFee;
+                        let rawMaintAmt = mess.maintenanceFeeAmount || (mess.maintenanceCharge?.amount ? String(mess.maintenanceCharge.amount) : '');
+
+                        if (mess.maintenanceCharge && typeof mess.maintenanceCharge === 'object' && (mess.maintenanceCharge.taken === true || mess.maintenanceCharge.taken === 'true' || Number(mess.maintenanceCharge.amount) > 0)) {
+                            mf = 'Extra Charge';
+                            if (!rawMaintAmt && mess.maintenanceCharge.amount) rawMaintAmt = String(mess.maintenanceCharge.amount);
+                        } else if (!mf && mess.maintenanceCharge && typeof mess.maintenanceCharge === 'object' && mess.maintenanceCharge.taken === false) {
+                            mf = 'Included';
+                        }
+
+                        if (mf && mf.trim() !== '' && mf !== '-') {
+                            const isIncluded = mf === 'Included' || mf.toLowerCase().includes('included') || mf.toLowerCase() === 'no extra charge' || mf.toLowerCase() === 'no extra';
+                            const amt = (!isIncluded && rawMaintAmt) ? `₹${rawMaintAmt}/mo` : '';
+                            utilityItems.push(
+                                <div key="mf" className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${isIncluded ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : 'bg-amber-50/70 border-amber-200 text-amber-900'}`}>
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <ShieldCheck size={16} className={isIncluded ? 'text-emerald-600' : 'text-amber-600'} />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Maintenance Charge</p>
+                                            <p className="font-bold text-sm text-gray-800">{mf} {amt && `(${amt})`}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-lg ${isIncluded ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        {isIncluded ? '✓ Included' : `🛠️ ${amt || 'Extra'}`}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        // 5. Kitchen Utensils
+                        const ut = mess.utensilsCharges;
+                        if (ut && ut.trim() !== '' && ut !== '-') {
+                            utilityItems.push(
+                                <div key="ut" className="p-3.5 rounded-2xl border bg-gray-50 border-gray-200 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <Coffee size={16} className="text-gray-500" />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kitchen Utensils</p>
+                                            <p className="font-bold text-sm text-gray-800">{ut}</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700">
+                                        🍳 {ut}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        // Deposits
+                        let depLabel = null;
+                        let isZeroDeposit = false;
+                        if (mess.securityDeposit === 'Custom') {
+                            depLabel = mess.securityDepositCustom ? `₹${mess.securityDepositCustom}` : null;
+                        } else if (mess.securityDeposit === 'No Deposit' || mess.securityDeposit === '0' || mess.securityDeposit === '₹0') {
+                            isZeroDeposit = true;
+                            depLabel = 'No Deposit Required';
+                        } else if (mess.securityDeposit && mess.securityDeposit !== '-') {
+                            depLabel = mess.securityDeposit;
+                        } else if (mess.advanceDeposit && mess.advanceDeposit !== '-') {
+                            if (mess.advanceDeposit === '₹0' || mess.advanceDeposit === '0' || mess.advanceDeposit.toLowerCase().includes('no deposit')) {
+                                isZeroDeposit = true;
+                                depLabel = 'No Deposit Required';
+                            } else {
+                                depLabel = mess.advanceDeposit;
+                            }
+                        }
+
+                        if (depLabel) {
+                            depositItems.push(
+                                <div key="deposit" className={`bg-gradient-to-br ${isZeroDeposit ? 'from-emerald-50 to-teal-50 border-emerald-200' : 'from-green-50 to-emerald-50 border-green-200'} p-5 rounded-2xl border flex flex-col justify-between`}>
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`${isZeroDeposit ? 'bg-emerald-100 text-emerald-700' : 'bg-green-100 text-green-700'} p-2 rounded-xl shrink-0 font-bold`}>
+                                                ₹
+                                            </div>
+                                            <div>
+                                                <h5 className="font-bold text-gray-900 text-sm">Security Deposit</h5>
+                                                <p className={`text-xs ${isZeroDeposit ? 'text-emerald-800 font-bold' : 'text-green-800 font-semibold'}`}>{depLabel}</p>
+                                            </div>
+                                        </div>
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isZeroDeposit ? 'bg-emerald-200/80 text-emerald-800' : 'bg-green-200/80 text-green-800'} px-2 py-0.5 rounded-md`}>
+                                            {isZeroDeposit ? 'Zero Deposit' : 'Refundable'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 leading-relaxed mt-1">
+                                        {isZeroDeposit ? 'No security deposit is charged upfront for moving in.' : 'Refunded at the time of moving out subject to property inspection and notice completion.'}
+                                    </p>
+                                </div>
+                            );
+                        }
+
+                        // Advance Payment
+                        let advLabel = null;
+                        let isZeroAdvance = false;
+                        if (mess.advancePayment === 'Custom') {
+                            advLabel = mess.advancePaymentCustom ? `₹${mess.advancePaymentCustom}` : null;
+                        } else if (mess.advancePayment === 'No Advance' || mess.advancePayment === 'None') {
+                            isZeroAdvance = true;
+                            advLabel = 'No Advance Required';
+                        } else if (typeof mess.advancePayment === 'object' && mess.advancePayment !== null) {
+                            if (mess.advancePayment.type === 'Custom Amount' || mess.advancePayment.type === 'Custom') {
+                                advLabel = mess.advancePayment.customAmount ? `₹${mess.advancePayment.customAmount}` : null;
+                            } else if (mess.advancePayment.type === 'None') {
+                                isZeroAdvance = true;
+                                advLabel = 'No Advance Required';
+                            } else if (mess.advancePayment.type) {
+                                advLabel = mess.advancePayment.type;
+                            }
+                        } else if (typeof mess.advancePayment === 'string' && mess.advancePayment && mess.advancePayment !== '-') {
+                            advLabel = mess.advancePayment;
+                        }
+
+                        if (advLabel) {
+                            depositItems.push(
+                                <div key="adv" className="bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-2xl border border-indigo-200 flex flex-col justify-between">
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-indigo-100 text-indigo-700 p-2 rounded-xl shrink-0 font-bold">
+                                                <FileText size={16} />
+                                            </div>
+                                            <div>
+                                                <h5 className="font-bold text-gray-900 text-sm">Advance Rent Payment</h5>
+                                                <p className={`text-xs ${isZeroAdvance ? 'text-indigo-900 font-bold' : 'text-indigo-800 font-semibold'}`}>{advLabel}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded-md">
+                                            {isZeroAdvance ? 'Zero Advance' : 'Adjustable'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 leading-relaxed mt-1">
+                                        {isZeroAdvance ? 'No advance rent is required before moving into this mess.' : 'Payable at the time of booking/move-in, fully adjusted towards your first month(s) rent.'}
+                                    </p>
+                                </div>
+                            );
+                        }
+
+                        if (utilityItems.length === 0 && depositItems.length === 0) {
+                            return null;
+                        }
+
+                        const hasBothCols = utilityItems.length > 0 && depositItems.length > 0;
+
+                        return (
+                            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-light-gray">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="bg-blue-100 p-2.5 rounded-xl text-brand-primary">
+                                        <FileText size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-brand-text-dark">Fee Structure &amp; Inclusions</h2>
+                                        <p className="text-xs text-brand-text-gray mt-0.5">Transparent breakdown of rent, utility billing, and security deposits</p>
+                                    </div>
+                                </div>
+
+                                <div className={`grid grid-cols-1 ${hasBothCols ? 'md:grid-cols-2' : ''} gap-6`}>
+                                    {utilityItems.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Monthly Inclusions &amp; Utility Bills</h4>
+                                            {utilityItems}
+                                        </div>
+                                    )}
+
+                                    {depositItems.length > 0 && (
+                                        <div className="space-y-4">
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Deposits &amp; Move-in Payments</h4>
+                                            {depositItems}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Photo Gallery Section */}
@@ -1001,8 +1433,8 @@ const MessDetails = () => {
                     </div>
                 )}
 
-                {/* Global Actions for User Sourced */}
-                {
+                {/* Global Actions for User Sourced - Seat availability feature hidden/deactivated */}
+                {/* 
                     mess.isUserSourced && (
                         <div className="mt-12 flex flex-col items-center gap-6">
                             <div className="text-center bg-white p-8 rounded-3xl shadow-lg border-2 border-brand-amber/20 w-full max-w-2xl">
@@ -1027,13 +1459,13 @@ const MessDetails = () => {
                             </div>
                         </div>
                     )
-                }
+                */}
             </div >
 
 
 
-            {/* Inquiry Modal */}
-            {
+            {/* Inquiry Modal - Seat availability feature hidden/deactivated */}
+            {/*
                 showInquiryModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <div
@@ -1042,7 +1474,6 @@ const MessDetails = () => {
                         ></div>
                         <div className="w-full max-w-md relative z-10 bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all animate-fadeIn scale-100">
 
-                            {/* Modal Header */}
                             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                                 <div>
                                     <h2 className="text-xl font-bold text-brand-text-dark">Check Availability</h2>
@@ -1059,7 +1490,6 @@ const MessDetails = () => {
                             <div className="p-6">
                                 <form onSubmit={handleInquirySubmit} className="space-y-5">
 
-                                    {/* Name Input */}
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-brand-text-dark uppercase tracking-wide ml-1">Your Name</label>
                                         <div className="relative group">
@@ -1077,7 +1507,6 @@ const MessDetails = () => {
                                         </div>
                                     </div>
 
-                                    {/* Phone Input */}
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-brand-text-dark uppercase tracking-wide ml-1">Phone Number</label>
                                         <div className="relative group">
@@ -1096,7 +1525,6 @@ const MessDetails = () => {
                                         </div>
                                     </div>
 
-                                    {/* Seater Selection */}
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-brand-text-dark uppercase tracking-wide ml-1">Looking for</label>
                                         <div className="relative group">
@@ -1163,7 +1591,7 @@ const MessDetails = () => {
                         </div>
                     </div>
                 )
-            }
+            */}
 
 
             {/* Claim Listing - Small Footer Link */}
@@ -1325,6 +1753,9 @@ const MessDetails = () => {
 };
 
 const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlist, isUserSourced, messName }) => {
+    const scrollRef = useRef(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
     // Calculate price range
     const prices = rooms.map(r => Number(r.price || r.rent)).sort((a, b) => a - b);
     const minPrice = prices[0];
@@ -1345,26 +1776,50 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
     };
     const displayOccupancy = occupancyMap[occupancy] || occupancy;
 
+    const scroll = (direction) => {
+        if (scrollRef.current) {
+            const width = scrollRef.current.clientWidth;
+            scrollRef.current.scrollBy({
+                left: direction === 'right' ? width : -width,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const { scrollLeft, clientWidth } = scrollRef.current;
+            if (clientWidth > 0) {
+                const index = Math.round(scrollLeft / clientWidth);
+                setCurrentIndex(index);
+            }
+        }
+    };
+
     return (
-        <div className="mb-10 last:mb-0">
+        <div className="flex flex-col h-full bg-white rounded-3xl p-4 sm:p-5 border border-brand-light-gray shadow-sm hover:shadow-md transition-shadow">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 px-2">
+            <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-100 gap-2">
                 <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-xl font-bold text-brand-text-dark">{displayOccupancy} Seater Rooms</h3>
-                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-brand-light-gray text-brand-text-gray">{rooms.length} Variants</span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-lg font-bold text-brand-text-dark">{displayOccupancy} Seater Rooms</h3>
+                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-brand-light-gray text-brand-text-gray">
+                            {rooms.length} {rooms.length === 1 ? 'Variant' : 'Variants'}
+                        </span>
                     </div>
-                    <p className="text-brand-text-gray text-sm">Starting from <span className="font-semibold text-brand-primary">{priceDisplay}{cycleSuffix}</span></p>
+                    <p className="text-brand-text-gray text-xs font-medium">
+                        Starting from <span className="font-bold text-brand-primary">{priceDisplay}{cycleSuffix}</span>
+                    </p>
                 </div>
 
-                <div className="flex items-center gap-4 mt-2 md:mt-0">
+                <div className="flex items-center gap-2">
                     {!isUserSourced && (
                         totalAvailable > 0 ? (
-                            <span className="text-brand-accent-green text-xs font-bold uppercase tracking-wide bg-brand-accent-green/10 px-3 py-1.5 rounded-full border border-brand-accent-green/20">
+                            <span className="text-brand-accent-green text-[10px] font-bold uppercase tracking-wider bg-brand-accent-green/10 px-2.5 py-1 rounded-full border border-brand-accent-green/20 shrink-0">
                                 Available
                             </span>
                         ) : (
-                            <span className="text-brand-red text-xs font-bold uppercase tracking-wide bg-brand-red/10 px-3 py-1.5 rounded-full border border-brand-red/20">
+                            <span className="text-brand-red text-[10px] font-bold uppercase tracking-wider bg-brand-red/10 px-2.5 py-1 rounded-full border border-brand-red/20 shrink-0">
                                 Full
                             </span>
                         )
@@ -1372,19 +1827,77 @@ const RoomTypeGroup = ({ occupancy, rooms, isRoomWishlisted, onToggleRoomWishlis
                 </div>
             </div>
 
-            {/* Always Visible Rooms Grid */}
-            <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar px-2">
-                {rooms.map(room => (
-                    <div key={room.id} className="min-w-[280px] md:min-w-[320px] snap-center">
-                        <RoomCard
-                            room={room}
-                            isWishlisted={isRoomWishlisted(room.id)}
-                            onToggleWishlist={onToggleRoomWishlist}
-                            isUserSourced={isUserSourced}
-                            messName={messName || ''}
-                        />
+            {/* Room Cards Carousel / Swiper */}
+            <div className="relative flex-1 flex flex-col justify-between">
+                <div
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                    className="w-full flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-3"
+                >
+                    {rooms.map(room => (
+                        <div key={room.id} className="w-full min-w-full flex-shrink-0 snap-center">
+                            <RoomCard
+                                room={room}
+                                isWishlisted={isRoomWishlisted(room.id)}
+                                onToggleWishlist={onToggleRoomWishlist}
+                                isUserSourced={isUserSourced}
+                                messName={messName || ''}
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Left Arrow (when scrolled past first variant) */}
+                {rooms.length > 1 && currentIndex > 0 && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); scroll('left'); }}
+                        className="absolute -left-2.5 top-[35%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white shadow-[0_4px_14px_rgba(0,0,0,0.18)] text-brand-primary flex items-center justify-center border border-gray-200 transition-all hover:scale-110 active:scale-95 hover:bg-gray-50 cursor-pointer"
+                        title="Previous variant"
+                        aria-label="Previous variant"
+                    >
+                        <ChevronLeft size={18} strokeWidth={2.5} />
+                    </button>
+                )}
+
+                {/* Right Arrow (to swipe to next variant) */}
+                {rooms.length > 1 && currentIndex < rooms.length - 1 && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); scroll('right'); }}
+                        className="absolute -right-2.5 top-[35%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white shadow-[0_4px_14px_rgba(0,0,0,0.18)] text-brand-primary flex items-center justify-center border border-gray-200 transition-all hover:scale-110 active:scale-95 hover:bg-gray-50 cursor-pointer"
+                        title="Next variant"
+                        aria-label="Next variant"
+                    >
+                        <ChevronRight size={18} strokeWidth={2.5} />
+                    </button>
+                )}
+
+                {/* Pagination Dots / Indicators */}
+                {rooms.length > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-3">
+                        {rooms.map((_, idx) => (
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                    if (scrollRef.current) {
+                                        scrollRef.current.scrollTo({
+                                            left: idx * scrollRef.current.clientWidth,
+                                            behavior: 'smooth'
+                                        });
+                                    }
+                                }}
+                                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                                    currentIndex === idx 
+                                        ? 'w-4 bg-brand-primary' 
+                                        : 'w-1.5 bg-gray-200 hover:bg-gray-300'
+                                }`}
+                                aria-label={`Go to variant ${idx + 1}`}
+                            />
+                        ))}
                     </div>
-                ))}
+                )}
             </div>
         </div>
     );

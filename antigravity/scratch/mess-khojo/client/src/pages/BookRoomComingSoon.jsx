@@ -438,7 +438,7 @@ const BookRoomComingSoon = () => {
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-bold text-gray-800">
-                                                            {inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}
+                                                            {inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city === 'jajpur_road' ? 'Jajpur Road' : inquiry.city === 'jajpur_town' ? 'Jajpur Town' : inquiry.city === 'bhubaneswar' ? 'Bhubaneswar' : inquiry.city === 'khordha_town' ? 'Khordha Town' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}
                                                             {inquiry.location ? `, ${inquiry.location}` : ''}
                                                         </span>
                                                         <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded font-bold capitalize">
@@ -949,7 +949,7 @@ const BookRoomComingSoon = () => {
                                         <div className="space-y-1 min-w-0">
                                             <div className="flex items-center gap-1.5 min-w-0">
                                                 <span className="text-xs font-bold text-gray-800 truncate">
-                                                    {inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}
+                                                    {inquiry.city === 'baleshwar' ? 'Balasore' : inquiry.city === 'jajpur_road' ? 'Jajpur Road' : inquiry.city === 'jajpur_town' ? 'Jajpur Town' : inquiry.city === 'bhubaneswar' ? 'Bhubaneswar' : inquiry.city === 'khordha_town' ? 'Khordha Town' : inquiry.city.charAt(0).toUpperCase() + inquiry.city.slice(1)}
                                                     {inquiry.location ? `, ${inquiry.location}` : ''}
                                                 </span>
                                             </div>
