@@ -500,10 +500,10 @@ const RoomDetails = () => {
                                 return mess.securityDepositCustom ? `₹${mess.securityDepositCustom}` : null;
                             }
                             if (mess.securityDeposit && mess.securityDeposit !== '-') return mess.securityDeposit;
-                            if (typeof mess.advancePayment === 'string' && mess.advancePayment && mess.advancePayment !== '-' && mess.advancePayment !== 'No Advance') {
+                            if (typeof mess.advancePayment === 'string' && mess.advancePayment && mess.advancePayment !== '-' && mess.advancePayment !== 'No Advance' && mess.advancePayment !== 'No Deposit' && mess.advancePayment !== 'None') {
                                 return mess.advancePayment === 'Custom' ? (mess.advancePaymentCustom ? `₹${mess.advancePaymentCustom}` : null) : mess.advancePayment;
                             }
-                            if (mess.advancePayment?.type && mess.advancePayment.type !== 'None') {
+                            if (mess.advancePayment?.type && mess.advancePayment.type !== 'None' && mess.advancePayment.type !== 'No Advance' && mess.advancePayment.type !== 'No Deposit') {
                                 const adv = mess.advancePayment;
                                 return (adv.type === 'Custom Amount' || adv.type === 'Custom') ? (adv.customAmount ? `₹${adv.customAmount}` : null) : adv.type;
                             }

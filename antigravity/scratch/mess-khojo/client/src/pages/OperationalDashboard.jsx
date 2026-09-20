@@ -219,20 +219,37 @@ const OperationalDashboard = () => {
                 }
 
                 // Resolve advance payment
-                let initialAdv = 'No Advance';
+                let initialAdvType = 'No Deposit';
+                let initialAdvMonths = item.advancePaymentMonths || '1 Month';
                 let initialAdvCustom = '';
-                if (typeof item.advancePayment === 'string' && item.advancePayment) {
-                    initialAdv = item.advancePayment;
-                    initialAdvCustom = item.advancePaymentCustom || '';
-                } else if (item.advancePayment && typeof item.advancePayment === 'object') {
-                    const apType = item.advancePayment.type;
-                    if (apType === '1 Month' || apType === '1 Month Rent') initialAdv = '1 Month';
-                    else if (apType === '2 Months') initialAdv = '2 Months';
-                    else if (apType === 'None') initialAdv = 'No Advance';
-                    else if (apType === 'Custom Amount' || apType === 'Custom') {
-                        initialAdv = 'Custom';
-                        initialAdvCustom = String(item.advancePayment.customAmount || item.advancePaymentCustom || '');
-                    } else if (apType) initialAdv = apType;
+
+                const rawAdv = typeof item.advancePayment === 'object' && item.advancePayment !== null
+                    ? (item.advancePayment.type || 'No Deposit')
+                    : (item.advancePayment || 'No Deposit');
+
+                if (rawAdv === 'Custom' || rawAdv === 'Custom Amount' || item.advancePaymentType === 'Custom') {
+                    initialAdvType = 'Custom';
+                    initialAdvCustom = String((typeof item.advancePayment === 'object' ? item.advancePayment.customAmount : '') || item.advancePaymentCustom || '');
+                } else if (rawAdv === 'No Advance' || rawAdv === 'No Deposit' || rawAdv === 'None' || item.advancePaymentType === 'No Deposit') {
+                    initialAdvType = 'No Deposit';
+                } else {
+                    initialAdvType = 'Monthly';
+                    initialAdvMonths = item.advancePaymentMonths || rawAdv;
+                }
+
+                // Resolve security deposit
+                const rawSec = item.securityDeposit || 'No Deposit';
+                let initialSecType = 'No Deposit';
+                let initialSecMonths = item.securityDepositMonths || '1 Month';
+                let initialSecCustom = item.securityDepositCustom || '';
+
+                if (rawSec === 'Custom' || item.securityDepositType === 'Custom') {
+                    initialSecType = 'Custom';
+                } else if (rawSec === 'No Deposit' || rawSec === 'None' || rawSec === '0' || rawSec === '₹0' || item.securityDepositType === 'No Deposit') {
+                    initialSecType = 'No Deposit';
+                } else {
+                    initialSecType = 'Monthly';
+                    initialSecMonths = item.securityDepositMonths || rawSec;
                 }
 
                 // Resolve living services booleans
@@ -285,9 +302,13 @@ const OperationalDashboard = () => {
                     extraSpace: item.extraSpace || [],
 
                     // Page 4: Charges & Policies
-                    securityDeposit: item.securityDeposit || 'No Deposit',
-                    securityDepositCustom: item.securityDepositCustom || '',
-                    advancePayment: initialAdv,
+                    securityDeposit: initialSecType === 'Custom' ? 'Custom' : (initialSecType === 'Monthly' ? initialSecMonths : 'No Deposit'),
+                    securityDepositType: initialSecType,
+                    securityDepositMonths: initialSecMonths,
+                    securityDepositCustom: initialSecCustom,
+                    advancePayment: initialAdvType === 'Custom' ? 'Custom' : (initialAdvType === 'Monthly' ? initialAdvMonths : 'No Deposit'),
+                    advancePaymentType: initialAdvType,
+                    advancePaymentMonths: initialAdvMonths,
                     advancePaymentCustom: initialAdvCustom,
                     electricityBill: item.electricityBill || 'Included in Rent',
                     electricityBillAmount: item.electricityBillAmount || '',
@@ -420,9 +441,19 @@ const OperationalDashboard = () => {
                     frequency: 'monthly'
                 };
 
+                const secCategory = editForm.securityDepositType || (editForm.securityDeposit === 'Custom' ? 'Custom' : (editForm.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
+                const finalSecMonths = editForm.securityDepositMonths || '1 Month';
+                const finalSecDeposit = secCategory === 'Custom' ? 'Custom' : (secCategory === 'Monthly' ? finalSecMonths : 'No Deposit');
+                const secCustom = secCategory === 'Custom' ? (editForm.securityDepositCustom || '').trim() : '';
+
+                const advCategory = editForm.advancePaymentType || (editForm.advancePayment === 'Custom' ? 'Custom' : (editForm.advancePayment === 'No Deposit' || editForm.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'));
+                const finalAdvMonths = editForm.advancePaymentMonths || '1 Month';
+                const finalAdvPayment = advCategory === 'Custom' ? 'Custom' : (advCategory === 'Monthly' ? finalAdvMonths : 'No Deposit');
+                const advCustom = advCategory === 'Custom' ? (editForm.advancePaymentCustom || '').trim() : '';
+
                 const legacyAdvancePayment = {
-                    type: editForm.advancePayment === 'Custom' ? 'Custom Amount' : (editForm.advancePayment === 'No Advance' ? 'None' : (editForm.advancePayment || 'None')),
-                    customAmount: editForm.advancePayment === 'Custom' ? (editForm.advancePaymentCustom || '') : ''
+                    type: advCategory === 'Custom' ? 'Custom Amount' : (advCategory === 'Monthly' ? finalAdvMonths : 'None'),
+                    customAmount: advCustom
                 };
 
                 await updateDoc(doc(db, "messes", editingItem.id), {
@@ -435,8 +466,14 @@ const OperationalDashboard = () => {
                     maintenanceFee: editForm.maintenanceFee || 'Included',
                     maintenanceFeeAmount: maintAmount,
                     maintenanceCharge: legacyMaintenanceCharge,
-                    advancePayment: editForm.advancePayment || 'No Advance',
-                    advancePaymentCustom: editForm.advancePayment === 'Custom' ? (editForm.advancePaymentCustom || '') : '',
+                    securityDeposit: finalSecDeposit,
+                    securityDepositType: secCategory,
+                    securityDepositMonths: finalSecMonths,
+                    securityDepositCustom: secCustom,
+                    advancePayment: finalAdvPayment,
+                    advancePaymentType: advCategory,
+                    advancePaymentMonths: finalAdvMonths,
+                    advancePaymentCustom: advCustom,
                     advancePaymentObj: legacyAdvancePayment,
                     wifi: Boolean(editForm.wifi),
                     powerBackup: Boolean(editForm.powerBackup),
@@ -995,8 +1032,8 @@ const OperationalDashboard = () => {
             const regAdv = reg.advancePayment || { type: 'None' };
             const regMaint = reg.maintenanceCharge || { taken: false };
             let derivedDeposit = '';
-            if (regAdv.type && regAdv.type !== 'None') {
-                derivedDeposit = regAdv.type === 'Custom Amount' ? `₹${regAdv.customAmount}` : regAdv.type;
+            if (regAdv.type && regAdv.type !== 'None' && regAdv.type !== 'No Advance' && regAdv.type !== 'No Deposit') {
+                derivedDeposit = regAdv.type === 'Custom Amount' || regAdv.type === 'Custom' ? `₹${regAdv.customAmount || reg.advancePaymentCustom || ''}` : regAdv.type;
             }
             let derivedSecurity = '';
             if (regMaint.taken && regMaint.amount) {
@@ -1021,7 +1058,6 @@ const OperationalDashboard = () => {
                 facilities: facilities,
                 amenities: amenitiesObj,
                 includedInRent: includedInRent,
-                advancePayment: regAdv,
                 maintenanceCharge: regMaint,
                 advanceDeposit: derivedDeposit,
                 security: derivedSecurity,
@@ -1052,7 +1088,14 @@ const OperationalDashboard = () => {
 
                 // Page 4: Charges & Details
                 securityDeposit: reg.securityDeposit || '',
+                securityDepositType: reg.securityDepositType || '',
+                securityDepositMonths: reg.securityDepositMonths || '',
                 securityDepositCustom: reg.securityDepositCustom || '',
+                advancePayment: regAdv,
+                advancePaymentRaw: reg.advancePaymentRaw || (typeof regAdv === 'object' ? regAdv.type : regAdv) || '',
+                advancePaymentType: reg.advancePaymentType || '',
+                advancePaymentMonths: reg.advancePaymentMonths || '',
+                advancePaymentCustom: reg.advancePaymentCustom || (typeof regAdv === 'object' ? regAdv.customAmount : '') || '',
                 electricityBill: reg.electricityBill || '',
                 electricityBillAmount: reg.electricityBillAmount || '',
                 maintenanceFee: reg.maintenanceFee || '',
@@ -1064,6 +1107,7 @@ const OperationalDashboard = () => {
                 noticePeriod: reg.noticePeriod || '',
                 noticePeriodCustom: reg.noticePeriodCustom || '',
                 operatingSince: reg.operatingSince || '',
+                description: (reg.description || '').trim(),
 
                 // Media — use operator-approved photos only
                 posterUrl: approvedBuildingPhotoUrls[0] || approvedGalleryUrls[0] || '',
@@ -2120,19 +2164,53 @@ const OperationalDashboard = () => {
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                             {/* Advance Payment */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Advance Rent Payment</label>
-                                                <select
-                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
-                                                    value={editForm.advancePayment || 'No Advance'}
-                                                    onChange={e => setEditForm({ ...editForm, advancePayment: e.target.value })}
-                                                >
-                                                    <option value="No Advance">No Advance</option>
-                                                    <option value="1 Month">1 Month</option>
-                                                    <option value="2 Months">2 Months</option>
-                                                    <option value="Custom">Custom Amount</option>
-                                                </select>
-                                                {editForm.advancePayment === 'Custom' && (
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-bold text-slate-400 uppercase">Advance Rent Payment</label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Option</label>
+                                                        <select
+                                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs"
+                                                            value={editForm.advancePaymentType || (editForm.advancePayment === 'Custom' ? 'Custom' : (editForm.advancePayment === 'No Deposit' || editForm.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'))}
+                                                            onChange={e => {
+                                                                const cat = e.target.value;
+                                                                const m = editForm.advancePaymentMonths || '1 Month';
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    advancePaymentType: cat,
+                                                                    advancePayment: cat === 'Custom' ? 'Custom' : (cat === 'Monthly' ? m : 'No Deposit')
+                                                                });
+                                                            }}
+                                                        >
+                                                            <option value="No Deposit">No Deposit</option>
+                                                            <option value="Monthly">Monthly</option>
+                                                            <option value="Custom">Custom</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Months (1-12)</label>
+                                                        <select
+                                                            disabled={(editForm.advancePaymentType || (editForm.advancePayment === 'Custom' ? 'Custom' : (editForm.advancePayment === 'No Deposit' || editForm.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'))) !== 'Monthly'}
+                                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-950 disabled:text-slate-500"
+                                                            value={editForm.advancePaymentMonths || '1 Month'}
+                                                            onChange={e => {
+                                                                const m = e.target.value;
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    advancePaymentMonths: m,
+                                                                    advancePayment: m
+                                                                });
+                                                            }}
+                                                        >
+                                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                                                                <option key={num} value={`${num} Month${num > 1 ? 's' : ''}`}>
+                                                                    {num} Month{num > 1 ? 's' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                {(editForm.advancePaymentType === 'Custom' || editForm.advancePayment === 'Custom') && (
                                                     <input
                                                         type="text"
                                                         inputMode="numeric"
@@ -2145,20 +2223,53 @@ const OperationalDashboard = () => {
                                             </div>
 
                                             {/* Security Deposit */}
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Security Deposit</label>
-                                                <select
-                                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-sm"
-                                                    value={editForm.securityDeposit || 'No Deposit'}
-                                                    onChange={e => setEditForm({ ...editForm, securityDeposit: e.target.value })}
-                                                >
-                                                    <option value="No Deposit">No Deposit</option>
-                                                    <option value="1 Month">1 Month</option>
-                                                    <option value="2 Months">2 Months</option>
-                                                    <option value="3 Months">3 Months</option>
-                                                    <option value="Custom">Custom Amount</option>
-                                                </select>
-                                                {editForm.securityDeposit === 'Custom' && (
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-bold text-slate-400 uppercase">Security Deposit</label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Option</label>
+                                                        <select
+                                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs"
+                                                            value={editForm.securityDepositType || (editForm.securityDeposit === 'Custom' ? 'Custom' : (editForm.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'))}
+                                                            onChange={e => {
+                                                                const cat = e.target.value;
+                                                                const m = editForm.securityDepositMonths || '1 Month';
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    securityDepositType: cat,
+                                                                    securityDeposit: cat === 'Custom' ? 'Custom' : (cat === 'Monthly' ? m : 'No Deposit')
+                                                                });
+                                                            }}
+                                                        >
+                                                            <option value="No Deposit">No Deposit</option>
+                                                            <option value="Monthly">Monthly</option>
+                                                            <option value="Custom">Custom</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Months (1-12)</label>
+                                                        <select
+                                                            disabled={(editForm.securityDepositType || (editForm.securityDeposit === 'Custom' ? 'Custom' : (editForm.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'))) !== 'Monthly'}
+                                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-950 disabled:text-slate-500"
+                                                            value={editForm.securityDepositMonths || '1 Month'}
+                                                            onChange={e => {
+                                                                const m = e.target.value;
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    securityDepositMonths: m,
+                                                                    securityDeposit: m
+                                                                });
+                                                            }}
+                                                        >
+                                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                                                                <option key={num} value={`${num} Month${num > 1 ? 's' : ''}`}>
+                                                                    {num} Month{num > 1 ? 's' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                {(editForm.securityDepositType === 'Custom' || editForm.securityDeposit === 'Custom') && (
                                                     <input
                                                         type="text"
                                                         placeholder="Deposit Amount (₹)"

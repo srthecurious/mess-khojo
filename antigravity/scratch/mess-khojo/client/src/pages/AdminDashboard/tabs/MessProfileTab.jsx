@@ -382,13 +382,19 @@ const MessProfileTab = ({
                             value={messForm.advancePayment.type}
                             onChange={(e) => setMessForm({ ...messForm, advancePayment: { ...messForm.advancePayment, type: e.target.value } })}
                         >
-                            <option value="None">None</option>
+                            <option value="None">None / No Deposit</option>
                             <option value="1 Month">1 Month</option>
                             <option value="2 Months">2 Months</option>
                             <option value="3 Months">3 Months</option>
                             <option value="4 Months">4 Months</option>
                             <option value="5 Months">5 Months</option>
                             <option value="6 Months">6 Months</option>
+                            <option value="7 Months">7 Months</option>
+                            <option value="8 Months">8 Months</option>
+                            <option value="9 Months">9 Months</option>
+                            <option value="10 Months">10 Months</option>
+                            <option value="11 Months">11 Months</option>
+                            <option value="12 Months">12 Months</option>
                             <option value="1 Month Rent">1 Month Rent (Legacy)</option>
                             <option value="2 Month Rent">2 Month Rent (Legacy)</option>
                             <option value="Full Amount">Full Amount</option>
@@ -456,6 +462,15 @@ const MessProfileTab = ({
                                     <option value="1 Month">1 Month</option>
                                     <option value="2 Months">2 Months</option>
                                     <option value="3 Months">3 Months</option>
+                                    <option value="4 Months">4 Months</option>
+                                    <option value="5 Months">5 Months</option>
+                                    <option value="6 Months">6 Months</option>
+                                    <option value="7 Months">7 Months</option>
+                                    <option value="8 Months">8 Months</option>
+                                    <option value="9 Months">9 Months</option>
+                                    <option value="10 Months">10 Months</option>
+                                    <option value="11 Months">11 Months</option>
+                                    <option value="12 Months">12 Months</option>
                                     <option value="Custom">Custom Amount</option>
                                 </select>
                                 {messForm.securityDeposit === 'Custom' && (

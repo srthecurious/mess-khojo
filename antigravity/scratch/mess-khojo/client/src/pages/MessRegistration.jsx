@@ -84,9 +84,13 @@ const MessRegistration = () => {
         // Page 4: Charges & Extra Details
         // 1. Charges
         rentCycle: 'monthly', // 'monthly' | 'yearly'
-        securityDeposit: 'No Deposit', // 'No Deposit' | '1 Month' | '2 Months' | 'Custom'
+        securityDepositType: 'No Deposit', // 'No Deposit' | 'Monthly' | 'Custom'
+        securityDepositMonths: '1 Month',
+        securityDeposit: 'No Deposit',
         securityDepositCustom: '',
-        advancePayment: '1 Month', // 'No Advance' | '1 Month' | '2 Months' | 'Custom'
+        advancePaymentType: 'No Deposit', // 'No Deposit' | 'Monthly' | 'Custom'
+        advancePaymentMonths: '1 Month',
+        advancePayment: 'No Deposit',
         advancePaymentCustom: '',
         electricityBill: 'Included in Rent', // 'Included in Rent' | 'As per Meter' | 'Extra Fixed'
         electricityBillAmount: '',
@@ -103,6 +107,9 @@ const MessRegistration = () => {
 
         // 3. Operating Since
         operatingSince: '', // e.g. '2020'
+
+        // 4. Description / About Mess (Optional)
+        description: '',
 
         facilities: [],
         consent: false
@@ -249,6 +256,38 @@ const MessRegistration = () => {
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSecurityDepositTypeChange = (type) => {
+        setFormData(prev => ({
+            ...prev,
+            securityDepositType: type,
+            securityDeposit: type === 'Monthly' ? (prev.securityDepositMonths || '1 Month') : (type === 'Custom' ? 'Custom' : 'No Deposit')
+        }));
+    };
+
+    const handleSecurityMonthsChange = (months) => {
+        setFormData(prev => ({
+            ...prev,
+            securityDepositMonths: months,
+            securityDeposit: months
+        }));
+    };
+
+    const handleAdvancePaymentTypeChange = (type) => {
+        setFormData(prev => ({
+            ...prev,
+            advancePaymentType: type,
+            advancePayment: type === 'Monthly' ? (prev.advancePaymentMonths || '1 Month') : (type === 'Custom' ? 'Custom' : 'No Deposit')
+        }));
+    };
+
+    const handleAdvanceMonthsChange = (months) => {
+        setFormData(prev => ({
+            ...prev,
+            advancePaymentMonths: months,
+            advancePayment: months
+        }));
     };
 
     const handleGetGPS = () => {
@@ -434,10 +473,16 @@ const MessRegistration = () => {
             if (formData.maintenanceFee === 'Included' || formData.maintenanceFee === 'Free / Included') derivedIncluded.push('Maintenance Fee');
             if (formData.utensilsCharges === 'Provided' || formData.utensilsCharges === 'Free / Provided') derivedIncluded.push('Utensils Charges');
 
+            const secType = formData.securityDepositType || (formData.securityDeposit === 'Custom' ? 'Custom' : (formData.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
+            const advType = formData.advancePaymentType || (formData.advancePayment === 'Custom' ? 'Custom' : (formData.advancePayment === 'No Deposit' || formData.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'));
+
+            const finalSecDeposit = secType === 'Custom' ? 'Custom' : (secType === 'Monthly' ? (formData.securityDepositMonths || formData.securityDeposit || '1 Month') : 'No Deposit');
+            const finalAdvPayment = advType === 'Custom' ? 'Custom' : (advType === 'Monthly' ? (formData.advancePaymentMonths || formData.advancePayment || '1 Month') : 'No Deposit');
+
             // Legacy advance payment structure
             const advanceStructure = {
-                type: formData.advancePayment,
-                customAmount: formData.advancePaymentCustom || ''
+                type: finalAdvPayment,
+                customAmount: advType === 'Custom' ? (formData.advancePaymentCustom || '') : ''
             };
 
             // Legacy maintenance structure
@@ -455,6 +500,7 @@ const MessRegistration = () => {
             const registrationData = {
                 ...formData,
                 gender: formData.gender || formData.messType?.[0] || 'Boys',
+                description: (formData.description || '').trim(),
                 noticePeriod: resolvedNoticePeriod,
                 noticePeriodCustom: formData.noticePeriodCustom || '',
                 totalBeds: bedCount,
@@ -467,9 +513,15 @@ const MessRegistration = () => {
                 vacantRooms: vacantRooms,
                 facilities: derivedFacilities,
                 includedInRent: derivedIncluded,
+                securityDeposit: finalSecDeposit,
+                securityDepositType: secType,
+                securityDepositMonths: formData.securityDepositMonths || '1 Month',
+                securityDepositCustom: secType === 'Custom' ? (formData.securityDepositCustom || '') : '',
                 advancePayment: advanceStructure,
-                advancePaymentRaw: formData.advancePayment || '',
-                advancePaymentCustom: formData.advancePaymentCustom || '',
+                advancePaymentRaw: finalAdvPayment,
+                advancePaymentType: advType,
+                advancePaymentMonths: formData.advancePaymentMonths || '1 Month',
+                advancePaymentCustom: advType === 'Custom' ? (formData.advancePaymentCustom || '') : '',
                 maintenanceCharge: maintenanceStructure,
                 landmark: formData.locality,  // backwards compat for existing code reading 'landmark'
                 createdAt: serverTimestamp(),
@@ -1384,23 +1436,51 @@ const MessRegistration = () => {
                             {/* Security Deposit */}
                             <div className="space-y-1.5 pt-1.5 border-t border-purple-100/70">
                                 <span className="text-[11px] font-bold text-gray-500 block">Security Deposit</span>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {['No Deposit', '1 Month', '2 Months', 'Custom'].map(sec => (
-                                        <button
-                                            key={sec}
-                                            type="button"
-                                            onClick={() => handleChange('securityDeposit', sec)}
-                                            className={`min-h-[38px] sm:min-h-[40px] py-2 px-1.5 sm:px-2 rounded-xl border-2 transition-all text-xs font-bold text-center leading-snug flex items-center justify-center ${
-                                                formData.securityDeposit === sec
-                                                    ? 'border-[#300868] bg-white text-[#300868] shadow-xs'
-                                                    : 'border-purple-100/60 bg-white/70 hover:border-purple-200 text-gray-600'
-                                            }`}
-                                        >
-                                            {sec}
-                                        </button>
-                                    ))}
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['No Deposit', 'Monthly', 'Custom'].map(sec => {
+                                        const currentSecType = formData.securityDepositType || (formData.securityDeposit === 'Custom' ? 'Custom' : (formData.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
+                                        const isSelected = currentSecType === sec;
+                                        return (
+                                            <button
+                                                key={sec}
+                                                type="button"
+                                                onClick={() => handleSecurityDepositTypeChange(sec)}
+                                                className={`min-h-[38px] sm:min-h-[40px] py-2 px-1.5 sm:px-2 rounded-xl border-2 transition-all text-xs font-bold text-center leading-snug flex items-center justify-center ${
+                                                    isSelected
+                                                        ? 'border-[#300868] bg-white text-[#300868] shadow-xs'
+                                                        : 'border-purple-100/60 bg-white/70 hover:border-purple-200 text-gray-600'
+                                                }`}
+                                            >
+                                                {sec}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                {formData.securityDeposit === 'Custom' && (
+                                <div className="space-y-1">
+                                    {(() => {
+                                        const currentSecType = formData.securityDepositType || (formData.securityDeposit === 'Custom' ? 'Custom' : (formData.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
+                                        const isMonthly = currentSecType === 'Monthly';
+                                        return (
+                                            <select
+                                                disabled={!isMonthly}
+                                                value={formData.securityDepositMonths || '1 Month'}
+                                                onChange={(e) => handleSecurityMonthsChange(e.target.value)}
+                                                className={`w-full text-xs sm:text-sm p-2.5 border-2 rounded-xl transition-all outline-none ${
+                                                    isMonthly
+                                                        ? 'border-purple-200 bg-white text-gray-900 focus:border-[#300868] cursor-pointer'
+                                                        : 'border-gray-200 bg-gray-100/80 text-gray-400 cursor-not-allowed opacity-60'
+                                                }`}
+                                            >
+                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                                                    <option key={m} value={`${m} Month${m > 1 ? 's' : ''}`}>
+                                                        {m} Month{m > 1 ? 's' : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        );
+                                    })()}
+                                </div>
+                                {(formData.securityDepositType === 'Custom' || formData.securityDeposit === 'Custom') && (
                                     <input
                                         type="number"
                                         inputMode="numeric"
@@ -1415,23 +1495,51 @@ const MessRegistration = () => {
                             {/* Advance Payment */}
                             <div className="space-y-1.5 pt-1.5 border-t border-purple-100/70">
                                 <span className="text-[11px] font-bold text-gray-500 block">Advance Payment</span>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {['No Advance', '1 Month', '2 Months', 'Custom'].map(adv => (
-                                        <button
-                                            key={adv}
-                                            type="button"
-                                            onClick={() => handleChange('advancePayment', adv)}
-                                            className={`min-h-[38px] sm:min-h-[40px] py-2 px-1.5 sm:px-2 rounded-xl border-2 transition-all text-xs font-bold text-center leading-snug flex items-center justify-center ${
-                                                formData.advancePayment === adv
-                                                    ? 'border-[#300868] bg-white text-[#300868] shadow-xs'
-                                                    : 'border-purple-100/60 bg-white/70 hover:border-purple-200 text-gray-600'
-                                            }`}
-                                        >
-                                            {adv}
-                                        </button>
-                                    ))}
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['No Deposit', 'Monthly', 'Custom'].map(adv => {
+                                        const currentAdvType = formData.advancePaymentType || (formData.advancePayment === 'Custom' ? 'Custom' : (formData.advancePayment === 'No Deposit' || formData.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'));
+                                        const isSelected = currentAdvType === adv;
+                                        return (
+                                            <button
+                                                key={adv}
+                                                type="button"
+                                                onClick={() => handleAdvancePaymentTypeChange(adv)}
+                                                className={`min-h-[38px] sm:min-h-[40px] py-2 px-1.5 sm:px-2 rounded-xl border-2 transition-all text-xs font-bold text-center leading-snug flex items-center justify-center ${
+                                                    isSelected
+                                                        ? 'border-[#300868] bg-white text-[#300868] shadow-xs'
+                                                        : 'border-purple-100/60 bg-white/70 hover:border-purple-200 text-gray-600'
+                                                }`}
+                                            >
+                                                {adv}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                {formData.advancePayment === 'Custom' && (
+                                <div className="space-y-1">
+                                    {(() => {
+                                        const currentAdvType = formData.advancePaymentType || (formData.advancePayment === 'Custom' ? 'Custom' : (formData.advancePayment === 'No Deposit' || formData.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'));
+                                        const isMonthly = currentAdvType === 'Monthly';
+                                        return (
+                                            <select
+                                                disabled={!isMonthly}
+                                                value={formData.advancePaymentMonths || '1 Month'}
+                                                onChange={(e) => handleAdvanceMonthsChange(e.target.value)}
+                                                className={`w-full text-xs sm:text-sm p-2.5 border-2 rounded-xl transition-all outline-none ${
+                                                    isMonthly
+                                                        ? 'border-purple-200 bg-white text-gray-900 focus:border-[#300868] cursor-pointer'
+                                                        : 'border-gray-200 bg-gray-100/80 text-gray-400 cursor-not-allowed opacity-60'
+                                                }`}
+                                            >
+                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                                                    <option key={m} value={`${m} Month${m > 1 ? 's' : ''}`}>
+                                                        {m} Month{m > 1 ? 's' : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        );
+                                    })()}
+                                </div>
+                                {(formData.advancePaymentType === 'Custom' || formData.advancePayment === 'Custom') && (
                                     <input
                                         type="number"
                                         inputMode="numeric"
@@ -1635,6 +1743,21 @@ const MessRegistration = () => {
                             </select>
                         </div>
 
+                        {/* 4. Description / About Mess (Optional) */}
+                        <div className="pt-3 border-t border-gray-100 space-y-2">
+                            <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wider block flex items-center gap-1.5">
+                                Description / About Mess
+                                <span className="text-[10px] font-medium text-gray-400 normal-case tracking-normal">(optional)</span>
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={formData.description || ''}
+                                onChange={(e) => handleChange('description', e.target.value)}
+                                placeholder="Tell students about your mess environment, special facilities, meals, or house rules..."
+                                className="w-full text-xs sm:text-sm p-2.5 sm:p-3 border-2 border-purple-100 bg-white rounded-xl focus:border-[#300868] outline-none transition-all font-medium text-gray-800 resize-none"
+                            />
+                        </div>
+
                         {/* Terms & Consent */}
                         <div className="flex items-start gap-2.5 bg-purple-50/50 p-3 rounded-xl border border-purple-100 mt-2">
                             <input
@@ -1702,8 +1825,10 @@ const MessRegistration = () => {
             case 4:
                 // operatingSince is optional
                 if (formData.noticePeriod === 'Other' && (!formData.noticePeriodCustom || formData.noticePeriodCustom.trim().length === 0)) return false;
-                if (formData.securityDeposit === 'Custom' && (!formData.securityDepositCustom || formData.securityDepositCustom.trim().length === 0)) return false;
-                if (formData.advancePayment === 'Custom' && (!formData.advancePaymentCustom || formData.advancePaymentCustom.trim().length === 0)) return false;
+                const secType = formData.securityDepositType || (formData.securityDeposit === 'Custom' ? 'Custom' : (formData.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
+                if (secType === 'Custom' && (!formData.securityDepositCustom || formData.securityDepositCustom.trim().length === 0)) return false;
+                const advType = formData.advancePaymentType || (formData.advancePayment === 'Custom' ? 'Custom' : (formData.advancePayment === 'No Deposit' || formData.advancePayment === 'No Advance' ? 'No Deposit' : 'Monthly'));
+                if (advType === 'Custom' && (!formData.advancePaymentCustom || formData.advancePaymentCustom.trim().length === 0)) return false;
                 if (formData.maintenanceFee === 'Extra Charge' && (!formData.maintenanceFeeAmount || formData.maintenanceFeeAmount.trim().length === 0)) return false;
                 if (formData.electricityBill === 'Extra Fixed' && (!formData.electricityBillAmount || formData.electricityBillAmount.trim().length === 0)) return false;
                 if (formData.cleaningCharges === 'Extra Charge' && (!formData.cleaningChargesAmount || formData.cleaningChargesAmount.trim().length === 0)) return false;
