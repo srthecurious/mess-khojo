@@ -1,6 +1,6 @@
 // Node 18+ (Netlify runs Node 22) provides global fetch natively
 
-exports.handler = async function (event, context) {
+export const handler = async function (event, context) {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };

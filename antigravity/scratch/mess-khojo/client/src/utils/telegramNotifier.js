@@ -125,7 +125,7 @@ export const telegramTemplates = {
 
         let advanceInfo = '';
         const advType = registration.advancePayment?.type || (typeof registration.advancePayment === 'string' ? registration.advancePayment : '');
-        if (advType && advType !== 'None' && advType !== 'No Advance') {
+        if (advType && advType !== 'None' && advType !== 'No Advance' && advType !== 'No Deposit') {
             advanceInfo = `\n💳 <b>Advance:</b> ${advType === 'Custom' || advType === 'Custom Amount' ? `₹${registration.advancePayment?.customAmount || registration.advancePaymentCustom || ''}` : advType}`;
         }
 
@@ -145,6 +145,9 @@ export const telegramTemplates = {
         }
         if (registration.operatingSince) {
             extraDetails += `\n📅 <b>Operating Since:</b> ${registration.operatingSince}`;
+        }
+        if (registration.description) {
+            extraDetails += `\n📝 <b>About:</b> ${esc(registration.description)}`;
         }
 
         let vacantInfo = '';

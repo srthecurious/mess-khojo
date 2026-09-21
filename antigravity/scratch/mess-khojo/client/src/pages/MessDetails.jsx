@@ -1316,13 +1316,13 @@ const MessDetails = () => {
                         let isZeroAdvance = false;
                         if (mess.advancePayment === 'Custom') {
                             advLabel = mess.advancePaymentCustom ? `₹${mess.advancePaymentCustom}` : null;
-                        } else if (mess.advancePayment === 'No Advance' || mess.advancePayment === 'None') {
+                        } else if (mess.advancePayment === 'No Advance' || mess.advancePayment === 'None' || mess.advancePayment === 'No Deposit') {
                             isZeroAdvance = true;
                             advLabel = 'No Advance Required';
                         } else if (typeof mess.advancePayment === 'object' && mess.advancePayment !== null) {
                             if (mess.advancePayment.type === 'Custom Amount' || mess.advancePayment.type === 'Custom') {
                                 advLabel = mess.advancePayment.customAmount ? `₹${mess.advancePayment.customAmount}` : null;
-                            } else if (mess.advancePayment.type === 'None') {
+                            } else if (mess.advancePayment.type === 'None' || mess.advancePayment.type === 'No Advance' || mess.advancePayment.type === 'No Deposit') {
                                 isZeroAdvance = true;
                                 advLabel = 'No Advance Required';
                             } else if (mess.advancePayment.type) {

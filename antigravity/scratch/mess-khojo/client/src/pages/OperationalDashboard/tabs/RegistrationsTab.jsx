@@ -50,15 +50,27 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             });
         }
 
-        const resolvedAdv = typeof reg.advancePayment === 'object' && reg.advancePayment !== null
-            ? {
-                type: reg.advancePayment.type || 'None',
-                customAmount: reg.advancePayment.customAmount || reg.advancePaymentCustom || ''
-            }
-            : {
-                type: reg.advancePayment || 'None',
-                customAmount: reg.advancePaymentCustom || ''
-            };
+        const rawAdvType = typeof reg.advancePayment === 'object' && reg.advancePayment !== null
+            ? (reg.advancePayment.type || 'No Deposit')
+            : (reg.advancePayment || 'No Deposit');
+        const isAdvCustom = rawAdvType === 'Custom' || rawAdvType === 'Custom Amount' || reg.advancePaymentType === 'Custom';
+        const isAdvNone = rawAdvType === 'No Advance' || rawAdvType === 'No Deposit' || rawAdvType === 'None' || reg.advancePaymentType === 'No Deposit';
+        const advCategory = isAdvCustom ? 'Custom' : (isAdvNone ? 'No Deposit' : 'Monthly');
+        const advMonths = reg.advancePaymentMonths || (!isAdvCustom && !isAdvNone ? rawAdvType : '1 Month');
+        const advCustomAmt = (typeof reg.advancePayment === 'object' && reg.advancePayment !== null ? reg.advancePayment.customAmount : '') || reg.advancePaymentCustom || '';
+
+        const resolvedAdv = {
+            category: advCategory,
+            months: advMonths,
+            type: advCategory === 'Custom' ? 'Custom' : (advCategory === 'Monthly' ? advMonths : 'No Deposit'),
+            customAmount: advCustomAmt
+        };
+
+        const secRaw = reg.securityDeposit || 'No Deposit';
+        const isSecCustom = secRaw === 'Custom' || reg.securityDepositType === 'Custom';
+        const isSecNone = secRaw === 'No Deposit' || secRaw === 'None' || secRaw === '0' || secRaw === '₹0' || reg.securityDepositType === 'No Deposit';
+        const secCategory = isSecCustom ? 'Custom' : (isSecNone ? 'No Deposit' : 'Monthly');
+        const secMonths = reg.securityDepositMonths || (!isSecCustom && !isSecNone ? secRaw : '1 Month');
 
         setEditingRegistration(reg);
         setEditForm({
@@ -98,7 +110,9 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             extraSpace: reg.extraSpace || [],
 
             // Page 4: Charges & Policies
-            securityDeposit: reg.securityDeposit || 'No Deposit',
+            securityDeposit: secCategory === 'Custom' ? 'Custom' : (secCategory === 'Monthly' ? secMonths : 'No Deposit'),
+            securityDepositType: secCategory,
+            securityDepositMonths: secMonths,
             securityDepositCustom: reg.securityDepositCustom || '',
             electricityBill: reg.electricityBill || 'Included in Rent',
             electricityBillAmount: reg.electricityBillAmount || '',
@@ -110,7 +124,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             utensilsCharges: reg.utensilsCharges || 'Provided',
             noticePeriod: reg.noticePeriod || '1 Month',
             noticePeriodCustom: reg.noticePeriodCustom || '',
-            operatingSince: reg.operatingSince || ''
+            operatingSince: reg.operatingSince || '',
+            description: reg.description || ''
         });
     };
 
@@ -163,10 +178,17 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
             const minStayDuration = !isNaN(parsedStay) ? parsedStay : 1;
 
             // Parse Advance Payment policy safely
-            const advType = editForm.advancePayment.type;
-            const rawAdvAmt = String(editForm.advancePayment.customAmount).trim();
-            const parsedAdvAmt = rawAdvAmt !== '' ? Number(rawAdvAmt) : '';
-            const customAmount = advType === 'Custom Amount' && !isNaN(parsedAdvAmt) ? parsedAdvAmt : '';
+            const advCategory = editForm.advancePayment?.category || (editForm.advancePayment?.type === 'Custom' || editForm.advancePayment?.type === 'Custom Amount' ? 'Custom' : (editForm.advancePayment?.type === 'No Deposit' || editForm.advancePayment?.type === 'No Advance' || editForm.advancePayment?.type === 'None' ? 'No Deposit' : 'Monthly'));
+            const finalAdvMonths = editForm.advancePayment?.months || editForm.advancePaymentMonths || '1 Month';
+            const finalAdvType = advCategory === 'Custom' ? 'Custom' : (advCategory === 'Monthly' ? finalAdvMonths : 'No Deposit');
+            const rawAdvAmt = String(editForm.advancePayment?.customAmount || editForm.advancePaymentCustom || '').trim();
+            const customAmount = advCategory === 'Custom' ? rawAdvAmt.replace(/[^0-9]/g, '') : '';
+
+            // Parse Security Deposit policy safely
+            const secCategory = editForm.securityDepositType || (editForm.securityDeposit === 'Custom' ? 'Custom' : (editForm.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
+            const finalSecMonths = editForm.securityDepositMonths || '1 Month';
+            const finalSecDeposit = secCategory === 'Custom' ? 'Custom' : (secCategory === 'Monthly' ? finalSecMonths : 'No Deposit');
+            const secCustom = secCategory === 'Custom' ? String(editForm.securityDepositCustom || '').trim().replace(/[^0-9]/g, '') : '';
 
             // Parse Maintenance Charge safely
             const maintTaken = !!editForm.maintenanceCharge.taken;
@@ -198,9 +220,13 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                 facilities: editForm.facilities,
                 includedInRent: editForm.includedInRent,
                 advancePayment: {
-                    type: advType,
+                    type: finalAdvType,
                     customAmount: customAmount
                 },
+                advancePaymentType: advCategory,
+                advancePaymentMonths: finalAdvMonths,
+                advancePaymentCustom: customAmount,
+                advancePaymentRaw: finalAdvType,
                 maintenanceCharge: {
                     taken: maintTaken,
                     amount: maintAmount,
@@ -225,8 +251,10 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                 extraSpace: editForm.extraSpace || [],
 
                 // Page 4: Charges & Policies
-                securityDeposit: editForm.securityDeposit || '',
-                securityDepositCustom: editForm.securityDepositCustom || '',
+                securityDeposit: finalSecDeposit,
+                securityDepositType: secCategory,
+                securityDepositMonths: finalSecMonths,
+                securityDepositCustom: secCustom,
                 electricityBill: editForm.electricityBill || '',
                 electricityBillAmount: editForm.electricityBillAmount || '',
                 maintenanceFee: editForm.maintenanceFee || '',
@@ -237,7 +265,8 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                 utensilsCharges: editForm.utensilsCharges || '',
                 noticePeriod: resolvedNoticePeriod || '',
                 noticePeriodCustom: editForm.noticePeriodCustom || '',
-                operatingSince: editForm.operatingSince || ''
+                operatingSince: editForm.operatingSince || '',
+                description: (editForm.description || '').trim()
             };
 
             await updateDoc(doc(db, "mess_registrations", editingRegistration.id), updatedData);
@@ -731,6 +760,16 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Description / About Mess */}
+                                {reg.description && (
+                                    <div className="pt-3 border-t border-slate-700/50 space-y-1 text-xs">
+                                        <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">About / Description</p>
+                                        <p className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap bg-slate-900/60 p-2.5 rounded-lg border border-slate-750">
+                                            {reg.description}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1081,45 +1120,77 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                 {/* Advance Payment */}
                                 <div className="space-y-3">
                                     <h4 className="text-xs font-bold text-slate-450 uppercase tracking-wider mb-1">Advance Payment Required</h4>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Type</label>
+                                            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Option</label>
                                             <select
-                                                value={editForm.advancePayment.type}
-                                                onChange={e => setEditForm({
-                                                    ...editForm,
-                                                    advancePayment: { ...editForm.advancePayment, type: e.target.value }
-                                                })}
+                                                value={editForm.advancePayment?.category || 'No Deposit'}
+                                                onChange={e => {
+                                                    const cat = e.target.value;
+                                                    const m = editForm.advancePayment?.months || '1 Month';
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        advancePayment: {
+                                                            ...editForm.advancePayment,
+                                                            category: cat,
+                                                            type: cat === 'Custom' ? 'Custom' : (cat === 'Monthly' ? m : 'No Deposit')
+                                                        }
+                                                    });
+                                                }}
                                                 className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs cursor-pointer"
                                             >
-                                                <option value="None" className="bg-slate-900">None</option>
-                                                <option value="No Advance" className="bg-slate-900">No Advance</option>
-                                                <option value="1 Month" className="bg-slate-900">1 Month</option>
-                                                <option value="1 Month Rent" className="bg-slate-900">1 Month Rent</option>
-                                                <option value="2 Months" className="bg-slate-900">2 Months</option>
-                                                <option value="2 Months Rent" className="bg-slate-900">2 Months Rent</option>
-                                                <option value="Full Amount" className="bg-slate-900">Full Amount</option>
-                                                <option value="Custom" className="bg-slate-900">Custom Amount</option>
-                                                <option value="Custom Amount" className="bg-slate-900">Custom Amount</option>
+                                                <option value="No Deposit" className="bg-slate-900">No Deposit</option>
+                                                <option value="Monthly" className="bg-slate-900">Monthly</option>
+                                                <option value="Custom" className="bg-slate-900">Custom</option>
                                             </select>
                                         </div>
-                                        {(editForm.advancePayment.type === 'Custom Amount' || editForm.advancePayment.type === 'Custom') && (
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Custom Deposit Amount (₹)</label>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    value={editForm.advancePayment.customAmount}
-                                                    onChange={e => setEditForm({
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Months (1-12)</label>
+                                            <select
+                                                disabled={(editForm.advancePayment?.category || 'No Deposit') !== 'Monthly'}
+                                                value={editForm.advancePayment?.months || '1 Month'}
+                                                onChange={e => {
+                                                    const m = e.target.value;
+                                                    setEditForm({
                                                         ...editForm,
-                                                        advancePayment: { ...editForm.advancePayment, customAmount: e.target.value.replace(/[^0-9]/g, '') }
-                                                    })}
-                                                    onWheel={e => e.target.blur()}
-                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs"
-                                                />
-                                            </div>
-                                        )}
+                                                        advancePayment: {
+                                                            ...editForm.advancePayment,
+                                                            months: m,
+                                                            type: m
+                                                        }
+                                                    });
+                                                }}
+                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-900/60 disabled:text-slate-500"
+                                            >
+                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                                                    <option key={num} value={`${num} Month${num > 1 ? 's' : ''}`} className="bg-slate-900">
+                                                        {num} Month{num > 1 ? 's' : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
+                                    {(editForm.advancePayment?.category === 'Custom' || editForm.advancePayment?.type === 'Custom' || editForm.advancePayment?.type === 'Custom Amount') && (
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Custom Deposit Amount (₹)</label>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                placeholder="Advance Amount (₹)"
+                                                value={editForm.advancePayment?.customAmount || editForm.advancePaymentCustom || ''}
+                                                onChange={e => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        advancePayment: { ...editForm.advancePayment, customAmount: val },
+                                                        advancePaymentCustom: val
+                                                    });
+                                                }}
+                                                onWheel={e => e.target.blur()}
+                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Maintenance Charge */}
@@ -1470,26 +1541,60 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     {/* Security Deposit */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Security Deposit</label>
-                                        <select
-                                            value={editForm.securityDeposit || 'No Deposit'}
-                                            onChange={e => setEditForm({ ...editForm, securityDeposit: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs cursor-pointer"
-                                        >
-                                            <option value="No Deposit" className="bg-slate-900">No Deposit</option>
-                                            <option value="1 Month" className="bg-slate-900">1 Month</option>
-                                            <option value="2 Months" className="bg-slate-900">2 Months</option>
-                                            <option value="3 Months" className="bg-slate-900">3 Months</option>
-                                            <option value="Custom" className="bg-slate-900">Custom Amount</option>
-                                        </select>
-                                        {editForm.securityDeposit === 'Custom' && (
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Security Deposit</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Option</label>
+                                                <select
+                                                    value={editForm.securityDepositType || (editForm.securityDeposit === 'Custom' ? 'Custom' : (editForm.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'))}
+                                                    onChange={e => {
+                                                        const cat = e.target.value;
+                                                        const m = editForm.securityDepositMonths || '1 Month';
+                                                        setEditForm({
+                                                            ...editForm,
+                                                            securityDepositType: cat,
+                                                            securityDeposit: cat === 'Custom' ? 'Custom' : (cat === 'Monthly' ? m : 'No Deposit')
+                                                        });
+                                                    }}
+                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs cursor-pointer"
+                                                >
+                                                    <option value="No Deposit" className="bg-slate-900">No Deposit</option>
+                                                    <option value="Monthly" className="bg-slate-900">Monthly</option>
+                                                    <option value="Custom" className="bg-slate-900">Custom</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Months (1-12)</label>
+                                                <select
+                                                    disabled={(editForm.securityDepositType || (editForm.securityDeposit === 'Custom' ? 'Custom' : (editForm.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'))) !== 'Monthly'}
+                                                    value={editForm.securityDepositMonths || '1 Month'}
+                                                    onChange={e => {
+                                                        const m = e.target.value;
+                                                        setEditForm({
+                                                            ...editForm,
+                                                            securityDepositMonths: m,
+                                                            securityDeposit: m
+                                                        });
+                                                    }}
+                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-900/60 disabled:text-slate-500"
+                                                >
+                                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                                                        <option key={num} value={`${num} Month${num > 1 ? 's' : ''}`} className="bg-slate-900">
+                                                            {num} Month{num > 1 ? 's' : ''}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {(editForm.securityDepositType === 'Custom' || editForm.securityDeposit === 'Custom') && (
                                             <input
                                                 type="text"
+                                                inputMode="numeric"
                                                 placeholder="Deposit Amount (₹)"
                                                 value={editForm.securityDepositCustom || ''}
-                                                onChange={e => setEditForm({ ...editForm, securityDepositCustom: e.target.value })}
-                                                className="w-full mt-2 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs"
+                                                onChange={e => setEditForm({ ...editForm, securityDepositCustom: e.target.value.replace(/[^0-9]/g, '') })}
+                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs"
                                             />
                                         )}
                                     </div>
@@ -1656,6 +1761,21 @@ const RegistrationsTab = ({ registrations, handleApproveRegistration }) => {
                                             ))}
                                             <option value="Before 2000" className="bg-slate-900">Before 2000</option>
                                         </select>
+                                    </div>
+
+                                    {/* Description / About Mess */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase flex items-center gap-1">
+                                            Description / About Mess
+                                            <span className="text-[10px] font-normal text-slate-500 lowercase">(optional)</span>
+                                        </label>
+                                        <textarea
+                                            rows={3}
+                                            value={editForm.description || ''}
+                                            onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                                            placeholder="Overview, special highlights, or rules of the mess..."
+                                            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs resize-none"
+                                        />
                                     </div>
                                 </div>
                             </div>
