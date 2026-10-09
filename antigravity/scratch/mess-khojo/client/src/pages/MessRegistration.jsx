@@ -1822,7 +1822,7 @@ const MessRegistration = () => {
             case 3:
                 // Facilities, mealsPerDay, foodType, water, laundry, cleaning, extra space are all optional
                 return true;
-            case 4:
+            case 4: {
                 // operatingSince is optional
                 if (formData.noticePeriod === 'Other' && (!formData.noticePeriodCustom || formData.noticePeriodCustom.trim().length === 0)) return false;
                 const secType = formData.securityDepositType || (formData.securityDeposit === 'Custom' ? 'Custom' : (formData.securityDeposit === 'No Deposit' ? 'No Deposit' : 'Monthly'));
@@ -1833,6 +1833,7 @@ const MessRegistration = () => {
                 if (formData.electricityBill === 'Extra Fixed' && (!formData.electricityBillAmount || formData.electricityBillAmount.trim().length === 0)) return false;
                 if (formData.cleaningCharges === 'Extra Charge' && (!formData.cleaningChargesAmount || formData.cleaningChargesAmount.trim().length === 0)) return false;
                 return Boolean(formData.consent);
+            }
             default:
                 return true;
         }

@@ -7,15 +7,31 @@ import { db } from '../firebase';
 export const getMess = (messId) => getDoc(doc(db, 'messes', messId));
 
 /**
- * Watch all messes in real-time.
+ * Watch messes in real-time, optionally filtered by district to minimize Firestore reads.
  */
-export const watchMesses = (callback) => {
-    return onSnapshot(collection(db, 'messes'), (snapshot) => {
+export const watchMesses = (selectedDistrict, callback) => {
+    let cb = callback;
+    let district = selectedDistrict;
+    if (typeof selectedDistrict === 'function') {
+        cb = selectedDistrict;
+        district = null;
+    }
+
+    let messQuery = collection(db, 'messes');
+    // Note: Legacy messes in Firestore without a district field implicitly belong to Balasore.
+    // Firestore `where('district', '==', ...)` drops documents that don't have the field.
+    // For specific non-balasore districts (bhadrak, mayurbhanj, jajpur, khorda), use server filter to reduce read costs.
+    // For 'balasore' or 'all', query all and filter client-side to preserve legacy listings.
+    if (district && district !== 'all' && district !== 'balasore') {
+        messQuery = query(collection(db, 'messes'), where('district', '==', district));
+    }
+
+    return onSnapshot(messQuery, (snapshot) => {
         const messesData = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
         }));
-        callback(messesData);
+        if (cb) cb(messesData);
     }, (error) => {
         console.error('Error in watchMesses service:', error);
     });
@@ -26,7 +42,10 @@ export const watchMesses = (callback) => {
  */
 export const watchRooms = (selectedDistrict, callback) => {
     let roomQuery = collection(db, 'rooms');
-    if (selectedDistrict && selectedDistrict !== 'all') {
+    // Note: 434 legacy rooms in Firestore do not have district set on them, belonging to Balasore.
+    // Using server-side where('district', '==', 'balasore') drops all 434 legacy rooms.
+    // For other districts, filter server-side to save Firebase cost. For Balasore/all, filter client-side.
+    if (selectedDistrict && selectedDistrict !== 'all' && selectedDistrict !== 'balasore') {
         roomQuery = query(collection(db, 'rooms'), where('district', '==', selectedDistrict));
     }
     return onSnapshot(roomQuery, (snapshot) => {

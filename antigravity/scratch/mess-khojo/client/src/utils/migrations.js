@@ -1,41 +1,72 @@
-import { collection, getDocs, updateDoc, doc, writeBatch, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export const backfillRoomDistricts = async () => {
     try {
-        console.log('Starting Room District Backfill...');
+        console.log('Starting Room District and City Normalization Backfill...');
         // 1. Fetch all messes
         const messesSnap = await getDocs(collection(db, 'messes'));
         const messDistricts = {};
+        let messBatch = writeBatch(db);
+        let messBatchOps = 0;
+        let updatedMesses = 0;
+
         messesSnap.forEach(snap => {
             const data = snap.data();
-            // Default to balasore if missing, based on legacy logic
-            messDistricts[snap.id] = data.district || 'balasore';
-        });
+            const dist = data.district || 'balasore';
+            messDistricts[snap.id] = dist;
 
-        // 2. Fetch all rooms
-        const roomsSnap = await getDocs(collection(db, 'rooms'));
-        let updatedCount = 0;
+            const updates = {};
+            if (!data.district) {
+                updates.district = 'balasore';
+            }
+            if (data.city === 'Balasore City') {
+                updates.city = 'baleshwar';
+            }
 
-        // 3. Update rooms that are missing the district or have the wrong one
-        const updatePromises = [];
-        roomsSnap.forEach(snap => {
-            const roomData = snap.data();
-            const messId = roomData.messId;
-            const correctDistrict = messDistricts[messId];
-
-            if (correctDistrict && roomData.district !== correctDistrict) {
-                const roomRef = doc(db, 'rooms', snap.id);
-                updatePromises.push(
-                    updateDoc(roomRef, { district: correctDistrict })
-                );
-                updatedCount++;
+            if (Object.keys(updates).length > 0) {
+                messBatch.update(doc(db, 'messes', snap.id), updates);
+                messBatchOps++;
+                updatedMesses++;
             }
         });
 
-        await Promise.all(updatePromises);
-        console.log(`Backfill complete. Updated ${updatedCount} rooms.`);
-        return { success: true, count: updatedCount };
+        if (messBatchOps > 0) {
+            await messBatch.commit();
+            console.log(`Updated ${updatedMesses} messes with district/city normalization.`);
+        }
+
+        // 2. Fetch all rooms
+        const roomsSnap = await getDocs(collection(db, 'rooms'));
+        let updatedRooms = 0;
+        let roomBatch = writeBatch(db);
+        let roomBatchOps = 0;
+
+        for (const snap of roomsSnap.docs) {
+            const roomData = snap.data();
+            const messId = roomData.messId;
+            const correctDistrict = messDistricts[messId] || 'balasore';
+
+            if (!roomData.district || roomData.district !== correctDistrict) {
+                const roomRef = doc(db, 'rooms', snap.id);
+                roomBatch.update(roomRef, { district: correctDistrict });
+                roomBatchOps++;
+                updatedRooms++;
+
+                if (roomBatchOps >= 400) {
+                    await roomBatch.commit();
+                    roomBatch = writeBatch(db);
+                    roomBatchOps = 0;
+                }
+            }
+        }
+
+        if (roomBatchOps > 0) {
+            await roomBatch.commit();
+        }
+
+        console.log(`Backfill complete. Updated ${updatedMesses} messes and ${updatedRooms} rooms.`);
+        return { success: true, updatedMesses, updatedRooms };
     } catch (error) {
         console.error('Error in backfillRoomDistricts:', error);
         return { success: false, error };

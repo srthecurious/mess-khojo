@@ -3,11 +3,15 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
-export const DISTRICTS_CONFIG = {
+// ─── Static Fallback Config (used if Firestore doc doesn't exist yet) ────────
+// This is the original hardcoded config. It is ALWAYS available as a safety net.
+// The dynamic Firestore config merges on top of this.
+export const STATIC_DISTRICTS_CONFIG = {
     balasore: {
         id: "balasore",
         name: "Balasore",
         active: true,
+        order: 1,
         heroTitle: "Find Your Comfortable Stay in Balasore",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
         gpsCenter: { lat: 21.4934, lng: 86.9294 },
@@ -31,6 +35,7 @@ export const DISTRICTS_CONFIG = {
         id: "bhadrak",
         name: "Bhadrak",
         active: true,
+        order: 2,
         heroTitle: "Find Your Comfortable Stay in Bhadrak",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
         gpsCenter: { lat: 21.0672, lng: 86.4886 },
@@ -51,6 +56,7 @@ export const DISTRICTS_CONFIG = {
         id: "mayurbhanj",
         name: "Mayurbhanj",
         active: true,
+        order: 3,
         heroTitle: "Find Your Comfortable Stay in Mayurbhanj",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
         gpsCenter: { lat: 21.9320, lng: 86.7513 },
@@ -70,6 +76,7 @@ export const DISTRICTS_CONFIG = {
         id: "jajpur",
         name: "Jajpur",
         active: true,
+        order: 4,
         heroTitle: "Find Your Comfortable Stay in Jajpur",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
         gpsCenter: { lat: 20.8502, lng: 86.3361 },
@@ -91,6 +98,7 @@ export const DISTRICTS_CONFIG = {
         id: "khorda",
         name: "Khorda",
         active: true,
+        order: 5,
         heroTitle: "Find Your Comfortable Stay in Bhubaneswar & Khorda",
         heroSubtitle: "Mess Dhundo, Ghar Baithe",
         gpsCenter: { lat: 20.2961, lng: 85.8245 },
@@ -139,6 +147,15 @@ export const DISTRICTS_CONFIG = {
     }
 };
 
+// ─── Backward-compat alias ───────────────────────────────────────────────────
+// Many files still import DISTRICTS_CONFIG directly. This is the dynamic value
+// that gets updated at runtime. For SSR/initial render it starts as the static
+// fallback. The DistrictProvider patches it on mount.
+// NOTE: This mutable export is intentional to support imports outside of React
+// component trees (e.g. utility functions, service files). The DistrictProvider
+// keeps it in sync with Firestore.
+export let DISTRICTS_CONFIG = { ...STATIC_DISTRICTS_CONFIG };
+
 /**
  * Build a static fallback localitiesConfig from DISTRICTS_CONFIG.
  * Shape: { cityId: ['Locality A', 'Locality B', ...] }
@@ -146,11 +163,11 @@ export const DISTRICTS_CONFIG = {
  * we assign all district landmarks to every city in that district unless
  * city-specific landmarks are explicitly specified.
  */
-const buildFallbackLocalities = () => {
+const buildFallbackLocalities = (config) => {
     const map = {};
-    Object.values(DISTRICTS_CONFIG).forEach(district => {
-        const districtLandmarks = (district.landmarks || []).map(l => l.name);
-        district.cities.forEach(city => {
+    Object.values(config || STATIC_DISTRICTS_CONFIG).forEach(district => {
+        const districtLandmarks = (district.landmarks || []).map(l => typeof l === 'string' ? l : l.name);
+        (district.cities || []).forEach(city => {
             if (city.landmarks && Array.isArray(city.landmarks)) {
                 map[city.id] = city.landmarks.map(l => typeof l === 'string' ? l : l.name);
             } else {
@@ -161,10 +178,126 @@ const buildFallbackLocalities = () => {
     return map;
 };
 
-export const FALLBACK_LOCALITIES = buildFallbackLocalities();
+export const FALLBACK_LOCALITIES = buildFallbackLocalities(STATIC_DISTRICTS_CONFIG);
 
 export const getCitiesForDistrict = (districtId) => {
     return DISTRICTS_CONFIG[districtId]?.cities || [];
+};
+
+/**
+ * Normalize any city alias or slug to its standard canonical city ID
+ * e.g. 'balasore', 'Balasore City', 'baleswar' -> 'baleshwar'
+ *      'khorda', 'khordha' -> 'khordha_town'
+ *      'vyasanagar', 'jajpur road' -> 'jajpur_road'
+ *      'jajpur', 'jajpur town' -> 'jajpur_town'
+ */
+export const normalizeCityId = (cityId) => {
+    if (!cityId) return '';
+    const c = String(cityId).trim().toLowerCase();
+    if (['baleshwar', 'balasore', 'balasore city', 'baleswar', 'balesore'].includes(c)) return 'baleshwar';
+    if (['khordha_town', 'khordha', 'khorda', 'khorda town', 'khordha town'].includes(c)) return 'khordha_town';
+    if (['jajpur_town', 'jajpur town', 'jajpur'].includes(c)) return 'jajpur_town';
+    if (['jajpur_road', 'jajpur road', 'vyasanagar', 'chorda'].includes(c)) return 'jajpur_road';
+    return c;
+};
+
+/**
+ * Check if a mess belongs to a requested city, supporting aliases,
+ * case insensitivity, and legacy district fallbacks.
+ */
+export const isMessInCity = (mess, cityId) => {
+    if (!mess) return false;
+    const target = normalizeCityId(cityId);
+    if (!target) return true;
+
+    const messCity = normalizeCityId(mess.city);
+    const messDist = (mess.district || '').trim().toLowerCase();
+    const messLoc = (mess.locality || mess.landmark || '').trim().toLowerCase();
+
+    // 1. Direct normalized city match
+    if (messCity && messCity === target) return true;
+
+    // 2. Balasore / Baleshwar fallback
+    if (target === 'baleshwar') {
+        if (messCity === 'baleshwar') return true;
+        // If mess has no explicit city, but is in Balasore district (or has no district) and not in Remuna
+        if ((!messCity || messCity === 'other') && (!messDist || messDist === 'balasore') && !messLoc.includes('remuna')) {
+            return true;
+        }
+    }
+
+    // 3. Remuna
+    if (target === 'remuna') {
+        if (messCity === 'remuna' || messLoc.includes('remuna')) return true;
+    }
+
+    // 4. Bhadrak
+    if (target === 'bhadrak') {
+        if (messCity === 'bhadrak') return true;
+        if ((!messCity || messCity === 'other') && messDist === 'bhadrak' && !messLoc.includes('basudevpur')) return true;
+    }
+
+    // 5. Basudevpur
+    if (target === 'basudevpur') {
+        if (messCity === 'basudevpur' || messLoc.includes('basudevpur')) return true;
+    }
+
+    // 6. Baripada
+    if (target === 'baripada') {
+        if (messCity === 'baripada') return true;
+        if ((!messCity || messCity === 'other') && messDist === 'mayurbhanj') return true;
+    }
+
+    // 7. Bhubaneswar
+    if (target === 'bhubaneswar') {
+        if (messCity === 'bhubaneswar') return true;
+        if ((!messCity || messCity === 'other') && messDist === 'khorda') return true;
+    }
+
+    // 8. Khordha Town
+    if (target === 'khordha_town') {
+        if (messCity === 'khordha_town') return true;
+    }
+
+    // 9. Jajpur Town
+    if (target === 'jajpur_town') {
+        if (messCity === 'jajpur_town') return true;
+        if ((!messCity || messCity === 'other') && messDist === 'jajpur' && !messLoc.includes('vyasanagar') && !messLoc.includes('road')) return true;
+    }
+
+    // 10. Jajpur Road
+    if (target === 'jajpur_road') {
+        if (messCity === 'jajpur_road' || messLoc.includes('vyasanagar') || messLoc.includes('road')) return true;
+    }
+
+    // 11. Slug fallback (e.g. spaces/underscores/hyphens)
+    const cleanTarget = target.replace(/[_\s-]+/g, '');
+    const cleanMess = (mess.city || '').trim().toLowerCase().replace(/[_\s-]+/g, '');
+    if (cleanTarget && cleanTarget === cleanMess) return true;
+
+    return false;
+};
+
+/**
+ * Get formatted display name for a city ID across all loaded districts.
+ * Returns city.name if configured (e.g. 'Cuttack' for 'cuttack_city'),
+ * or cleans up slug (e.g. 'cuttack_city' -> 'Cuttack City').
+ */
+export const getCityDisplayName = (cityId, config = DISTRICTS_CONFIG) => {
+    if (!cityId) return '';
+    const norm = normalizeCityId(cityId);
+    if (norm === 'baleshwar') return 'Balasore';
+    if (norm === 'other') return 'Other Localities';
+    const cfg = config || DISTRICTS_CONFIG;
+    for (const district of Object.values(cfg)) {
+        const found = (district?.cities || []).find(c => c.id === norm || c.id === cityId);
+        if (found) return found.name;
+    }
+    // Clean fallback: replace underscores with spaces and capitalize words
+    return norm
+        .split('_')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
 };
 
 /**
@@ -175,7 +308,9 @@ export const getLocalitiesForCity = (cityId, localitiesConfig) => {
     if (localitiesConfig && localitiesConfig[cityId] && localitiesConfig[cityId].length > 0) {
         return localitiesConfig[cityId];
     }
-    return FALLBACK_LOCALITIES[cityId] || [];
+    // Try dynamic DISTRICTS_CONFIG fallback
+    const dynamicFallback = buildFallbackLocalities(DISTRICTS_CONFIG);
+    return dynamicFallback[cityId] || FALLBACK_LOCALITIES[cityId] || [];
 };
 
 const DistrictContext = createContext();
@@ -206,6 +341,73 @@ export const DistrictProvider = ({ children }) => {
 
     const [isDistrictSelectorOpen, setIsDistrictSelectorOpen] = useState(false);
 
+    // ── Dynamic Districts from Firestore ──────────────────────────────────────
+    const [dynamicDistrictsConfig, setDynamicDistrictsConfig] = useState(STATIC_DISTRICTS_CONFIG);
+    const [districtsLoading, setDistrictsLoading] = useState(true);
+
+    useEffect(() => {
+        const unsub = onSnapshot(
+            doc(db, 'app_config', 'districts'),
+            (snap) => {
+                if (snap.exists() && snap.data()?.districts) {
+                    const raw = snap.data().districts;
+                    // Merge with static fallback so nothing breaks
+                    const merged = { ...STATIC_DISTRICTS_CONFIG };
+                    Object.entries(raw).forEach(([key, val]) => {
+                        merged[key] = {
+                            ...merged[key],
+                            ...val,
+                            id: key,
+                            cities: Array.isArray(val.cities) ? val.cities : (merged[key]?.cities || []),
+                            landmarks: Array.isArray(val.landmarks) ? val.landmarks : (merged[key]?.landmarks || []),
+                        };
+                    });
+                    // Also include NEW districts that only exist in Firestore
+                    Object.entries(raw).forEach(([key, val]) => {
+                        if (!merged[key]) {
+                            merged[key] = {
+                                id: key,
+                                name: val.name || key,
+                                active: val.active ?? true,
+                                order: val.order ?? 99,
+                                heroTitle: val.heroTitle || '',
+                                heroSubtitle: val.heroSubtitle || '',
+                                gpsCenter: val.gpsCenter || { lat: 0, lng: 0 },
+                                cities: Array.isArray(val.cities) ? val.cities : [],
+                                landmarks: Array.isArray(val.landmarks) ? val.landmarks : [],
+                            };
+                        }
+                    });
+                    setDynamicDistrictsConfig(merged);
+                    // Update the mutable export so non-React imports stay current
+                    DISTRICTS_CONFIG = merged;
+                    // Cache to localStorage for faster initial loads
+                    try {
+                        localStorage.setItem('_mk_districts_cache', JSON.stringify(merged));
+                    } catch { /* quota exceeded — ignore */ }
+                } else {
+                    setDynamicDistrictsConfig(STATIC_DISTRICTS_CONFIG);
+                    DISTRICTS_CONFIG = { ...STATIC_DISTRICTS_CONFIG };
+                }
+                setDistrictsLoading(false);
+            },
+            (err) => {
+                console.warn('[DistrictContext] Could not load districts config:', err.message);
+                // Try localStorage cache
+                try {
+                    const cached = localStorage.getItem('_mk_districts_cache');
+                    if (cached) {
+                        const parsed = JSON.parse(cached);
+                        setDynamicDistrictsConfig(parsed);
+                        DISTRICTS_CONFIG = parsed;
+                    }
+                } catch { /* ignore */ }
+                setDistrictsLoading(false);
+            }
+        );
+        return () => unsub();
+    }, []);
+
     // ── Localities from Firestore ─────────────────────────────────────────────
     // Shape: { cityId: ['Locality A', 'Locality B', ...] }
     const [localitiesConfig, setLocalitiesConfig] = useState(FALLBACK_LOCALITIES);
@@ -217,11 +419,13 @@ export const DistrictProvider = ({ children }) => {
             (snap) => {
                 if (snap.exists()) {
                     const data = snap.data();
+                    // Build dynamic fallback from latest districts config
+                    const dynamicFallback = buildFallbackLocalities(dynamicDistrictsConfig);
                     // Merge with fallback so cities not yet in Firestore still work
-                    setLocalitiesConfig({ ...FALLBACK_LOCALITIES, ...data });
+                    setLocalitiesConfig({ ...FALLBACK_LOCALITIES, ...dynamicFallback, ...data });
                 } else {
                     // Doc doesn't exist yet — keep fallback values
-                    setLocalitiesConfig(FALLBACK_LOCALITIES);
+                    setLocalitiesConfig({ ...FALLBACK_LOCALITIES, ...buildFallbackLocalities(dynamicDistrictsConfig) });
                 }
                 setLocalitiesLoading(false);
             },
@@ -232,11 +436,11 @@ export const DistrictProvider = ({ children }) => {
             }
         );
         return () => unsub();
-    }, []);
+    }, [dynamicDistrictsConfig]);
     // ─────────────────────────────────────────────────────────────────────────
 
     const setSelectedDistrict = (districtId) => {
-        if (DISTRICTS_CONFIG[districtId]) {
+        if (dynamicDistrictsConfig[districtId]) {
             setSelectedDistrictState(districtId);
             localStorage.setItem('selectedDistrict', districtId);
             setIsDistrictSelectorOpen(false);
@@ -262,8 +466,8 @@ export const DistrictProvider = ({ children }) => {
     };
 
 
-    const districtConfig = selectedDistrict ? DISTRICTS_CONFIG[selectedDistrict] : null;
-    const availableDistricts = Object.values(DISTRICTS_CONFIG);
+    const districtConfig = selectedDistrict ? dynamicDistrictsConfig[selectedDistrict] : null;
+    const availableDistricts = Object.values(dynamicDistrictsConfig).sort((a, b) => (a.order || 99) - (b.order || 99));
 
     const value = {
         selectedDistrict,
@@ -272,10 +476,16 @@ export const DistrictProvider = ({ children }) => {
         availableDistricts,
         isDistrictSelectorOpen,
         setIsDistrictSelectorOpen,
+        // ── Dynamic Districts Config ─────────────────────────────────────────
+        districtsConfig: dynamicDistrictsConfig,  // full dynamic config object
+        districtsLoading,                          // true while Firestore first loads
         // ── Localities API ──────────────────────────────────────────────────
         localitiesConfig,       // { cityId: string[] }
         localitiesLoading,      // true while Firestore first loads
         getLocalitiesForCity,   // helper: getLocalitiesForCity(cityId, localitiesConfig)
+        getCityDisplayName: (cityId) => getCityDisplayName(cityId, dynamicDistrictsConfig),
+        normalizeCityId,
+        isMessInCity,
     };
 
     return (

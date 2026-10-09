@@ -20,6 +20,7 @@ const PartnersTab = ({
     handleMergeMessCharges,
     handleForceRemergeAllFields,
     handleSyncBhubaneswarLocalities,
+    handleBackfillRoomDistricts,
     sheetsSyncStatus,
     handleSyncAllToSheets
 }) => {
@@ -222,6 +223,24 @@ const PartnersTab = ({
                         className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-cyan-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {migrationStatus.loading ? 'Syncing Localities...' : '📍 Sync Bhubaneswar Localities to Firebase'}
+                    </button>
+                </div>
+
+                {/* Room Districts & City Normalization Backfill Section */}
+                <div className="mt-8 pt-8 border-t border-slate-700">
+                    <h3 className="text-lg font-bold text-white mb-2">Backfill Room Districts &amp; Normalize Cities</h3>
+                    <p className="text-sm text-slate-400 mb-4">
+                        Scans all rooms and messes in Firestore. Sets <code>district</code> on legacy rooms (400+ rooms in Balasore) and normalizes city aliases (e.g. "Balasore City" &rarr; "baleshwar") so every listing matches the city/district filters seamlessly.
+                    </p>
+                    
+                    <button
+                        onClick={handleBackfillRoomDistricts}
+                        disabled={migrationStatus.loading}
+                        type="button"
+                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-purple-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw size={18} className={migrationStatus.loading ? 'animate-spin' : ''} />
+                        {migrationStatus.loading ? 'Backfilling Data...' : '⚡ Backfill Room Districts & Normalize Cities'}
                     </button>
                 </div>
 

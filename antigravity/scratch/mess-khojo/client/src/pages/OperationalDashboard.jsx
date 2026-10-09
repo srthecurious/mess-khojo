@@ -30,7 +30,7 @@ import FeedbacksTab from './OperationalDashboard/tabs/FeedbacksTab';
 import MessesTab from './OperationalDashboard/tabs/MessesTab';
 import HeroAdsTab from './OperationalDashboard/tabs/HeroAdsTab';
 import OwnerCallsTab from './OperationalDashboard/tabs/OwnerCallsTab';
-import LocalitiesTab from './OperationalDashboard/tabs/LocalitiesTab';
+import LocationManagerTab from './OperationalDashboard/tabs/LocationManagerTab';
 import TeamManagementTab from './AdminDashboard/tabs/TeamManagementTab';
 import { ROOM_SPECIFICITY_OPTIONS } from './MessRegistration';
 
@@ -830,6 +830,29 @@ const OperationalDashboard = () => {
         }
     };
 
+    const handleBackfillRoomDistricts = async () => {
+        setMigrationStatus({ loading: true, msg: 'Backfilling room districts and normalizing cities in Firestore...', type: 'info' });
+        try {
+            const result = await backfillRoomDistricts();
+            if (result.success) {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Backfill completed successfully! Normalized ${result.updatedMesses} messes and ${result.updatedRooms} rooms.`,
+                    type: 'success'
+                });
+            } else {
+                setMigrationStatus({
+                    loading: false,
+                    msg: `Backfill failed: ${result.error?.message || 'Unknown error'}`,
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error("Backfill failed:", error);
+            setMigrationStatus({ loading: false, msg: error.message, type: 'error' });
+        }
+    };
+
     const handleSyncAllToSheets = async () => {
         if (!window.confirm("Are you sure you want to sync all 130 active messes to Google Sheets?")) return;
         
@@ -1600,14 +1623,14 @@ const OperationalDashboard = () => {
                         Hero Ads
                     </button>
                     <button
-                        onClick={() => setActiveTab('localities')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'localities'
-                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                        onClick={() => setActiveTab('locations')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'locations'
+                            ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20'
                             : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
                             }`}
                     >
                         <MapPin size={20} />
-                        Localities
+                        Location Manager
                     </button>
                 </aside>
 
@@ -1744,6 +1767,7 @@ const OperationalDashboard = () => {
                             handleMergeMessCharges={handleMergeMessCharges}
                             handleForceRemergeAllFields={handleForceRemergeAllFields}
                             handleSyncBhubaneswarLocalities={handleSyncBhubaneswarLocalities}
+                            handleBackfillRoomDistricts={handleBackfillRoomDistricts}
                             sheetsSyncStatus={sheetsSyncStatus} handleSyncAllToSheets={handleSyncAllToSheets}
                         />
                     )}
@@ -1781,9 +1805,9 @@ const OperationalDashboard = () => {
                         />
                     )}
 
-                    {/* LOCALITIES TAB */}
-                    {activeTab === 'localities' && (
-                        <LocalitiesTab />
+                    {/* LOCATION MANAGER TAB (Districts + Cities + Localities) */}
+                    {activeTab === 'locations' && (
+                        <LocationManagerTab />
                     )}
                 </main>
             </div>

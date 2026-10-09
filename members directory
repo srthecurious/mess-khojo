@@ -1,0 +1,149 @@
+# Team Directory & Dynamic Management Implementation Plan
+
+A comprehensive technical implementation plan for a searchable **Team Directory** page and an **Admin Dashboard Management UI** for **MessKhojo**. This system allows administrators to dynamically add, edit, and manage team members across all 10 roles (Founder, Co-Founders, CEO, CTO, CFO, COO, CMO, Founding Partner, Employees, and Interns) with live Firebase Firestore updates and fast search by **Member ID** and **Name**.
+
+---
+
+## Architecture Overview
+
+```mermaid
+graph TD
+    A[Admin Dashboard] -->|Add / Edit / Delete Member| B[(Firebase Firestore 'team_members')]
+    B -->|Real-time Snapshot / Fetch| C[Public Team Directory /team]
+    C -->|Fuzzy Search & Filters| D[Search Bar & Member Cards]
+    D -->|Click Member| E[Member Detail Modal]
+```
+
+### 1. Data Schema (`team_members` collection in Firestore)
+Each team member document in Firestore will follow this schema:
+
+```javascript
+{
+  id: "MK-EXEC-001",            // Standardized Member ID (e.g. MK-FND-001, MK-CTO-001, MK-EMP-104, MK-INT-201)
+  name: "Aditya Kumar Nayak",     // Full Name
+  role: "Founder & CEO",        // Title / Designation
+  roleCategory: "founder",      // founder | co_founder | ceo | cto | cfo | coo | cmo | founding_partner | employee | intern
+  categoryLabel: "Leadership",  // Human readable group badge (Leadership, Founding Team, Core Team, Interns)
+  department: "Executive & Strategy",
+  email: "aditya@messkhojo.com",
+  linkedin: "https://linkedin.com/in/adityanayak",
+  twitter: "https://twitter.com/adityanayak",
+  github: "https://github.com/adityanayak",
+  bio: "Visionary leader driving the growth and digital transformation of student accommodation in Odisha.",
+  avatarUrl: "https://firebasestorage.googleapis.com/...", // Avatar image URL or fallback UI avatar
+  skills: ["Product Strategy", "Venture Growth", "Operations"],
+  joinedDate: "2024-01-15",
+  status: "Active",             // Active | Alumnus
+  createdAt: "2026-07-23T11:00:00Z",
+  updatedAt: "2026-07-23T11:00:00Z"
+}
+```
+
+---
+
+## Workflow: How Details are Added and Edited
+
+### Admin Management Flow (`/admin/dashboard` -> Team Management Tab)
+1. **Adding a Member**:
+   - Admin navigates to Admin Dashboard -> **Team Management** tab.
+   - Clicks **"+ Add Team Member"**.
+   - Fills out modal form:
+     - **Member ID**: Standardized format (e.g., `MK-FND-001`, `MK-CTO-001`, `MK-EMP-105`, `MK-INT-020`). Auto-suggests ID prefix based on role selected.
+     - **Full Name** & **Role Title** (Founder, Co-Founder, CEO, CTO, CFO, COO, CMO, Founding Partner, Employee, Intern).
+     - **Department**, **Bio**, **Skills** (comma-separated tags), **Joined Date**, **Status** (Active/Alumnus).
+     - **Contact Details**: Email, LinkedIn, Twitter/X, GitHub URLs.
+     - **Photo Upload / URL**: Direct image upload to Firebase Storage or custom avatar URL.
+   - Form validates required fields and saves to Firestore (`team_members` collection).
+
+2. **Editing a Member**:
+   - In the Admin Team table, each member row has an **Edit** button.
+   - Clicking **Edit** opens the pre-populated form modal.
+   - Submitting updates the document in Firestore in real-time.
+
+3. **Deleting / Archiving**:
+   - Admin can delete a member or toggle their status to `Alumnus` (former member).
+
+4. **Live Public Sync**:
+   - The public `/team` page listens to Firestore updates or fetches on render. Any edit or new member added in Admin reflects instantly on the public website without needing to redeploy code!
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Pre-seeding Initial Data**: To ensure the directory isn't empty on launch, we will include a `seedInitialTeamMembers()` utility that auto-populates sample profiles for all 10 roles (Founder, Co-Founder, CEO, CTO, CFO, COO, CMO, Founding Partner, Employee, Intern) if the database collection is empty.
+
+---
+
+## Proposed Changes
+
+### 1. Data Layer & Services
+
+#### [NEW] [teamService.js](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/services/teamService.js)
+- `fetchTeamMembers()`: Retrieves all active members from Firestore.
+- `addTeamMember(data)`: Adds a new team member document.
+- `updateTeamMember(id, data)`: Modifies an existing team member document.
+- `deleteTeamMember(id)`: Removes a team member document.
+- `uploadMemberAvatar(file)`: Uploads profile picture to Firebase Storage.
+- `seedTeamDataIfEmpty()`: Automatic seeder utility for initial deployment.
+
+#### [NEW] [useTeamData.js](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/hooks/useTeamData.js)
+- React custom hook to manage loading states, Firestore subscription, local Fuse.js search index, and real-time filtering.
+
+---
+
+### 2. Admin Management Interface
+
+#### [NEW] [TeamManagementTab.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/pages/AdminDashboard/tabs/TeamManagementTab.jsx)
+- Interactive tab inside Admin Dashboard featuring:
+  - Metrics summary (Total Team, C-Suite / Executives, Employees, Interns).
+  - Search bar to quickly find members in the admin table by Name or ID.
+  - Member table listing Avatar, Member ID badge, Name, Role, Department, Status, and Actions (Edit, Delete).
+  - Add / Edit Member Modal with comprehensive validation and image upload preview.
+
+#### [MODIFY] [AdminDashboard.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/pages/AdminDashboard.jsx)
+- Integrate **Team Management** as a main tab in the Admin navigation bar alongside Mess Profile, Room Management, and Bookings.
+
+---
+
+### 3. Public Searchable Directory UI
+
+#### [NEW] [MemberCard.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/components/team/MemberCard.jsx)
+- Glassmorphic card displaying Avatar, Member ID badge, Full Name, Role badge, Department, and quick contact buttons.
+
+#### [NEW] [MemberDetailModal.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/components/team/MemberDetailModal.jsx)
+- Modal popup displaying full bio, skills tags, social handles, joining date, and contact details.
+
+#### [NEW] [TeamPage.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/pages/TeamPage.jsx)
+- Dedicated public `/team` route featuring:
+  - Hero Header with live member counts.
+  - Prominent Search Bar (Search by Member ID or Name).
+  - Category Filter Pills (All, Leadership & Executives, Founders & Partners, Core Employees, Interns).
+  - Empty search state & Framer Motion grid animations.
+
+#### [MODIFY] [App.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/App.jsx)
+- Add `/team` route with code splitting.
+
+#### [MODIFY] [Footer.jsx](file:///d:/Full%20projects/.gemini/antigravity/scratch/mess-khojo/client/src/components/Footer.jsx)
+- Add "Our Team" link in the footer.
+
+---
+
+## Verification Plan
+
+### Automated Verification
+- Run `npm run lint` in `client/` to verify zero syntax/linting errors.
+- Run `npm run test:run` to ensure existing tests pass.
+
+### Manual Verification
+1. **Admin Management Testing**:
+   - Go to `http://localhost:5173/admin/dashboard` -> Click **Team Management** tab.
+   - Add a test member: ID `MK-CTO-009`, Name `Test CTO`, Role `CTO`.
+   - Edit the test member: Change name to `Updated Test CTO`.
+   - Verify changes are persisted in Firebase Firestore.
+2. **Public Search & Directory Testing**:
+   - Go to `http://localhost:5173/team`.
+   - Search by Member ID `MK-CTO-009` -> Verify `Updated Test CTO` appears instantly.
+   - Search by Name `Test` -> Verify result matching.
+   - Filter by Role tabs (Leadership, Founders, Employees, Interns).
+   - Click member card to view modal details.

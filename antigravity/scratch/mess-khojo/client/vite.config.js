@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
-import packageJson from './package.json'
+import fs from 'fs'
+const packageJson = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 // Trigger deployment
 import react from '@vitejs/plugin-react'
 import tailwindcss from 'tailwindcss'

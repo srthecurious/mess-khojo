@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home } from 'lucide-react';
+import { Home, Mail, MessageCircle, Instagram, Linkedin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { usePageSEO } from '../hooks/usePageSEO';
 
@@ -78,6 +78,70 @@ const AboutUs = () => {
                                 >
                                     👥 Meet Our Team & Leadership →
                                 </Link>
+                            </div>
+                        </div>
+
+                        {/* Contact & Social Connect Section */}
+                        <div className="mt-8 pt-8 border-t border-gray-100">
+                            <h3 className="text-xl font-bold text-brand-text-dark mb-4 text-center">Contact & Connect With Us</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <a
+                                    href="mailto:business@messkhojo.com"
+                                    className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-brand-primary/40 transition-all group"
+                                >
+                                    <div className="p-2.5 rounded-full bg-brand-primary/10 text-brand-primary group-hover:scale-110 transition-transform">
+                                        <Mail size={20} />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Email Us</p>
+                                        <p className="text-sm font-bold text-brand-text-dark group-hover:text-brand-primary transition-colors">business@messkhojo.com</p>
+                                    </div>
+                                </a>
+
+                                <a
+                                    href="https://wa.me/919692819621"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 hover:bg-green-50 border border-gray-200 hover:border-green-300 transition-all group"
+                                >
+                                    <div className="p-2.5 rounded-full bg-green-100 text-green-600 group-hover:scale-110 transition-transform">
+                                        <MessageCircle size={20} />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">WhatsApp</p>
+                                        <p className="text-sm font-bold text-brand-text-dark group-hover:text-green-700 transition-colors">+91 9692819621</p>
+                                    </div>
+                                </a>
+
+                                <a
+                                    href="https://www.instagram.com/messkhojo?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw=="
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 hover:bg-pink-50 border border-gray-200 hover:border-pink-300 transition-all group"
+                                >
+                                    <div className="p-2.5 rounded-full bg-pink-100 text-pink-600 group-hover:scale-110 transition-transform">
+                                        <Instagram size={20} />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Instagram</p>
+                                        <p className="text-sm font-bold text-brand-text-dark group-hover:text-pink-600 transition-colors">@messkhojo</p>
+                                    </div>
+                                </a>
+
+                                <a
+                                    href="https://www.linkedin.com/company/messkhojo/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 transition-all group"
+                                >
+                                    <div className="p-2.5 rounded-full bg-blue-100 text-blue-600 group-hover:scale-110 transition-transform">
+                                        <Linkedin size={20} />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">LinkedIn</p>
+                                        <p className="text-sm font-bold text-brand-text-dark group-hover:text-blue-700 transition-colors">MessKhojo</p>
+                                    </div>
+                                </a>
                             </div>
                         </div>
                     </div>

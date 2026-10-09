@@ -15,15 +15,19 @@ import { DISTRICTS_CONFIG, useDistrict } from '../context/DistrictContext';
 import { trackRegisterMessClick } from '../analytics';
 import { toMessSlug } from '../utils/slugify';
 
-const CITY_NAMES = Object.values(DISTRICTS_CONFIG).reduce((acc, district) => {
-    (district.cities || []).forEach(city => {
-        acc[city.id] = city.name;
-    });
-    return acc;
-}, { other: "Other Localities" });
-
 const CityLandingPage = () => {
+    const { districtsConfig, getCityDisplayName: resolveCityName } = useDistrict();
     const { messesByCity, allMesses, rooms, loading } = useAllCityMesses();
+
+    const cityNames = React.useMemo(() => {
+        const map = { other: "Other Localities" };
+        Object.values(districtsConfig || DISTRICTS_CONFIG || {}).forEach(district => {
+            (district.cities || []).forEach(city => {
+                map[city.id] = city.name;
+            });
+        });
+        return map;
+    }, [districtsConfig]);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [showDropdown, setShowDropdown] = React.useState(false);
     const searchRef = React.useRef(null);
@@ -175,11 +179,12 @@ const CityLandingPage = () => {
             }));
 
         // 4. Cities - Max 3
-        const matchedCities = Object.entries(CITY_NAMES)
+        const currentDistricts = districtsConfig || DISTRICTS_CONFIG;
+        const matchedCities = Object.entries(cityNames)
             .filter(([id, name]) => name.toLowerCase().includes(query) || id.toLowerCase().includes(query))
             .slice(0, 3)
             .map(([id, name]) => {
-                const district = Object.entries(DISTRICTS_CONFIG).find(([, config]) =>
+                const district = Object.entries(currentDistricts).find(([, config]) =>
                     config.cities?.some(c => c.id === id)
                 );
                 return {
@@ -199,7 +204,7 @@ const CityLandingPage = () => {
             cities: matchedCities,
             count
         };
-    }, [searchQuery, allMesses, allUniqueLocalities]);
+    }, [searchQuery, allMesses, allUniqueLocalities, cityNames, districtsConfig]);
 
     usePageSEO({
         title: "Find Boys & Girls Mess in Bhubaneswar, Balasore & Bhadrak | MessKhojo",
@@ -538,9 +543,11 @@ const CityLandingPage = () => {
                         <div className="space-y-4 sm:space-y-5">
                             {activeCities.map((cityId) => {
                                 const cityMesses = filteredMessesByCity[cityId];
-                                const cityName = cityId === 'baleshwar' ? 'Balasore' : (CITY_NAMES[cityId] || cityId.charAt(0).toUpperCase() + cityId.slice(1));
+                                const cityName = resolveCityName ? resolveCityName(cityId) : (cityNames[cityId] || cityId);
                                 const previewMesses = cityMesses.slice(0, PAGINATION.HOME_PREVIEW_COUNT);
                                 const hasMore = cityMesses.length > PAGINATION.HOME_PREVIEW_COUNT;
+                                const currentConfig = districtsConfig || DISTRICTS_CONFIG;
+                                const parentDistrictId = Object.keys(currentConfig).find(dId => currentConfig[dId].cities?.some(c => c.id === cityId)) || 'balasore';
 
                                 return (
                                     <section
@@ -550,7 +557,7 @@ const CityLandingPage = () => {
                                     >
                                         {/* City Header */}
                                         <Link
-                                            to={`/district/${Object.keys(DISTRICTS_CONFIG).find(dId => DISTRICTS_CONFIG[dId].cities?.some(c => c.id === cityId)) || 'balasore'}/city/${cityId}`}
+                                            to={`/district/${parentDistrictId}/city/${cityId}`}
                                             className="flex items-center justify-between mb-1.5 sm:mb-2 group hover:text-brand-primary transition-colors"
                                         >
                                             <h2 className="text-xl sm:text-2xl font-bold text-brand-text-dark tracking-tight group-hover:text-brand-primary transition-colors">

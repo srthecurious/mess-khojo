@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { Database, Search, Server, EyeOff, Eye, CheckCircle, TrendingUp, Edit3, MapPin, SlidersHorizontal, Navigation, XCircle, ChevronDown, ChevronRight, BedDouble, Layout, Copy, Check, Camera, CameraOff } from 'lucide-react';
+import { 
+    Database, Search, Server, EyeOff, Eye, CheckCircle, TrendingUp, Edit3, MapPin, 
+    SlidersHorizontal, Navigation, XCircle, ChevronDown, ChevronRight, BedDouble, 
+    Layout, Copy, Check, Camera, CameraOff, CloudUpload, CloudDownload, PhoneForwarded, 
+    AlertTriangle, Loader2, ExternalLink, X, RefreshCw 
+} from 'lucide-react';
+import { useToast } from '../../../context/ToastContext';
+import { auth } from '../../../firebase';
+import {
+    pushToGoogleSheet,
+    pushCallingTasksToGoogleSheet,
+    pullFromGoogleSheet,
+    computeDiff,
+    applyDiffToFirestore
+} from '../../../services/googleSheetSyncService';
 
 const MessesTab = ({
     messes,
@@ -10,9 +24,84 @@ const MessesTab = ({
     handleToggleSponsored,
     handleEditItem
 }) => {
+    const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
     const [visibilityFilter, setVisibilityFilter] = useState('all'); // 'all', 'public', 'private', 'sponsored', 'sourced'
     const [expandedMessId, setExpandedMessId] = useState(null);
     const [copiedRoomId, setCopiedRoomId] = useState(null);
+
+    // Sync & Diff Modal States
+    const [isSyncingAdmin, setIsSyncingAdmin] = useState(false);
+    const [isExportingTasks, setIsExportingTasks] = useState(false);
+    const [isPulling, setIsPulling] = useState(false);
+    const [diffModalOpen, setDiffModalOpen] = useState(false);
+    const [pendingDiffs, setPendingDiffs] = useState([]);
+    const [isApplyingDiff, setIsApplyingDiff] = useState(false);
+
+    // Handlers
+    const handleSyncToAdmin = async () => {
+        try {
+            setIsSyncingAdmin(true);
+            const res = await pushToGoogleSheet(messes, rooms);
+            if (res.status === 'success') {
+                toastSuccess(`Admin Master synced! Inserted: ${res.inserted || 0}, Updated: ${res.updated || 0}`);
+            } else {
+                toastError(res.message || 'Failed to sync to Admin Master Sheet');
+            }
+        } catch (err) {
+            toastError(err.message || 'Error syncing to Google Sheet');
+        } finally {
+            setIsSyncingAdmin(false);
+        }
+    };
+
+    const handleExportCallingBoard = async () => {
+        try {
+            setIsExportingTasks(true);
+            const res = await pushCallingTasksToGoogleSheet(messes, rooms);
+            if (res.status === 'success') {
+                toastSuccess(`Calling Board tasks updated! Added: ${res.added || 0}, Refreshed: ${res.refreshed || 0}`);
+            } else {
+                toastError(res.message || 'Failed to export calling tasks');
+            }
+        } catch (err) {
+            toastError(err.message || 'Error exporting to Calling Board');
+        } finally {
+            setIsExportingTasks(false);
+        }
+    };
+
+    const handlePullFromSheet = async (target = 'calling') => {
+        try {
+            setIsPulling(true);
+            const sheetRows = await pullFromGoogleSheet(target);
+            const diffs = computeDiff(sheetRows, messes, rooms);
+            if (diffs.length === 0) {
+                toastInfo(`No pending updates found in ${target === 'master' ? 'Admin Master' : 'Calling Board'} sheet.`);
+            } else {
+                setPendingDiffs(diffs);
+                setDiffModalOpen(true);
+            }
+        } catch (err) {
+            toastError(err.message || 'Error pulling updates from Sheet');
+        } finally {
+            setIsPulling(false);
+        }
+    };
+
+    const handleApplyDiffs = async () => {
+        try {
+            setIsApplyingDiff(true);
+            const operatorEmail = auth.currentUser?.email || 'operator';
+            await applyDiffToFirestore(pendingDiffs, operatorEmail);
+            toastSuccess(`Successfully updated ${pendingDiffs.length} mess(es) in Firestore!`);
+            setDiffModalOpen(false);
+            setPendingDiffs([]);
+        } catch (err) {
+            toastError(err.message || 'Failed to apply updates to Firestore');
+        } finally {
+            setIsApplyingDiff(false);
+        }
+    };
 
     const handleCopyRoomId = (id) => {
         navigator.clipboard.writeText(id);
@@ -122,6 +211,68 @@ const MessesTab = ({
                     <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold border border-indigo-500/20 shrink-0 text-center">
                         {sortedMesses.length} Total
                     </span>
+                </div>
+            </div>
+
+            {/* Google Sheets & Diallogs Sync Center */}
+            <div className="bg-slate-850/80 backdrop-blur-md border border-slate-700/80 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                        <Server size={20} />
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold text-white flex items-center gap-2">
+                            Google Sheets &amp; Calling Board Sync
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                                Dual-SIM Verified
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            Two-way sync between website database and Google spreadsheets with Diallogs call verification.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                        onClick={handleSyncToAdmin}
+                        disabled={isSyncingAdmin}
+                        className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                        title="Upload all messes & private listings to Admin Master Sheet"
+                    >
+                        {isSyncingAdmin ? <Loader2 size={14} className="animate-spin" /> : <CloudUpload size={14} />}
+                        Sync Admin Sheet
+                    </button>
+
+                    <button
+                        onClick={handleExportCallingBoard}
+                        disabled={isExportingTasks}
+                        className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                        title="Push public & assigned private messes to Freelancer Calling Sheet"
+                    >
+                        {isExportingTasks ? <Loader2 size={14} className="animate-spin" /> : <PhoneForwarded size={14} />}
+                        Push Tasks to Calling Board
+                    </button>
+
+                    <button
+                        onClick={() => handlePullFromSheet('calling')}
+                        disabled={isPulling}
+                        className="flex items-center gap-2 px-3.5 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all border border-slate-600 active:scale-95 cursor-pointer"
+                        title="Pull rent/vacancies updates & verified calls from Freelancer Calling Board"
+                    >
+                        {isPulling ? <Loader2 size={14} className="animate-spin" /> : <CloudDownload size={14} />}
+                        Pull Calling Board
+                    </button>
+
+                    <button
+                        onClick={() => handlePullFromSheet('master')}
+                        disabled={isPulling}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 hover:bg-slate-600 disabled:opacity-50 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all border border-slate-600/60 active:scale-95 cursor-pointer"
+                        title="Pull manual edits and visibility changes from Admin Master Sheet"
+                    >
+                        {isPulling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        Pull Admin Sheet
+                    </button>
                 </div>
             </div>
 
@@ -447,6 +598,130 @@ const MessesTab = ({
                     })
                 )}
             </div>
+
+            {/* Diff Review Modal */}
+            {diffModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-850/50">
+                            <div>
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <CloudDownload size={20} className="text-indigo-400" />
+                                    Review Updates from Google Sheet
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Found pending updates or call records for <span className="text-indigo-400 font-bold">{pendingDiffs.length}</span> mess(es).
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setDiffModalOpen(false)}
+                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body: Diffs list */}
+                        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+                            {pendingDiffs.map((diff, idx) => (
+                                <div key={idx} className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-3">
+                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-mono font-bold">
+                                                {diff.taskCode}
+                                            </span>
+                                            <span className="font-bold text-white text-sm">
+                                                {diff.messName}
+                                                {diff.roomTitle && (
+                                                    <span className="ml-1.5 text-xs text-indigo-300 font-medium">
+                                                        ({diff.roomTitle})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                                diff.verificationBadge.includes('VERIFIED')
+                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                    : diff.verificationBadge.includes('SHORT')
+                                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                            }`}>
+                                                {diff.verificationBadge}
+                                            </span>
+                                            {diff.duration && (
+                                                <span className="text-xs text-slate-400 font-medium">
+                                                    ({diff.duration}{diff.attempts > 1 ? `, ${diff.attempts} calls` : ''})
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Changed fields list */}
+                                    <div className="space-y-1.5 pt-2 border-t border-slate-700/50">
+                                        {diff.changes.length === 0 ? (
+                                            <p className="text-xs text-slate-400 italic">Call logged with no rent or vacancy modifications.</p>
+                                        ) : (
+                                            diff.changes.map((c, cIdx) => (
+                                                <div key={cIdx} className={`text-xs flex items-center justify-between p-2 rounded-xl ${
+                                                    c.isWarning ? 'bg-amber-500/15 border border-amber-500/30 text-amber-300' : 'bg-slate-900/40 text-slate-300'
+                                                }`}>
+                                                    <div className="flex items-center gap-2">
+                                                        {c.isWarning && <AlertTriangle size={14} className="text-amber-400 shrink-0" />}
+                                                        <span className="font-semibold">{c.label}:</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 font-mono">
+                                                        <span className="text-slate-500 line-through">{c.oldVal}</span>
+                                                        <span className="text-slate-400">➔</span>
+                                                        <span className="text-emerald-400 font-bold">{c.newVal}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {/* Remarks if any */}
+                                    {diff.remarks && (
+                                        <div className="text-xs text-slate-400 bg-slate-900/30 p-2.5 rounded-xl border border-slate-750">
+                                            <span className="font-semibold text-slate-300">Freelancer Notes: </span>
+                                            {diff.remarks}
+                                        </div>
+                                    )}
+
+                                    {/* Recording URL if any */}
+                                    {diff.recordingUrl && (
+                                        <div className="flex items-center gap-2 text-xs text-cyan-400 pt-1">
+                                            <ExternalLink size={13} />
+                                            <a href={diff.recordingUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                Listen to Call Recording
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-800 bg-slate-850/50 flex items-center justify-end gap-3">
+                            <button
+                                onClick={() => setDiffModalOpen(false)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700 cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleApplyDiffs}
+                                disabled={isApplyingDiff}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+                            >
+                                {isApplyingDiff ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                Confirm &amp; Update Firestore
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

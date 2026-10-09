@@ -2,33 +2,30 @@ import React, { useMemo, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import useMesses from '../hooks/useMesses';
-import { DISTRICTS_CONFIG } from '../context/DistrictContext';
+import { DISTRICTS_CONFIG, useDistrict } from '../context/DistrictContext';
 import { usePageSEO } from '../hooks/usePageSEO';
 
 const MessExplorerMap = React.lazy(() => import('../components/MessExplorerMap'));
 
-const CITY_NAMES = Object.values(DISTRICTS_CONFIG).reduce((acc, district) => {
-    (district.cities || []).forEach(city => {
-        acc[city.id] = city.name;
-    });
-    return acc;
-}, { other: "Other Localities" });
-
 const CityExplorerPage = () => {
     const { cityId, districtId: routeDistrictId } = useParams();
     const navigate = useNavigate();
+    const { districtsConfig, getCityDisplayName: resolveCityName, normalizeCityId, isMessInCity } = useDistrict();
+
+    const normalizedCityId = useMemo(() => normalizeCityId ? normalizeCityId(cityId) : (cityId || '').toLowerCase(), [cityId, normalizeCityId]);
 
     // 1. Resolve district for this city (prefer route param, fall back to config lookup)
     const resolvedDistrictId = useMemo(() => {
-        if (routeDistrictId && DISTRICTS_CONFIG[routeDistrictId]) return routeDistrictId;
-        for (const distId in DISTRICTS_CONFIG) {
-            const cities = DISTRICTS_CONFIG[distId].cities || [];
-            if (cities.some(c => c.id === cityId)) return distId;
+        const cfg = districtsConfig || DISTRICTS_CONFIG;
+        if (routeDistrictId && cfg[routeDistrictId]) return routeDistrictId;
+        for (const distId in cfg) {
+            const cities = cfg[distId].cities || [];
+            if (cities.some(c => c.id === normalizedCityId || c.id === cityId)) return distId;
         }
         return 'balasore'; // default fallback
-    }, [cityId, routeDistrictId]);
+    }, [cityId, normalizedCityId, routeDistrictId, districtsConfig]);
 
-    const cityName = CITY_NAMES[cityId] || cityId.charAt(0).toUpperCase() + cityId.slice(1);
+    const cityName = resolveCityName ? resolveCityName(normalizedCityId) : normalizedCityId;
 
     // 2. SEO setup
     usePageSEO({
@@ -58,10 +55,9 @@ const CityExplorerPage = () => {
             mess => !mess.hidden && mess.latitude && mess.longitude &&
                 !isNaN(mess.latitude) && !isNaN(mess.longitude)
         );
-        if (cityId) {
+        if (normalizedCityId) {
             filtered = filtered.filter(mess => {
-                const mCity = mess.city ? mess.city.trim().toLowerCase() : 'other';
-                return mCity === cityId.toLowerCase();
+                return isMessInCity ? isMessInCity(mess, normalizedCityId, resolvedDistrictId) : (mess.city?.toLowerCase() === normalizedCityId);
             });
         }
         return filtered.map(mess => {
@@ -71,11 +67,11 @@ const CityExplorerPage = () => {
             const maxPrice = prices.length ? Math.max(...prices) : null;
             return { ...mess, minPrice, maxPrice, messRooms };
         });
-    }, [messes, rooms, cityId, loading]);
+    }, [messes, rooms, normalizedCityId, resolvedDistrictId, isMessInCity, loading]);
 
     const handleClose = () => {
         // Navigate back to the city details page
-        navigate(`/district/${resolvedDistrictId}/city/${cityId}`);
+        navigate(`/district/${resolvedDistrictId}/city/${normalizedCityId}`);
     };
 
     if (loading) {

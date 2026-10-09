@@ -1,0 +1,503 @@
+# 📊 MessKhojo Google Sheets Two-Way Sync — Implementation Plan
+
+> **Objective**: Enable a manual, two-way sync between MessKhojo's website database (Firestore) and a central Google Sheet.
+> - **Direction 1 (Website ➔ Google Sheet)**: Syncs all mess details into Google Sheets with **zero duplicates** (smart upsert: updates existing messes in-place, appends only newly registered messes).
+> - **Direction 2 (Google Sheet ➔ Website)**: Any manual edits made in the sheet (phone, rent, vacancy, facilities) can be synced back to the live website with **a single click and diff preview** from the Operational Dashboard.
+> - **Cost & Complexity**: **100% Free**, zero cloud billing, no complex Google Cloud IAM/service accounts needed.
+
+---
+
+## 1. System Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Operational_Dashboard["Operational Dashboard (React)"]
+        UI["Messes Tab UI"]
+        PushBtn["Button: 'Sync to Google Sheet'"]
+        PullBtn["Button: 'Pull Updates from Sheet'"]
+        DiffModal["Diff Review Modal (Preview Edits)"]
+        SyncService["googleSheetSyncService.js"]
+    end
+
+    subgraph Firebase_Firestore["Firebase Firestore"]
+        FSMesses[("messes collection")]
+        FSRooms[("rooms collection")]
+    end
+
+    subgraph Google_Apps_Script["Google Apps Script (Web App)"]
+        DoPost["doPost() -> Upsert Rows (Match Mess ID)"]
+        DoGet["doGet() -> Export Rows as JSON"]
+    end
+
+    subgraph Google_Sheet["Google Sheet (Master Directory)"]
+        SheetHeader["Header Row (Columns A to Q)"]
+        SheetRows["Mess Rows (Keyed by Column A: Mess ID)"]
+        CustomCols["Custom Operator Columns (Notes, Caller Remarks)"]
+    end
+
+    %% Push Flow
+    PushBtn -->|1. Click| SyncService
+    FSMesses & FSRooms -->|2. Read Data| SyncService
+    SyncService -->|3. POST JSON Payload| DoPost
+    DoPost -->|4. Update Existing / Append New| SheetRows
+
+    %% Pull Flow
+    PullBtn -->|1. Click| SyncService
+    DoGet -->|2. Read Rows| SheetRows
+    DoGet -->|3. Return JSON| SyncService
+    SyncService -->|4. Compare with Firestore| DiffModal
+    DiffModal -->|5. Operator Confirms| FSMesses
+```
+
+---
+
+## 2. Google Sheet Column Layout & Field Mapping
+
+Column **A** (`Mess ID`) serves as the unique primary key. Any sync operation looks up Column A to determine whether to update an existing row or append a new one.
+
+| Column | Field Name | Firestore Field (Mess / Room) | Editable in Sheet? | Sample Value |
+| :---: | :--- | :--- | :---: | :--- |
+| **A** | `Mess ID` | `mess.id` | ❌ **No (Anchor Key)** | `mess_x9y2z1` |
+| **B** | `Mess Name` | `mess.name` | ✍️ Yes | `Maa Tarini Mess` |
+| **C** | `Contact Number` | `mess.contact` | ✍️ Yes | `9876543210` |
+| **D** | `District` | `mess.district` | ✍️ Yes | `balasore` |
+| **E** | `City` | `mess.city` | ✍️ Yes | `remuna` |
+| **F** | `Locality` | `mess.locality` | ✍️ Yes | `Station Road` |
+| **G** | `Address` | `mess.address` | ✍️ Yes | `Near Railway Gate, Plot 14` |
+| **H** | `Gender / Type` | `mess.messType` | ✍️ Yes | `Boys` |
+| **I** | `Food Facility` | `mess.foodAvailability` / `foodFacility` | ✍️ Yes | `3 Meals (Veg + Non-Veg)` |
+| **J** | `Security Deposit` | `mess.securityDeposit` | ✍️ Yes | `1 Month` |
+| **K** | `Rent Cycle` | `mess.rentCycle` | ✍️ Yes | `monthly` |
+| **L** | `Single Bed Rent` | `room (Single).price` | ✍️ Yes | `3500` |
+| **M** | `Double Bed Rent` | `room (Double).price` | ✍️ Yes | `2200` |
+| **N** | `Triple Bed Rent` | `room (Triple).price` | ✍️ Yes | `1800` |
+| **O** | `Total Vacancies` | Sum of `room.availableCount` | ✍️ Yes | `4` |
+| **P** | `Status` | `mess.hidden` (`false`=Live, `true`=Hidden) | ✍️ Yes | `Live` |
+| **Q** | `Google Maps URL` | `mess.locationUrl` / Computed coordinates | ✍️ Yes | `https://maps.google.com/?q=...` |
+| **R** | `Last Synced At` | Timestamp string | ❌ System | `2026-10-07 11:30 AM` |
+| **S+** | *Operator Remarks* | *None (Sheet Only)* | ✍️ Yes | *“Called on Oct 5. Owner confirmed seats.”* |
+
+> **Note on Custom Columns (S+)**: The Google Apps Script only writes to Columns A through R. Any custom columns you add on the right (notes, caller history, payment tracking) **will remain untouched and intact** across all sync operations.
+
+---
+
+## 3. Google Apps Script Implementation (`Code.gs`)
+
+### Step-by-Step Setup in Google Sheets:
+1. Create a Google Sheet named **`MessKhojo - Master Mess Directory`**.
+2. Rename the active sheet tab to **`Messes`**.
+3. Open **Extensions** ➔ **Apps Script**.
+4. Replace the default code with the following snippet:
+
+```javascript
+/**
+ * MessKhojo Two-Way Google Sheet Sync Script
+ */
+const SHEET_NAME = "Messes";
+const ID_COL_INDEX = 1; // Column A (Mess ID)
+
+/**
+ * 1. PUSH HANDLER (Website -> Google Sheet)
+ * Performs smart upsert: Updates existing rows, appends new rows.
+ */
+function doPost(e) {
+  try {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(15000); // Wait up to 15s to prevent concurrent write collisions
+
+    const payload = JSON.parse(e.postData.contents);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    
+    if (!sheet) {
+      throw new Error(`Sheet with name "${SHEET_NAME}" not found.`);
+    }
+
+    // Ensure Headers exist if sheet is blank
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(payload.headers);
+    }
+
+    const lastRow = sheet.getLastRow();
+    const existingIds = {};
+
+    // Map existing Mess IDs to row numbers (1-indexed)
+    if (lastRow > 1) {
+      const idValues = sheet.getRange(2, ID_COL_INDEX, lastRow - 1, 1).getValues();
+      idValues.forEach((row, idx) => {
+        if (row[0]) {
+          existingIds[String(row[0]).trim()] = idx + 2; // +2 accounts for 0-index and header row
+        }
+      });
+    }
+
+    let updatedCount = 0;
+    let insertedCount = 0;
+
+    payload.rows.forEach(rowValues => {
+      const messId = String(rowValues[0]).trim();
+      if (!messId) return;
+
+      if (existingIds[messId]) {
+        // UPDATE existing row: writes exactly the length of rowValues (leaving columns S+ untouched)
+        const targetRow = existingIds[messId];
+        sheet.getRange(targetRow, 1, 1, rowValues.length).setValues([rowValues]);
+        updatedCount++;
+      } else {
+        // INSERT new mess at bottom
+        sheet.appendRow(rowValues);
+        insertedCount++;
+      }
+    });
+
+    lock.releaseLock();
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      updated: updatedCount,
+      inserted: insertedCount,
+      totalProcessed: payload.rows.length,
+      timestamp: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * 2. PULL HANDLER (Google Sheet -> Website)
+ * Returns all spreadsheet rows as a structured JSON array.
+ */
+function doGet(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+
+    if (data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        data: []
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    const result = rows.map(row => {
+      const item = {};
+      headers.forEach((header, index) => {
+        if (header) {
+          item[header.trim()] = row[index];
+        }
+      });
+      return item;
+    });
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      data: result
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+```
+
+5. Click **Deploy** ➔ **New deployment**:
+   - Type: **Web App**
+   - Description: `MessKhojo Sync Webhook`
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+6. Copy the **Web App URL** (e.g. `https://script.google.com/macros/s/.../exec`).
+
+---
+
+## 4. Frontend Client Implementation
+
+### File 1: `googleSheetSyncService.js`
+Path: `client/src/services/googleSheetSyncService.js`
+
+This service handles:
+1. **`formatMessesForPush(messes, rooms)`**: Aggregates room pricing & vacancies per mess and shapes them into table rows.
+2. **`pushToGoogleSheet(messes, rooms)`**: Sends payload via HTTP POST.
+3. **`pullFromGoogleSheet()`**: Fetches sheet data via HTTP GET.
+4. **`computeDiff(sheetData, messes, rooms)`**: Compares sheet values against Firestore values and flags only modified records.
+5. **`commitDiffToFirestore(diffList)`**: Commits selected changes to Firestore using batch updates.
+
+```javascript
+import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { db } from '../firebase';
+
+// Webhook URL configured from Google Apps Script deployment
+const SHEET_WEBHOOK_URL = import.meta.env.VITE_GOOGLE_SHEET_WEBHOOK_URL || '';
+
+export const SHEET_HEADERS = [
+  'Mess ID', 'Mess Name', 'Contact Number', 'District', 'City', 'Locality',
+  'Address', 'Gender / Type', 'Food Facility', 'Security Deposit', 'Rent Cycle',
+  'Single Bed Rent', 'Double Bed Rent', 'Triple Bed Rent', 'Total Vacancies',
+  'Status', 'Google Maps URL', 'Last Synced At'
+];
+
+/**
+ * Transforms messes and rooms into Google Sheet row arrays
+ */
+export function formatMessesForPush(messes, rooms) {
+  const nowStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+  const rows = messes.map(mess => {
+    // Collect rooms for this mess
+    const messRooms = rooms.filter(r => r.messId === mess.id);
+
+    const singleRoom = messRooms.find(r => (r.occupancy || r.roomType || '').toLowerCase().includes('single'));
+    const doubleRoom = messRooms.find(r => (r.occupancy || r.roomType || '').toLowerCase().includes('double'));
+    const tripleRoom = messRooms.find(r => (r.occupancy || r.roomType || '').toLowerCase().includes('triple'));
+
+    const totalVacancies = messRooms.reduce((acc, r) => acc + (Number(r.availableCount) || 0), 0);
+
+    const mapsUrl = mess.locationUrl || 
+      (mess.location ? `https://www.google.com/maps?q=${mess.location.latitude},${mess.location.longitude}` : '');
+
+    return [
+      mess.id || '',
+      mess.name || mess.messName || '',
+      mess.contact || mess.phoneNumber || '',
+      mess.district || '',
+      mess.city || '',
+      mess.locality || '',
+      mess.address || '',
+      Array.isArray(mess.messType) ? mess.messType.join(', ') : (mess.messType || 'Boys'),
+      mess.foodAvailability || mess.foodFacility || '',
+      mess.securityDeposit || '',
+      mess.rentCycle || 'monthly',
+      singleRoom ? (singleRoom.price || singleRoom.rent || 0) : '',
+      doubleRoom ? (doubleRoom.price || doubleRoom.rent || 0) : '',
+      tripleRoom ? (tripleRoom.price || tripleRoom.rent || 0) : '',
+      totalVacancies,
+      mess.hidden ? 'Hidden' : 'Live',
+      mapsUrl,
+      nowStr
+    ];
+  });
+
+  return { headers: SHEET_HEADERS, rows };
+}
+
+/**
+ * PUSH: Sends website data to Google Sheet
+ */
+export async function pushToGoogleSheet(messes, rooms) {
+  if (!SHEET_WEBHOOK_URL) {
+    throw new Error('Google Sheet Webhook URL is not configured. Set VITE_GOOGLE_SHEET_WEBHOOK_URL in .env');
+  }
+
+  const payload = formatMessesForPush(messes, rooms);
+
+  const response = await fetch(SHEET_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+
+  const resJson = await response.json();
+  if (resJson.status !== 'success') {
+    throw new Error(resJson.message || 'Failed to update Google Sheet');
+  }
+
+  return resJson; // { updated, inserted, totalProcessed }
+}
+
+/**
+ * PULL: Fetches rows from Google Sheet
+ */
+export async function pullFromGoogleSheet() {
+  if (!SHEET_WEBHOOK_URL) {
+    throw new Error('Google Sheet Webhook URL is not configured.');
+  }
+
+  const response = await fetch(SHEET_WEBHOOK_URL);
+  const resJson = await response.json();
+
+  if (resJson.status !== 'success') {
+    throw new Error(resJson.message || 'Failed to fetch from Google Sheet');
+  }
+
+  return resJson.data; // Array of row objects keyed by header
+}
+
+/**
+ * Computes difference between sheet data and current Firestore data
+ */
+export function computeDiff(sheetRows, currentMesses) {
+  const messMap = new Map(currentMesses.map(m => [m.id, m]));
+  const diffs = [];
+
+  sheetRows.forEach(row => {
+    const messId = (row['Mess ID'] || '').trim();
+    if (!messId || !messMap.has(messId)) return;
+
+    const current = messMap.get(messId);
+    const changes = {};
+
+    // 1. Name
+    const sheetName = (row['Mess Name'] || '').trim();
+    if (sheetName && sheetName !== (current.name || current.messName || '')) {
+      changes.name = { old: current.name || current.messName || '', new: sheetName };
+    }
+
+    // 2. Contact Number
+    const sheetContact = String(row['Contact Number'] || '').trim();
+    if (sheetContact && sheetContact !== String(current.contact || current.phoneNumber || '')) {
+      changes.contact = { old: current.contact || '', new: sheetContact };
+    }
+
+    // 3. Locality
+    const sheetLocality = (row['Locality'] || '').trim();
+    if (sheetLocality && sheetLocality !== (current.locality || '')) {
+      changes.locality = { old: current.locality || '', new: sheetLocality };
+    }
+
+    // 4. Food Facility
+    const sheetFood = (row['Food Facility'] || '').trim();
+    if (sheetFood && sheetFood !== (current.foodAvailability || current.foodFacility || '')) {
+      changes.foodAvailability = { old: current.foodAvailability || '', new: sheetFood };
+    }
+
+    // 5. Visibility (Status)
+    const sheetStatus = (row['Status'] || '').trim().toLowerCase();
+    const currentStatus = current.hidden ? 'hidden' : 'live';
+    if (sheetStatus && (sheetStatus === 'live' || sheetStatus === 'hidden') && sheetStatus !== currentStatus) {
+      changes.hidden = { old: current.hidden || false, new: sheetStatus === 'hidden' };
+    }
+
+    if (Object.keys(changes).length > 0) {
+      diffs.push({
+        messId,
+        messName: current.name || current.messName || 'Unknown Mess',
+        changes
+      });
+    }
+  });
+
+  return diffs;
+}
+
+/**
+ * Commits approved diffs into Firestore
+ */
+export async function applyDiffToFirestore(diffs) {
+  const batch = writeBatch(db);
+
+  diffs.forEach(diff => {
+    const ref = doc(db, 'messes', diff.messId);
+    const updatePayload = {};
+
+    Object.entries(diff.changes).forEach(([field, change]) => {
+      updatePayload[field] = change.new;
+    });
+
+    batch.update(ref, updatePayload);
+  });
+
+  await batch.commit();
+}
+```
+
+---
+
+### File 2: UI Controls in `MessesTab.jsx`
+Path: `client/src/pages/OperationalDashboard/tabs/MessesTab.jsx`
+
+Add control buttons in the top action bar:
+
+```jsx
+<div className="flex items-center gap-2">
+  {/* Push Button */}
+  <button
+    onClick={handlePushToSheet}
+    disabled={isSyncing}
+    className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition-all shadow disabled:opacity-50"
+  >
+    <UploadCloud size={16} />
+    {isSyncing ? "Syncing..." : "Sync to Google Sheet"}
+  </button>
+
+  {/* Pull Button */}
+  <button
+    onClick={handlePullFromSheet}
+    disabled={isPulling}
+    className="flex items-center gap-2 px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-semibold transition-all shadow disabled:opacity-50"
+  >
+    <DownloadCloud size={16} />
+    {isPulling ? "Checking..." : "Pull Updates from Sheet"}
+  </button>
+</div>
+```
+
+---
+
+## 5. Diff Review Modal (Safety Gate)
+
+When **"Pull Updates from Sheet"** is clicked, the modal displays the exact differences before making any updates in the live database:
+
+```
+┌────────────────────────────────────────────────────────┐
+│  Review Updates from Google Sheet                      │
+├────────────────────────────────────────────────────────┤
+│  Found changes for 2 messes:                           │
+│                                                        │
+│  1. Maa Tarini Mess                                    │
+│     • Contact Number: 9876543210 ➔ 9123456789          │
+│     • Status: Live ➔ Hidden                            │
+│                                                        │
+│  2. Radhika Girls Hostel                               │
+│     • Food Facility: Self Cook ➔ 3 Meals               │
+│                                                        │
+├────────────────────────────────────────────────────────┤
+│  [ Cancel ]               [ Confirm & Update Website ] │
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. Edge Cases & Safeguards
+
+| Potential Scenario | How It Is Guarded |
+| :--- | :--- |
+| **New Mess C Registered 2 days later** | The script matches Column A (`Mess ID`). Mess A and B are updated in place; Mess C does not exist in the index map and is appended at the bottom. |
+| **Repeated Sync Clicks** | Clicking sync multiple times has zero duplicate effect because existing IDs match and simply overwrite the row values. |
+| **Custom Operator Notes (Columns S, T, etc.)** | The update range in Apps Script is constrained to `1` through `rowValues.length`. Any notes written in subsequent columns are preserved. |
+| **Concurrent Operator Edits** | Google Apps Script uses `LockService.getScriptLock()` to queue requests and prevent write collisions. |
+| **Accidental Sheet Typos** | The Diff Review Modal shows old vs. new values before anything is written to Firestore. |
+
+---
+
+## 7. Implementation Checklist
+
+- [ ] Create Google Sheet & tab named `Messes`.
+- [ ] Add Google Apps Script code (`Code.gs`) to the sheet's Script Editor.
+- [ ] Deploy as Web App (access: *Anyone*) and copy Webhook URL.
+- [ ] Add `VITE_GOOGLE_SHEET_WEBHOOK_URL` to `client/.env`.
+- [ ] Create `client/src/services/googleSheetSyncService.js`.
+- [ ] Add Push/Pull buttons and the Diff Review Modal to `MessesTab.jsx`.
+- [ ] Test Push: Verify existing messes update and new messes append.
+- [ ] Test Pull: Manually edit a phone number in the sheet, pull from dashboard, and verify Firestore update.
+
+---
+
+## 8. Conversation & Reference File Paths
+
+- **Implementation Plan Artifact**:
+  `C:\Users\barma\.gemini\antigravity-ide\brain\c7d21ae1-9a1f-436f-8da1-7227314ec900\google_sheets_sync_implementation_plan.md`
+- **Conversation Full Transcript (JSONL)**:
+  `C:\Users\barma\.gemini\antigravity-ide\brain\c7d21ae1-9a1f-436f-8da1-7227314ec900\.system_generated\logs\transcript_full.jsonl`
+- **Conversation Compact Transcript (JSONL)**:
+  `C:\Users\barma\.gemini\antigravity-ide\brain\c7d21ae1-9a1f-436f-8da1-7227314ec900\.system_generated\logs\transcript.jsonl`
+- **Conversation ID**:
+  `c7d21ae1-9a1f-436f-8da1-7227314ec900`

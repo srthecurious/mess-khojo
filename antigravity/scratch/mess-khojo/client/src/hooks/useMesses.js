@@ -1,38 +1,58 @@
 import { useState, useEffect } from 'react';
 import { watchMesses, watchRooms } from '../services/messService';
 
+// Module-level in-memory cache to eliminate duplicate network reads when switching pages/tabs
+const districtCache = new Map();
+
 /**
  * useMesses — fetches messes and rooms from Firestore, filtered by district.
- * Messes and rooms are fetched using the decoupled Firestore service layer.
+ * Uses district-scoped Firestore queries and in-memory caching to minimize Firebase read costs.
  */
 const useMesses = (selectedDistrict) => {
-    const [messes, setMesses] = useState([]);
-    const [rooms, setRooms] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const cacheKey = selectedDistrict || 'all';
+    const cached = districtCache.get(cacheKey);
+
+    const [messes, setMesses] = useState(() => cached?.messes || []);
+    const [rooms, setRooms] = useState(() => cached?.rooms || []);
+    const [loading, setLoading] = useState(() => !cached);
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLoading(true);
+        let currentMesses = districtCache.get(cacheKey)?.messes || [];
+        let currentRooms = districtCache.get(cacheKey)?.rooms || [];
 
-        // Fetch Messes using messService
+        // Fetch Messes filtered by district
         const unsubscribeMesses = watchMesses(
+            selectedDistrict,
             (messesData) => {
-                let filteredMesses = messesData;
-                // Client-side filter to handle legacy messes gracefully
-                if (selectedDistrict) {
-                    filteredMesses = messesData.filter(m => 
-                        m.district === selectedDistrict || (!m.district && selectedDistrict === 'balasore')
+                let filtered = messesData;
+                if (selectedDistrict && selectedDistrict !== 'all') {
+                    const normDist = selectedDistrict.toLowerCase();
+                    filtered = messesData.filter(m => 
+                        (m.district && m.district.toLowerCase() === normDist) || 
+                        (!m.district && normDist === 'balasore')
                     );
                 }
-                setMesses(filteredMesses);
+                currentMesses = filtered;
+                districtCache.set(cacheKey, { messes: currentMesses, rooms: currentRooms, timestamp: Date.now() });
+                setMesses(filtered);
             }
         );
 
-        // Fetch Rooms using messService (retrieve all rooms to handle legacy room documents gracefully)
+        // Fetch Rooms filtered by district (drastically reduces document reads)
         const unsubscribeRooms = watchRooms(
-            null,
+            selectedDistrict,
             (roomsData) => {
-                setRooms(roomsData);
+                let filtered = roomsData;
+                if (selectedDistrict && selectedDistrict !== 'all') {
+                    const normDist = selectedDistrict.toLowerCase();
+                    filtered = roomsData.filter(r => 
+                        (r.district && r.district.toLowerCase() === normDist) || 
+                        (!r.district && normDist === 'balasore')
+                    );
+                }
+                currentRooms = filtered;
+                districtCache.set(cacheKey, { messes: currentMesses, rooms: currentRooms, timestamp: Date.now() });
+                setRooms(filtered);
                 setLoading(false);
             }
         );
@@ -41,10 +61,9 @@ const useMesses = (selectedDistrict) => {
             unsubscribeMesses();
             unsubscribeRooms();
         };
-    }, [selectedDistrict]);
+    }, [selectedDistrict, cacheKey]);
 
     return { messes, rooms, loading };
 };
 
 export default useMesses;
-

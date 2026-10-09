@@ -59,17 +59,21 @@ const CityPage = () => {
     const { currentUser } = useAuth();
     const { isMessWishlisted, toggleMessWishlist, isRoomWishlisted, toggleRoomWishlist } = useWishlist();
     const { error: toastError } = useToast();
-    const { selectedDistrict, setSelectedDistrict } = useDistrict();
+    const { selectedDistrict, setSelectedDistrict, districtsConfig, getCityDisplayName: resolveCityName, normalizeCityId, isMessInCity } = useDistrict();
+
+    // Normalize city ID (e.g. 'balasore' -> 'baleshwar', 'vyasanagar' -> 'jajpur_road')
+    const normalizedCityId = useMemo(() => normalizeCityId ? normalizeCityId(cityId) : (cityId || '').toLowerCase(), [cityId, normalizeCityId]);
 
     // 1. Resolve district for this city (prefer route param, fall back to config lookup)
     const resolvedDistrictId = useMemo(() => {
-        if (routeDistrictId && DISTRICTS_CONFIG[routeDistrictId]) return routeDistrictId;
-        for (const distId in DISTRICTS_CONFIG) {
-            const cities = DISTRICTS_CONFIG[distId].cities || [];
-            if (cities.some(c => c.id === cityId)) return distId;
+        const cfg = districtsConfig || DISTRICTS_CONFIG;
+        if (routeDistrictId && cfg[routeDistrictId]) return routeDistrictId;
+        for (const distId in cfg) {
+            const cities = cfg[distId].cities || [];
+            if (cities.some(c => c.id === normalizedCityId || c.id === cityId)) return distId;
         }
         return 'balasore'; // default fallback
-    }, [cityId, routeDistrictId]);
+    }, [cityId, normalizedCityId, routeDistrictId, districtsConfig]);
 
     // Update selected district in context to match this city's district
     useEffect(() => {
@@ -78,14 +82,14 @@ const CityPage = () => {
         }
     }, [resolvedDistrictId, selectedDistrict, setSelectedDistrict]);
 
-    const cityName = CITY_NAMES[cityId] || cityId.charAt(0).toUpperCase() + cityId.slice(1);
+    const cityName = resolveCityName ? resolveCityName(normalizedCityId) : (CITY_NAMES[normalizedCityId] || normalizedCityId);
 
     // 2. SEO setup
     usePageSEO({
         title: `Messes in ${cityName} | MessKhojo`,
         description: `Browse verified boys and girls messes, PGs and hostel accommodations in ${cityName}. Filter by price, amenities, availability and direct contact owners.`,
         keywords: `mess in ${cityName}, hostels in ${cityName}, PGs in ${cityName}, student rooms in ${cityName}, messkhojo`,
-        canonicalUrl: `https://messkhojo.com/district/${resolvedDistrictId}/city/${cityId}`,
+        canonicalUrl: `https://messkhojo.com/district/${resolvedDistrictId}/city/${normalizedCityId}`,
     });
 
     // 3. Load data for this district
@@ -299,9 +303,7 @@ const CityPage = () => {
         // Filter and scope messes to current city + filter hidden
         const cityMesses = messes.filter(m => {
             if (m.hidden) return false;
-            // Check if city matches
-            const currentCity = m.city ? m.city.trim().toLowerCase() : 'other';
-            return currentCity === cityId.toLowerCase();
+            return isMessInCity ? isMessInCity(m, normalizedCityId, resolvedDistrictId) : (m.city?.toLowerCase() === normalizedCityId);
         });
 
         // Search location filter
@@ -442,15 +444,14 @@ const CityPage = () => {
         }
 
         return result;
-    }, [messes, rooms, filters, userLocation, cityId]);
+    }, [messes, rooms, filters, userLocation, normalizedCityId, resolvedDistrictId, isMessInCity]);
 
     const filteredRoomsList = useMemo(() => {
         if (!filters.occupancy) return [];
 
         let cityMesses = messes.filter(m => {
             if (m.hidden) return false;
-            const currentCity = m.city ? m.city.trim().toLowerCase() : 'other';
-            return currentCity === cityId.toLowerCase();
+            return isMessInCity ? isMessInCity(m, normalizedCityId, resolvedDistrictId) : (m.city?.toLowerCase() === normalizedCityId);
         });
 
         // Apply location search to narrow down messes (same logic as filteredMessesList)
@@ -527,7 +528,7 @@ const CityPage = () => {
         });
 
         return result;
-    }, [messes, rooms, filters, cityId]);
+    }, [messes, rooms, filters, normalizedCityId, resolvedDistrictId, isMessInCity]);
 
     // Scroll to top immediately on fresh city page navigation (when not restoring a card position from back navigation)
     useEffect(() => {

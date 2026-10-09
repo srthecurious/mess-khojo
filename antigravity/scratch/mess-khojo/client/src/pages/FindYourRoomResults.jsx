@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { ArrowLeft, ArrowRight, BedDouble, MapPin, CheckCircle, XCircle, Home, Search, Users, User, Banknote, AlertCircle, History } from 'lucide-react';
 import { getSuggestions } from '../utils/suggestionEngine';
 import { toMessSlug } from '../utils/slugify';
@@ -242,9 +242,15 @@ const FindYourRoomResults = () => {
         let cancelled = false;
         const fetchData = async () => {
             try {
+                let messQuery = collection(db, 'messes');
+                let roomQuery = collection(db, 'rooms');
+                if (inquiry.district && inquiry.district !== 'all') {
+                    messQuery = query(collection(db, 'messes'), where('district', '==', inquiry.district));
+                    roomQuery = query(collection(db, 'rooms'), where('district', '==', inquiry.district));
+                }
                 const [messSnap, roomSnap] = await Promise.all([
-                    getDocs(collection(db, 'messes')),
-                    getDocs(collection(db, 'rooms')),
+                    getDocs(messQuery),
+                    getDocs(roomQuery),
                 ]);
                 if (cancelled) return;
                 setMesses(messSnap.docs.map(d => ({ id: d.id, ...d.data() })));

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { watchMesses, watchRooms } from '../services/messService';
+import { normalizeCityId } from '../context/DistrictContext';
 
 /**
  * useAllCityMesses — fetches all messes and rooms, enriches messes with image count
@@ -65,11 +66,20 @@ const useAllCityMesses = () => {
             };
         });
 
-        // Group messes by city
+        // Group messes by city using normalized city IDs
         const groups = {};
         enrichedMesses.forEach(mess => {
-            // Trim and convert to lowercase just to be safe
-            const city = mess.city ? mess.city.trim().toLowerCase() : 'other';
+            let city = normalizeCityId(mess.city);
+            if (!city || city === 'other') {
+                const dist = (mess.district || '').trim().toLowerCase();
+                const loc = (mess.locality || mess.landmark || '').trim().toLowerCase();
+                if ((!dist || dist === 'balasore') && !loc.includes('remuna')) city = 'baleshwar';
+                else if (dist === 'bhadrak' && !loc.includes('basudevpur')) city = 'bhadrak';
+                else if (dist === 'mayurbhanj') city = 'baripada';
+                else if (dist === 'khorda') city = 'bhubaneswar';
+                else if (dist === 'jajpur' && !loc.includes('road') && !loc.includes('vyasanagar')) city = 'jajpur_town';
+                else city = 'other';
+            }
             if (!groups[city]) {
                 groups[city] = [];
             }

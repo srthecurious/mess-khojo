@@ -16,17 +16,21 @@ service cloud.firestore {
     }
 
     /**
-     * True if the caller holds the 'admin' custom claim.
-     * Admins are mess owners granted elevated rights by the operator.
-     * Grant via: admin.auth().setCustomUserClaims(uid, { admin: true })
+     * True if the caller holds the 'admin' custom claim, OR has role == 'admin' or 'operator' in users collection.
      */
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'operator'))
+      );
     }
 
     /** True if the caller is the owner of the mess referenced by messId. */
     function isMessOwner(messId) {
       return isAuthenticated() &&
+        exists(/databases/$(database)/documents/messes/$(messId)) &&
         get(/databases/$(database)/documents/messes/$(messId)).data.adminId == request.auth.uid;
     }
 
@@ -92,20 +96,28 @@ service cloud.firestore {
     }
 
     // ─── Bookings ────────────────────────────────────────────────────────────
-    // • Users can read/create/update/delete only their own bookings.
-    // • Operator can manage all bookings.
-    // • userId on create must equal the caller's UID (no spoofing).
+    // • Anyone can create a booking request (including guests calling owner).
+    // • Authenticated users can read bookings (students, mess owners, operators).
+    // • Mess owners, students, admins, and operator can update/delete.
 
     match /bookings/{bookingId} {
-      allow create: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.keys().hasAll(['userId', 'messId', 'roomId']);
+      allow create: if true;
 
-      allow read: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isOperator());
+      allow read: if isAuthenticated();
 
-      allow update, delete: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isOperator());
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isMessOwner(resource.data.messId) ||
+        isAdmin() ||
+        isOperator()
+      );
+
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isMessOwner(resource.data.messId) ||
+        isAdmin() ||
+        isOperator()
+      );
     }
 
     // ─── Claims & Inquiries ──────────────────────────────────────────────────
