@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { getCleanOccupancy } from '../utils/occupancy';
 
 const WEBHOOK_URL = import.meta.env.VITE_GOOGLE_SHEET_WEBHOOK_URL || import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL || '';
-const WEBHOOK_SECRET = import.meta.env.VITE_GOOGLE_SHEET_SECRET || 'mk_sync_secret_2026';
+const WEBHOOK_SECRET = import.meta.env.VITE_GOOGLE_SHEET_SECRET || '';
 
 /**
  * Standardized Occupancy Configuration (Tiers 1 to 8 seaters)
