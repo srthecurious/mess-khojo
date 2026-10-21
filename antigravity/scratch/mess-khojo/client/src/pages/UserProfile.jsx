@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart, Maximize2 } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Calendar, MapPin, BedDouble, Edit2, Check, X, AlertTriangle, Heart, Maximize2, Lock, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
-import { trackLogout, trackAccountDelete } from '../analytics';
+import { trackLogout } from '../analytics';
 import ImageModal from '../components/ImageModal';
+import { useToast } from '../context/ToastContext';
 
 const UserProfile = () => {
     usePageSEO({ title: 'My Profile | MessKhojo', noindex: true });
-    const { currentUser, logout, userRole, deleteAccount, loading: authLoading } = useAuth();
+    const { currentUser, logout, userRole, loading: authLoading } = useAuth();
+    const { success: toastSuccess, error: toastError } = useToast();
     const [userData, setUserData] = useState(null);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [isEditingPhone, setIsEditingPhone] = useState(false);
-    const [editedPhone, setEditedPhone] = useState('');
-    const [phoneError, setPhoneError] = useState('');
-    const [savingPhone, setSavingPhone] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deletingAccount, setDeletingAccount] = useState(false);
-    const [deleteError, setDeleteError] = useState('');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editError, setEditError] = useState('');
+    const [savingDetails, setSavingDetails] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -68,41 +69,56 @@ const UserProfile = () => {
         fetchData();
     }, [currentUser, authLoading, navigate]);
 
-    const handleEditPhone = () => {
-        setEditedPhone(userData?.phone || '');
-        setIsEditingPhone(true);
-        setPhoneError('');
+
+    const handleOpenEditModal = () => {
+        setEditName(userData?.name || currentUser?.displayName || '');
+        setEditPhone(userData?.phone || '');
+        setEditError('');
+        setIsEditModalOpen(true);
     };
 
-    const handleCancelEditPhone = () => {
-        setIsEditingPhone(false);
-        setEditedPhone('');
-        setPhoneError('');
-    };
+    const handleSaveDetails = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
 
-    const handleSavePhone = async () => {
-        if (editedPhone.length < 10) {
-            setPhoneError('Please enter a valid 10-digit phone number');
+        const trimmedName = editName.trim();
+        if (!trimmedName) {
+            setEditError('Please enter your full name');
             return;
         }
 
-        setSavingPhone(true);
-        setPhoneError('');
+        const cleanPhone = editPhone.replace(/\D/g, '').slice(0, 10);
+        if (cleanPhone && cleanPhone.length !== 10) {
+            setEditError('Please enter a valid 10-digit mobile number');
+            return;
+        }
+
+        setSavingDetails(true);
+        setEditError('');
 
         try {
             const userDocRef = doc(db, "users", currentUser.uid);
             await updateDoc(userDocRef, {
-                phone: editedPhone
+                name: trimmedName,
+                phone: cleanPhone
             });
 
-            // Update local state
-            setUserData({ ...userData, phone: editedPhone });
-            setIsEditingPhone(false);
+            if (currentUser) {
+                try {
+                    await updateProfile(currentUser, { displayName: trimmedName });
+                } catch (authErr) {
+                    console.warn("Could not update auth profile displayName:", authErr);
+                }
+            }
+
+            setUserData(prev => ({ ...prev, name: trimmedName, phone: cleanPhone }));
+            setIsEditModalOpen(false);
+            toastSuccess('Profile details updated successfully!');
         } catch (error) {
-            console.error("Failed to update phone:", error);
-            setPhoneError('Failed to save phone number');
+            console.error("Failed to update profile details:", error);
+            setEditError(error.message || 'Failed to update profile details');
+            toastError('Failed to save details');
         } finally {
-            setSavingPhone(false);
+            setSavingDetails(false);
         }
     };
 
@@ -117,32 +133,6 @@ const UserProfile = () => {
             navigate('/user-login');
         } catch (error) {
             console.error("Failed to log out", error);
-        }
-    };
-
-    const handleDeleteAccount = async () => {
-        setDeletingAccount(true);
-        setDeleteError('');
-        try {
-            // Delete user document from Firestore (it cleans up their data profile)
-            const userDocRef = doc(db, "users", currentUser.uid);
-            await deleteDoc(userDocRef);
-
-            // Delete Firebase Auth user
-            await deleteAccount();
-            trackAccountDelete(true);
-            navigate('/user-login');
-        } catch (error) {
-            console.error("Failed to delete account:", error);
-            const errMsg = error.message || "Unknown error";
-            trackAccountDelete(false, errMsg);
-            if (error.code === 'auth/requires-recent-login' || error.message?.includes('requires-recent-login')) {
-                setDeleteError("For security reasons, please log out and log back in before deleting your account.");
-            } else {
-                setDeleteError(error.message || "Failed to delete account. Please try again later.");
-            }
-        } finally {
-            setDeletingAccount(false);
         }
     };
 
@@ -204,6 +194,16 @@ const UserProfile = () => {
                     <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-brand-primary/10 to-transparent rounded-full -mr-20 -mt-20 blur-3xl"></div>
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-purple-400/5 to-transparent rounded-full -ml-16 -mb-16 blur-2xl"></div>
 
+                    {/* Edit Details Button */}
+                    <button
+                        onClick={handleOpenEditModal}
+                        className="absolute top-5 right-5 sm:top-7 sm:right-7 flex items-center gap-1.5 px-3.5 py-2 bg-white/90 hover:bg-white text-gray-700 hover:text-brand-primary rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md transition-all font-bold text-xs uppercase tracking-wider cursor-pointer group backdrop-blur-sm z-10"
+                        title="Edit Details"
+                    >
+                        <Edit2 size={13} className="text-brand-primary group-hover:scale-110 transition-transform" />
+                        <span className="hidden sm:inline">Edit Details</span>
+                    </button>
+
                     <div className="relative space-y-8">
                         {/* Avatar and Name Section - Centered */}
                         <div className="flex flex-col items-center text-center space-y-4">
@@ -246,9 +246,19 @@ const UserProfile = () => {
 
                             {/* Name and Member Since */}
                             <div className="space-y-2">
-                                <h1 className="text-3xl md:text-4xl font-black text-brand-text-dark leading-tight tracking-tight bg-gradient-to-r from-brand-text-dark to-brand-primary bg-clip-text">
-                                    {userData?.name || "User"}
-                                </h1>
+                                <div className="flex items-center justify-center gap-2">
+                                    <h1 className="text-3xl md:text-4xl font-black text-brand-text-dark leading-tight tracking-tight bg-gradient-to-r from-brand-text-dark to-brand-primary bg-clip-text">
+                                        {userData?.name || "User"}
+                                    </h1>
+                                    <button
+                                        onClick={handleOpenEditModal}
+                                        className="p-1.5 text-gray-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-xl transition-all cursor-pointer group"
+                                        title="Edit details"
+                                        aria-label="Edit details"
+                                    >
+                                        <Edit2 size={20} className="group-hover:scale-110 transition-transform" />
+                                    </button>
+                                </div>
                                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-primary/10 rounded-full border border-brand-primary/20">
                                     <Calendar size={14} className="text-brand-primary" />
                                     <p className="text-brand-text-gray text-xs font-bold uppercase tracking-wider">
@@ -268,60 +278,23 @@ const UserProfile = () => {
                                 <span className="truncate text-xs md:text-sm">{currentUser.email}</span>
                             </div>
                             
-                            {/* Phone Card - Editable */}
-                            {!isEditingPhone ? (
-                                <div className="flex-1 flex items-center justify-between gap-3 text-sm font-semibold text-brand-text-dark bg-gradient-to-br from-green-50 to-white px-4 py-3.5 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-green-500/10 rounded-xl">
-                                            <Phone size={18} className="text-green-600" />
-                                        </div>
-                                        <span className="text-xs md:text-sm">{userData?.phone || "Phone Not Set"}</span>
+                            {/* Phone Card */}
+                            <div className="flex-1 flex items-center justify-between gap-3 text-sm font-semibold text-brand-text-dark bg-gradient-to-br from-green-50 to-white px-4 py-3.5 rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all group">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-green-500/10 rounded-xl">
+                                        <Phone size={18} className="text-green-600" />
                                     </div>
-                                    <button
-                                        onClick={handleEditPhone}
-                                        className="p-1.5 hover:bg-green-100 rounded-lg transition-all opacity-0 group-hover:opacity-100 transform group-hover:scale-110"
-                                        title="Edit phone number"
-                                    >
-                                        <Edit2 size={14} className="text-green-600" />
-                                    </button>
+                                    <span className="text-xs md:text-sm">{userData?.phone || "Phone Not Set"}</span>
                                 </div>
-                            ) : (
-                                <div className="flex-1 flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="tel"
-                                            value={editedPhone}
-                                            onChange={(e) => setEditedPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                            className="flex-1 px-4 py-3 text-sm border-2 border-brand-primary/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent shadow-sm"
-                                            placeholder="10 digit mobile"
-                                            maxLength="10"
-                                            autoFocus
-                                        />
-                                        <button
-                                            onClick={handleSavePhone}
-                                            disabled={savingPhone}
-                                            className="p-3 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl disabled:opacity-50 transition-all shadow-lg active:scale-95"
-                                            title="Save"
-                                        >
-                                            <Check size={18} strokeWidth={3} />
-                                        </button>
-                                        <button
-                                            onClick={handleCancelEditPhone}
-                                            disabled={savingPhone}
-                                            className="p-3 bg-gradient-to-br from-gray-300 to-gray-400 hover:from-gray-400 hover:to-gray-500 text-gray-700 rounded-xl disabled:opacity-50 transition-all shadow-lg active:scale-95"
-                                            title="Cancel"
-                                        >
-                                            <X size={18} strokeWidth={3} />
-                                        </button>
-                                    </div>
-                                    {phoneError && (
-                                        <p className="text-xs text-red-600 font-semibold px-2 flex items-center gap-1">
-                                            <AlertTriangle size={12} />
-                                            {phoneError}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
+                                <button
+                                    onClick={handleOpenEditModal}
+                                    className="p-1.5 hover:bg-green-100 text-green-600 rounded-lg transition-all transform hover:scale-110 cursor-pointer"
+                                    title="Edit phone number"
+                                    aria-label="Edit phone number"
+                                >
+                                    <Edit2 size={15} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Action Buttons - Enhanced */}
@@ -413,11 +386,11 @@ const UserProfile = () => {
                     )}
                 </div>
 
-                {/* Logout Button Section */}
-                <div className="pt-12 pb-8 border-t border-gray-100 flex flex-col items-center gap-4">
+                {/* Account Actions Section */}
+                <div className="pt-12 pb-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-center gap-4">
                     <button
                         onClick={handleLogout}
-                        className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-3 px-10 py-4 bg-white text-red-600 rounded-3xl hover:bg-red-50 transition-all font-black text-sm uppercase tracking-widest border-2 border-red-50 shadow-lg active:scale-95"
+                        className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-3 px-10 py-4 bg-white text-brand-primary rounded-3xl hover:bg-brand-primary/5 transition-all font-black text-sm uppercase tracking-widest border-2 border-brand-primary/15 shadow-lg active:scale-95 cursor-pointer"
                     >
                         <LogOut size={20} strokeWidth={2.5} />
                         Sign Out Account
@@ -425,63 +398,144 @@ const UserProfile = () => {
 
                     {userRole !== 'admin' && userRole !== 'operator' && (
                         <button
-                            onClick={() => setShowDeleteModal(true)}
-                            className="text-xs text-brand-text-gray hover:text-red-500 transition-colors mt-2 font-medium"
+                            onClick={() => navigate('/delete-account')}
+                            className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-3 px-10 py-4 bg-white text-red-600 rounded-3xl hover:bg-red-50 transition-all font-black text-sm uppercase tracking-widest border-2 border-red-50 shadow-lg active:scale-95 cursor-pointer"
                         >
+                            <Trash2 size={20} strokeWidth={2.5} />
                             Delete My Account
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Delete Account Modal */}
-            {showDeleteModal && (
+            {/* Edit Profile Details Modal */}
+            {isEditModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform transition-all">
-                        <div className="flex justify-center mb-4">
-                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500">
-                                <AlertTriangle size={32} />
+                    <div className="bg-white rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl border border-gray-100 relative">
+                        {/* Close button */}
+                        <button
+                            onClick={() => !savingDetails && setIsEditModalOpen(false)}
+                            disabled={savingDetails}
+                            className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                            aria-label="Close"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 bg-brand-primary/10 rounded-2xl flex items-center justify-center text-brand-primary">
+                                <Edit2 size={22} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900">Edit Details</h3>
+                                <p className="text-xs text-gray-500">Update your account display information</p>
                             </div>
                         </div>
-                        <h3 className="text-xl font-bold text-center text-gray-900 mb-2">Delete Account?</h3>
-                        <p className="text-center text-sm text-gray-600 mb-6 font-medium">
-                            This action cannot be undone. All your details, history, and active requests will be permanently removed.
-                        </p>
 
-                        {deleteError && (
-                            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-center flex flex-col items-center gap-3">
-                                <p className="text-red-600 text-xs font-medium">{deleteError}</p>
-                                {deleteError.includes('log out and log back in') && (
-                                    <button
-                                        onClick={handleLogout}
-                                        className="px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm hover:bg-red-700 active:scale-95 transition-all flex items-center gap-2"
-                                    >
-                                        <LogOut size={14} strokeWidth={2.5} />
-                                        Log Out Now
-                                    </button>
-                                )}
+                        {editError && (
+                            <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-semibold flex items-center gap-2">
+                                <AlertTriangle size={16} className="shrink-0" />
+                                <span>{editError}</span>
                             </div>
                         )}
 
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={handleDeleteAccount}
-                                disabled={deletingAccount}
-                                className="w-full py-3.5 bg-red-500 text-white rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {deletingAccount ? "Deleting..." : "Yes, Delete Account"}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setDeleteError('');
-                                }}
-                                disabled={deletingAccount}
-                                className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-bold uppercase tracking-wide text-sm hover:bg-gray-200 transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                        </div>
+                        <form onSubmit={handleSaveDetails} className="space-y-4">
+                            {/* Full Name input */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                                    Full Name
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                                        <User size={18} />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        placeholder="Enter your name"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
+                                        disabled={savingDetails}
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Mobile Phone Number input */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                                    Mobile Phone Number
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                                        <Phone size={18} />
+                                    </div>
+                                    <input
+                                        type="tel"
+                                        value={editPhone}
+                                        onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        placeholder="10-digit mobile number"
+                                        maxLength="10"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
+                                        disabled={savingDetails}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email Address readonly */}
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Email Address
+                                    </label>
+                                    <span className="text-[10px] text-gray-400 flex items-center gap-1 font-semibold">
+                                        <Lock size={10} /> Locked
+                                    </span>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                                        <Mail size={18} />
+                                    </div>
+                                    <input
+                                        type="email"
+                                        value={currentUser.email || ''}
+                                        readOnly
+                                        disabled
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm font-medium text-gray-500 cursor-not-allowed select-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Modal Action Buttons */}
+                            <div className="flex gap-3 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    disabled={savingDetails}
+                                    className="flex-1 py-3 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={savingDetails}
+                                    className="flex-1 py-3 px-4 rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    {savingDetails ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check size={16} />
+                                            <span>Save Changes</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

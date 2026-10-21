@@ -37,6 +37,7 @@ const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const UserSignup = React.lazy(() => import('./pages/UserSignup'));
 const UserLogin = React.lazy(() => import('./pages/UserLogin'));
 const UserProfile = React.lazy(() => import('./pages/UserProfile'));
+const DeleteAccount = React.lazy(() => import('./pages/DeleteAccount'));
 const OperationalLogin = React.lazy(() => import('./pages/OperationalLogin'));
 const OperationalDashboard = React.lazy(() => import('./pages/OperationalDashboard'));
 const BookingSuccess = React.lazy(() => import('./pages/BookingSuccess'));
@@ -151,6 +152,22 @@ function AppContent() {
               <Route path="/user-signup" element={<UserSignup />} />
               <Route path="/user-login" element={<UserLogin />} />
               <Route path="/profile" element={<UserProfile />} />
+              <Route
+                path="/delete-account"
+                element={
+                  <ProtectedRoute requiredRole="any" redirectTo="/user-login?redirect=/delete-account">
+                    <DeleteAccount />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/delete-account"
+                element={
+                  <ProtectedRoute requiredRole="any" redirectTo="/user-login?redirect=/delete-account">
+                    <DeleteAccount />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/booking-success" element={<BookingSuccess />} />
               <Route path="/register-mess" element={<MessRegistration />} />
